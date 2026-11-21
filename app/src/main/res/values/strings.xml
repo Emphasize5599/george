@@ -218,6 +218,6 @@
     <string name="unsupported">Unsupported</string>
     <string name="why_unsupported">Why is this unsupported?</string>
     <string name="unsupported_title">Why is Refresh unsupported?</string>
-    <string name="unsupported_iphone_body">%1$s is on an iPhone with Live Requests turned off. Zood\'s servers can\'t wake an iPhone, so the app has to stay running in the background to hear a request, and theirs isn\'t.\n\nTheir location still updates on its own whenever they move. To enable Refresh, %1$s can turn on Live Requests in the app\'s Settings and allow location access \"Always\".</string>
+    <string name="unsupported_iphone_body">%1$s\'s iPhone isn\'t listening for requests right now. Zood\'s servers can\'t wake an iPhone, so the app has to stay running in the background to hear one. That stops if Live Requests is off, or if the app was swiped closed.\n\nTheir location still updates on its own whenever they move. To enable Refresh, %1$s can open the app (and turn on Live Requests with location access \"Always\" if it\'s off).</string>
     <string name="unsupported_android_body">%1$s has Live Requests turned off, so their phone isn\'t listening for requests.\n\nTheir location still updates on its own whenever they move. To enable Refresh, %1$s can turn on Live Requests in Settings.</string>
 </resources>
