@@ -33,6 +33,8 @@ import io.pijun.george.queue.PersistentQueue;
 import retrofit2.Response;
 import xyz.zood.george.AvatarManager;
 import xyz.zood.george.Permissions;
+import xyz.zood.george.FriendDevices;
+import xyz.zood.george.service.LiveRequestService;
 import xyz.zood.george.service.LocationService;
 import xyz.zood.george.service.ScreamerService;
 import xyz.zood.george.worker.BackupDatabaseWorker;
@@ -307,6 +309,7 @@ public class MessageProcessor {
             // there should be a friend record for any locations that we receive
             return Result.ErrorNotAFriend;
         }
+        FriendDevices.record(App.getApp(), user.userId, comm);
         try {
             db.setFriendLocation(fr.id, comm.latitude, comm.longitude, comm.time, comm.accuracy, comm.speed, comm.bearing, comm.movement, comm.batteryLevel, comm.batteryCharging);
         } catch (DB.DBException ex) {
@@ -375,8 +378,18 @@ public class MessageProcessor {
         }
 
         L.i("MP attempting to start LocationService");
-        Intent serviceIntent = LocationService.newIntent(context, userRecord.id);
-        context.startForegroundService(serviceIntent);
+        if (!LiveRequestService.fulfillRequest(userRecord.id)) {
+            Intent serviceIntent = LocationService.newIntent(context, userRecord.id);
+            try {
+                context.startForegroundService(serviceIntent);
+            } catch (IllegalStateException ex) {
+                // ForegroundServiceStartNotAllowedException: we're in the background with no exemption.
+                L.w("MessageProcessor unable to start LocationService from background", ex);
+                UserComm done = UserComm.newLocationUpdateRequestReceived(UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED);
+                OscarClient.immediatelySendMessage(userRecord, accessToken, keyPair, done, true, true);
+                return Result.Success;
+            }
+        }
 
         // let them know we've started
         L.i("queueing update starting");
@@ -396,6 +409,7 @@ public class MessageProcessor {
         if (friend == null || friend.receivingBoxId == null) {
             return Result.Success;
         }
+        FriendDevices.record(App.getApp(), user.userId, comm);
         UpdateStatusTracker.setUpdateRequestResponse(friend.id, System.currentTimeMillis(), comm.locationUpdateRequestAction);
 
         return Result.Success;

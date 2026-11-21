@@ -2,9 +2,6 @@ package io.pijun.george;
 
 import android.content.Context;
 
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.messaging.FirebaseMessaging;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.PicassoTools;
 
@@ -37,6 +34,8 @@ import xyz.zood.george.receiver.PassiveLocationReceiver;
 import io.pijun.george.sodium.HashConfig;
 import retrofit2.Response;
 import xyz.zood.george.AvatarManager;
+import xyz.zood.george.FriendDevices;
+import xyz.zood.george.service.LiveRequestService;
 
 public class AuthenticationManager {
 
@@ -274,18 +273,8 @@ public class AuthenticationManager {
 
         notifyLoginWatchers(Error.None, null, watcher);
 
-        // If the device has an FCM token, upload it
-        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(new OnCompleteListener<>() {
-            @Override
-            public void onComplete(@NonNull Task<String> task) {
-                if (!task.isSuccessful() && task.getException() != null) {
-                    L.w("AuthenticationManager._login failed to obtain FCM registration token", task.getException());
-                    return;
-                }
-
-                OscarClient.queueAddFcmToken(ctx, loginResponse.accessToken, task.getResult());
-            }
-        });
+        // No push in this fork: keep a live socket in a foreground service instead (if enabled).
+        LiveRequestService.startIfEnabled(ctx);
 
         // request avatars from all friends
         UserComm avatarReq = UserComm.newAvatarRequest();
@@ -309,12 +298,9 @@ public class AuthenticationManager {
             @Override
             public void run() {
                 Prefs prefs = Prefs.get(ctx);
-                String accessToken = prefs.getAccessToken();
-                String fcmToken = prefs.getFcmToken();
-                if (accessToken != null && fcmToken != null) {
-                    OscarClient.queueDeleteFcmToken(ctx, accessToken, fcmToken);
-                }
+                LiveRequestService.stop(ctx);
                 prefs.clearAll();
+                FriendDevices.clearAll(ctx);
                 DB.get().deleteAllData();
                 LocationWorker.unscheduleLocationWorker(ctx);
                 PassiveLocationReceiver.stopUpdates(ctx);

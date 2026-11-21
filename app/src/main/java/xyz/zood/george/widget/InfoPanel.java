@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Outline;
 import android.graphics.drawable.Drawable;
 import android.text.format.DateUtils;
+import android.transition.TransitionManager;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
@@ -22,6 +23,7 @@ import androidx.annotation.ColorRes;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.annotation.UiThread;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.appcompat.widget.SwitchCompat;
@@ -38,6 +40,7 @@ import io.pijun.george.UiRunnable;
 import io.pijun.george.UpdateStatusTracker;
 import io.pijun.george.database.FriendLocation;
 import io.pijun.george.database.FriendRecord;
+import xyz.zood.george.FriendDevices;
 import xyz.zood.george.R;
 import xyz.zood.george.geocoding.RevGeocoding;
 import xyz.zood.george.geocoding.ReverseGeocodingCache;
@@ -69,6 +72,10 @@ public class InfoPanel {
     @NonNull private final TextView shareSwitchLabel;
     @NonNull private final TextView updateTime;
     @NonNull private final TextView username;
+    // Family Locator: "Unsupported (?)" under Refresh, plus the explanation tile it opens
+    @NonNull private final View unsupportedRow;
+    @NonNull private final View unsupportedTile;
+    @NonNull private final TextView unsupportedTileBody;
 
     @UiThread
     public InfoPanel(@NonNull ConstraintLayout root, @NonNull Context ctx, @NonNull Listener listener) {
@@ -131,6 +138,28 @@ public class InfoPanel {
             }
         });
 
+        unsupportedRow = root.findViewById(R.id.unsupported_row);
+        unsupportedTile = root.findViewById(R.id.unsupported_tile);
+        unsupportedTileBody = root.findViewById(R.id.unsupported_tile_body);
+        if (unsupportedRow == null || unsupportedTile == null || unsupportedTileBody == null) {
+            throw new IllegalArgumentException("unsupported views are missing");
+        }
+        root.findViewById(R.id.unsupported_info).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean show = unsupportedTile.getVisibility() != View.VISIBLE;
+                TransitionManager.beginDelayedTransition(panel);
+                unsupportedTile.setVisibility(show ? View.VISIBLE : View.GONE);
+            }
+        });
+        root.findViewById(R.id.unsupported_tile_close).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                TransitionManager.beginDelayedTransition(panel);
+                unsupportedTile.setVisibility(View.GONE);
+            }
+        });
+
         refreshProgressBar = root.findViewById(R.id.refresh_progress_bar);
         if (refreshProgressBar == null) {
             throw new IllegalArgumentException("'refreshProgressBar' is missing ");
@@ -161,6 +190,9 @@ public class InfoPanel {
     private void calculateAndUpdateRefreshButton(long currTime) {
         // if it's been less than 3 minutes since the last update, disable the refresh button
         refreshButton.setVisibility(View.VISIBLE);
+        if (applyRequestCapability()) {
+            return;
+        }
         if ((currTime - currLoc.time) < 2 * DateUtils.MINUTE_IN_MILLIS) {
             refreshButton.setEnabled(false);
             long secondsSince = (currTime - currLoc.time) / 1000;
@@ -254,6 +286,29 @@ public class InfoPanel {
         menu.show();
     }
 
+    /**
+     * Grays out Refresh and shows "Unsupported (?)" when the friend's phone has told us it can't answer
+     * location requests (an iPhone, or a fork user, with Live Requests off).
+     * @return true if requests are unsupported for the current friend.
+     */
+    @UiThread
+    private boolean applyRequestCapability() {
+        FriendRecord friend = currFriend;
+        FriendDevices.Device device = friend == null ? null : FriendDevices.get(context, friend.user.userId);
+        boolean unsupported = friend != null && friend.receivingBoxId != null && device != null && device.cannotAnswerRequests();
+        if (!unsupported) {
+            unsupportedRow.setVisibility(View.GONE);
+            unsupportedTile.setVisibility(View.GONE);
+            return false;
+        }
+        refreshButton.setEnabled(false);
+        refreshButton.setText(R.string.refresh);
+        unsupportedRow.setVisibility(View.VISIBLE);
+        @StringRes int body = device.isIPhone() ? R.string.unsupported_iphone_body : R.string.unsupported_android_body;
+        unsupportedTileBody.setText(context.getString(body, friend.user.username));
+        return true;
+    }
+
     @UiThread
     private void onRefreshClicked() {
         final FriendRecord friend = getFriend();
@@ -276,6 +331,9 @@ public class InfoPanel {
                     .start();
         }
 
+        if (currFriend == null || currFriend.id != friend.id) {
+            unsupportedTile.setVisibility(View.GONE);
+        }
         currFriend = friend;
         currLoc = loc;
         showId++;
@@ -298,6 +356,8 @@ public class InfoPanel {
             address.setText(R.string.not_sharing_with_you);
             refreshProgressBar.setVisibility(View.INVISIBLE);
             refreshButton.setVisibility(View.INVISIBLE);
+            unsupportedRow.setVisibility(View.GONE);
+            unsupportedTile.setVisibility(View.GONE);
             bearing.setVisibility(View.GONE);
             motion.setVisibility(View.GONE);
             updateTime.setVisibility(View.INVISIBLE);
@@ -311,6 +371,7 @@ public class InfoPanel {
             address.setText(R.string.waiting_for_location_ellipsis);
             refreshButton.setVisibility(View.VISIBLE);
             refreshButton.setText(R.string.refresh);
+            refreshButton.setEnabled(!applyRequestCapability());
             updateTime.setVisibility(View.INVISIBLE);
             bearing.setVisibility(View.GONE);
             motion.setVisibility(View.GONE);

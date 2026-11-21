@@ -35,9 +35,6 @@ import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.messaging.FirebaseMessaging;
 
 import org.maplibre.android.MapLibre;
 import org.maplibre.android.camera.CameraPosition;
@@ -88,6 +85,8 @@ import xyz.zood.george.viewmodels.Event;
 import xyz.zood.george.viewmodels.MainViewModel;
 import xyz.zood.george.widget.InfoPanel;
 import xyz.zood.george.widget.ZoodDialog;
+
+import xyz.zood.george.service.LiveRequestService;
 
 public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Listener, AuthenticationManager.Listener, OnSymbolClickListener, LocationListenerCompat {
 
@@ -339,18 +338,8 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         Context ctx = requireContext();
         checkPermissions();
 
-        // If the device has an FCM token, upload it
-        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(new OnCompleteListener<>() {
-            @Override
-            public void onComplete(@NonNull Task<String> task) {
-                if (!task.isSuccessful() && task.getException() != null) {
-                    L.w("MainFragment.start failed to obtain FCM registration token", task.getException());
-                    return;
-                }
-
-                OscarClient.queueAddFcmToken(ctx, accessToken, task.getResult());
-            }
-        });
+        // No push in this fork: keep a live socket in a foreground service instead (if enabled).
+        LiveRequestService.startIfEnabled(ctx);
 
         UpdateStatusTracker.addListener(updateStatusTrackerListener);
         App.runInBackground(new WorkerRunnable() {
@@ -1259,6 +1248,10 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         @Override
         public void onPushNotificationReceived(@NonNull PushNotification notification) {
             L.i("MF.onPushNotificationReceived");
+            // The live request service has its own socket and handles messages; don't process them twice.
+            if (LiveRequestService.isRunning()) {
+                return;
+            }
             Context ctx = App.getApp().getApplicationContext();
             MessageProcessor.Result result = MessageProcessor.decryptAndProcess(ctx,
                     notification.senderId,

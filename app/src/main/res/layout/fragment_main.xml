@@ -195,6 +195,85 @@
                 app:layout_constraintStart_toStartOf="@id/username"
                 app:layout_constraintTop_toBottomOf="@id/address" />
 
+            <!-- Family Locator: shown under Refresh when the friend's phone can't answer requests -->
+            <LinearLayout
+                android:id="@+id/unsupported_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible"
+                app:layout_constraintStart_toStartOf="@id/refresh_button"
+                app:layout_constraintTop_toBottomOf="@id/refresh_button">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/unsupported"
+                    android:textColor="@color/text_secondary"
+                    style="@style/Zood.Caption" />
+
+                <ImageButton
+                    android:id="@+id/unsupported_info"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/why_unsupported"
+                    android:src="@drawable/ic_help_outline_20dp"
+                    app:tint="@color/zood_blue_dark" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/unsupported_tile"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/bg_explanation_tile"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:visibility="gone"
+                tools:visibility="visible"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="@id/username"
+                app:layout_constraintTop_toBottomOf="@id/unsupported_row">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/unsupported_title"
+                        android:textColor="@color/zood_navy"
+                        android:textStyle="bold"
+                        style="@style/Zood.Body2" />
+
+                    <ImageButton
+                        android:id="@+id/unsupported_tile_close"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/close"
+                        android:src="@drawable/ic_close_black_24dp"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/unsupported_tile_body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_secondary"
+                    style="@style/Zood.Caption"
+                    tools:text="@string/unsupported_iphone_body" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/share_switch_label"
                 android:text="@string/sharing"

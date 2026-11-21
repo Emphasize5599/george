@@ -12,5 +12,7 @@ public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         L.i("BootReceiver.onReceive");
+        // Resume listening for family location requests (allowed at boot when background location is granted).
+        xyz.zood.george.service.LiveRequestService.startIfEnabled(context);
     }
 }

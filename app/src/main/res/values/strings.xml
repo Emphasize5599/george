@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Zood Location</string>
+    <string name="app_name">Family Locator</string>
     <string name="init">Init</string>
     <string name="sign_up">Sign up</string>
     <string name="username">Username</string>
@@ -203,4 +203,21 @@
     <string name="location_services_are_disabled">Location services are disabled</string>
     <string name="location_service_not_available_on_device">Location service not available on device</string>
     <string name="no_location_provider_available">No location provider available</string>
+
+    <!-- Family Locator fork -->
+    <string name="live_requests_channel_name">Live location requests</string>
+    <string name="live_requests_channel_description">Keeps a connection open so family can request your current location.</string>
+    <string name="live_requests_notification_title">Listening for location requests</string>
+    <string name="live_requests_notification_text">Family can tap Refresh to get your current location.</string>
+    <string name="live_requests">Live requests</string>
+    <string name="live_requests_on">Live requests: On</string>
+    <string name="live_requests_off">Live requests: Off</string>
+    <string name="live_requests_dialog_message">When on, the app keeps a low-power connection open in the background (shown as a silent notification) so family can tap Refresh to get your current location. When off, your location still updates as you move, but Refresh won\'t work for you.</string>
+    <string name="turn_on">Turn on</string>
+    <string name="turn_off">Turn off</string>
+    <string name="unsupported">Unsupported</string>
+    <string name="why_unsupported">Why is this unsupported?</string>
+    <string name="unsupported_title">Why is Refresh unsupported?</string>
+    <string name="unsupported_iphone_body">%1$s is on an iPhone with Live Requests turned off. Zood\'s servers can\'t wake an iPhone, so the app has to stay running in the background to hear a request, and theirs isn\'t.\n\nTheir location still updates on its own whenever they move. To enable Refresh, %1$s can turn on Live Requests in the app\'s Settings and allow location access \"Always\".</string>
+    <string name="unsupported_android_body">%1$s has Live Requests turned off, so their phone isn\'t listening for requests.\n\nTheir location still updates on its own whenever they move. To enable Refresh, %1$s can turn on Live Requests in Settings.</string>
 </resources>

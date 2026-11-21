@@ -1,5 +1,7 @@
 package io.pijun.george;
 
+import android.annotation.SuppressLint;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -7,6 +9,8 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -26,6 +30,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.squareup.picasso.Picasso;
 
 import java.io.File;
@@ -40,6 +45,7 @@ import xyz.zood.george.LicensesFragment;
 import xyz.zood.george.R;
 import xyz.zood.george.ThemeDialog;
 import xyz.zood.george.databinding.FragmentSettingsBinding;
+import xyz.zood.george.service.LiveRequestService;
 import xyz.zood.george.widget.ZoodDialog;
 
 public class SettingsFragment extends Fragment implements SettingsAdapter.Listener, AvatarManager.Listener {
@@ -236,6 +242,37 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
                 .replace(R.id.fragment_host, fragment)
                 .addToBackStack(null)
                 .commit();
+    }
+
+    @Override
+    public void onLiveRequestsAction() {
+        Context ctx = requireContext();
+        boolean on = LiveRequestService.isEnabled(ctx);
+        new MaterialAlertDialogBuilder(ctx)
+                .setTitle(R.string.live_requests)
+                .setMessage(R.string.live_requests_dialog_message)
+                .setPositiveButton(on ? R.string.turn_off : R.string.turn_on, (dialog, which) -> {
+                    LiveRequestService.setEnabled(ctx, !on);
+                    adapter.refreshLiveRequestsItem();
+                    if (!on) {
+                        requestIgnoreBatteryOptimizations(ctx);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** Doze would otherwise cut the background socket; ask to be exempted so requests keep arriving. */
+    @SuppressLint("BatteryLife")
+    private void requestIgnoreBatteryOptimizations(@NonNull Context ctx) {
+        PowerManager pm = ctx.getSystemService(PowerManager.class);
+        if (pm.isIgnoringBatteryOptimizations(ctx.getPackageName())) {
+            return;
+        }
+        Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + ctx.getPackageName()));
+        try {
+            startActivity(i);
+        } catch (ActivityNotFoundException ignore) {}
     }
 
     @Override

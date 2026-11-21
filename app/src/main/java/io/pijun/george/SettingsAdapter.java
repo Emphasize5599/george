@@ -26,6 +26,7 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     private static final int NOTIFICATIONS = 8;
     private static final int PRIVACY_POLICY = 9;
     private static final int THEME = 10;
+    private static final int LIVE_REQUESTS = 11;
 
     private final ArrayList<RecyclerViewAdapterItem> adapterItems = new ArrayList<>();
 
@@ -165,11 +166,33 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                         0);
                 break;
             }
+            case LIVE_REQUESTS: {
+                SettingsListItemViewHolder h = (SettingsListItemViewHolder) holder;
+                boolean on = xyz.zood.george.service.LiveRequestService.isEnabled(h.textView.getContext());
+                h.textView.setText(on ? R.string.live_requests_on : R.string.live_requests_off);
+                h.textView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        listener.onLiveRequestsAction();
+                    }
+                });
+                h.textView.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        R.drawable.ic_position_service,
+                        0,
+                        0,
+                        0);
+                break;
+            }
         }
     }
     //endregion
 
+    void refreshLiveRequestsItem() {
+        notifyDataSetChanged();
+    }
+
     private void rebuildRecycler() {
+        adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, LIVE_REQUESTS));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, THEME));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, PRIVACY_POLICY));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, ABOUT_ID));
@@ -180,6 +203,7 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     interface Listener {
         @UiThread void onAboutAction();
         @UiThread void onInviteFriendAction();
+        @UiThread void onLiveRequestsAction();
         @UiThread void onLogOutAction();
         @UiThread void onNotificationsClicked();
         @UiThread void onPrivacyPolicyClicked();

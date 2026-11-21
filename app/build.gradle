@@ -8,7 +8,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "xyz.zood.george"
+        applicationId "com.bensanzone.zood"
         compileSdk = 36
         minSdkVersion 29
         targetSdkVersion 36
@@ -107,12 +107,6 @@ dependencies {
     // ViewPager2
     implementation "androidx.viewpager2:viewpager2:1.1.0"
 
-    // cloud messaging
-    implementation ('com.google.firebase:firebase-messaging:25.0.1') {
-        exclude group: 'com.google.firebase', module: 'firebase-core'
-        exclude group: 'com.google.firebase', module: 'firebase-analytics'
-        exclude group: 'com.google.firebase', module: 'firebase-measurement-connector'
-    }
 
     implementation 'com.google.guava:guava:33.5.0-android'
 
@@ -138,7 +132,6 @@ dependencies {
     androidTestImplementation 'androidx.test:rules:1.7.0'
 }
 
-apply plugin: 'com.google.gms.google-services'
 
 configurations.implementation {
     exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'

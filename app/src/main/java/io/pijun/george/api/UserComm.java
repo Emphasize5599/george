@@ -16,6 +16,7 @@ import androidx.annotation.StringDef;
 import io.pijun.george.Constants;
 import io.pijun.george.L;
 import io.pijun.george.database.MovementType;
+import xyz.zood.george.service.LiveRequestService;
 
 import static java.lang.annotation.RetentionPolicy.SOURCE;
 
@@ -47,6 +48,13 @@ public class UserComm {
     // for device_info comm type
     @SuppressWarnings("WeakerAccess")
     public DeviceInfo deviceInfo;
+
+    // Fork extension (Family Locator): which platform sent this, and whether it holds a live socket so it can
+    // answer location update requests. Stock Zood ignores unknown fields, so these are safe to send to anyone.
+    public static final String PLATFORM_ANDROID = "android";
+    public static final String PLATFORM_IOS = "ios";
+    @Nullable public String platform;
+    @Nullable public Boolean liveRequests;
 
     @Retention(SOURCE)
     @StringDef({
@@ -120,6 +128,8 @@ public class UserComm {
         UserComm c = new UserComm();
         c.type = CommType.LocationUpdateRequestReceived;
         c.locationUpdateRequestAction = action;
+        c.platform = PLATFORM_ANDROID;
+        c.liveRequests = LiveRequestService.isRunning();
         return c;
     }
 
@@ -142,6 +152,8 @@ public class UserComm {
         c.movement = movement == null ? null : movement.val;
         c.batteryLevel = batteryLevel;
         c.batteryCharging = batteryCharging;
+        c.platform = PLATFORM_ANDROID;
+        c.liveRequests = LiveRequestService.isRunning();
 
         return c;
     }
