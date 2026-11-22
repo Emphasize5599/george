@@ -347,15 +347,7 @@ public class InfoPanel {
 
         // common stuff
         username.setText(friend.user.username);
-        shareSwitch.setOnCheckedChangeListener(null);
-        if (friend.sendingBoxId != null) {
-            shareSwitch.setChecked(true);
-            shareSwitchLabel.setText(R.string.sharing);
-        } else {
-            shareSwitch.setChecked(false);
-            shareSwitchLabel.setText(R.string.not_sharing);
-        }
-        shareSwitch.setOnCheckedChangeListener(shareCheckedChangeListener);
+        applySharingState(friend);
 
         // If they're not sharing with us
         if (friend.receivingBoxId == null) {
@@ -517,7 +509,23 @@ public class InfoPanel {
 
         if (currFriend.id == update.id) {
             currFriend = update;
+            // Refresh the switch and its label too; otherwise the label kept saying "Not sharing" after
+            // sharing was turned on until the panel was closed and reopened.
+            applySharingState(update);
         }
+    }
+
+    @UiThread
+    private void applySharingState(@NonNull FriendRecord friend) {
+        shareSwitch.setOnCheckedChangeListener(null);
+        if (friend.sendingBoxId != null) {
+            shareSwitch.setChecked(true);
+            shareSwitchLabel.setText(R.string.sharing);
+        } else {
+            shareSwitch.setChecked(false);
+            shareSwitchLabel.setText(R.string.not_sharing);
+        }
+        shareSwitch.setOnCheckedChangeListener(shareCheckedChangeListener);
     }
 
     @UiThread
