@@ -40,6 +40,7 @@ import io.pijun.george.UiRunnable;
 import io.pijun.george.UpdateStatusTracker;
 import io.pijun.george.database.FriendLocation;
 import io.pijun.george.database.FriendRecord;
+import xyz.zood.george.DeviceStatusProbe;
 import xyz.zood.george.FriendDevices;
 import xyz.zood.george.R;
 import xyz.zood.george.geocoding.RevGeocoding;
@@ -74,6 +75,8 @@ public class InfoPanel {
     @NonNull private final TextView username;
     // Family Locator: "Unsupported (?)" under Refresh, plus the explanation tile it opens
     @NonNull private final View unsupportedRow;
+    @NonNull private final TextView unsupportedText;
+    @NonNull private final View unsupportedInfo;
     @NonNull private final View unsupportedTile;
     @NonNull private final TextView unsupportedTileBody;
 
@@ -146,6 +149,9 @@ public class InfoPanel {
         });
 
         unsupportedRow = root.findViewById(R.id.unsupported_row);
+        unsupportedText = root.findViewById(R.id.unsupported_text);
+        unsupportedInfo = root.findViewById(R.id.unsupported_info);
+        DeviceStatusProbe.addListener(deviceStatusListener);
         unsupportedTile = root.findViewById(R.id.unsupported_tile);
         unsupportedTileBody = root.findViewById(R.id.unsupported_tile_body);
         if (unsupportedRow == null || unsupportedTile == null || unsupportedTileBody == null) {
@@ -311,10 +317,34 @@ public class InfoPanel {
         refreshButton.setEnabled(false);
         refreshButton.setText(R.string.refresh);
         unsupportedRow.setVisibility(View.VISIBLE);
+        // Re-check a cached "can't answer" before declaring it; show "Checking…" meanwhile.
+        DeviceStatusProbe.probeIfNeeded(context, friend);
+        boolean checking = DeviceStatusProbe.isProbing(friend.user.userId);
+        unsupportedText.setText(checking ? R.string.checking_ellipsis : R.string.unsupported);
+        unsupportedInfo.setVisibility(checking ? View.GONE : View.VISIBLE);
+        if (checking) {
+            unsupportedTile.setVisibility(View.GONE);
+        }
         @StringRes int body = device.isIPhone() ? R.string.unsupported_iphone_body : R.string.unsupported_android_body;
         unsupportedTileBody.setText(context.getString(body, friend.user.username));
         return true;
     }
+
+    /** A friend's device status changed or a check finished: redraw Refresh / Unsupported for the open friend. */
+    private final DeviceStatusProbe.Listener deviceStatusListener = new DeviceStatusProbe.Listener() {
+        @Override
+        public void onDeviceStatusChanged(@NonNull byte[] userId) {
+            FriendRecord friend = currFriend;
+            if (friend == null || !java.util.Arrays.equals(friend.user.userId, userId)) {
+                return;
+            }
+            if (currLoc != null) {
+                calculateAndUpdateRefreshButton(System.currentTimeMillis());
+            } else if (!applyRequestCapability()) {
+                refreshButton.setEnabled(friend.receivingBoxId != null);
+            }
+        }
+    };
 
     @UiThread
     private void onRefreshClicked() {

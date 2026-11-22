@@ -33,6 +33,7 @@ import io.pijun.george.queue.PersistentQueue;
 import retrofit2.Response;
 import xyz.zood.george.AvatarManager;
 import xyz.zood.george.Permissions;
+import xyz.zood.george.DeviceStatusProbe;
 import xyz.zood.george.FriendDevices;
 import xyz.zood.george.service.LiveRequestService;
 import xyz.zood.george.service.LocationService;
@@ -184,6 +185,12 @@ public class MessageProcessor {
                 return handleLocationUpdateRequest(context, user, token, keyPair);
             case LocationUpdateRequestReceived:
                 return handleLocationUpdateRequestReceived(user, comm);
+            case DeviceStatusRequest:
+                return handleDeviceStatusRequest(user, token, keyPair);
+            case DeviceStatus:
+                FriendDevices.record(App.getApp(), user.userId, comm);
+                DeviceStatusProbe.onStatusReceived(user.userId);
+                return Result.Success;
             case Scream:
             default:
                 L.i("The invalid comm should have been caught during the isValid() check: " +
@@ -399,6 +406,16 @@ public class MessageProcessor {
             L.w(errMsg);
         }
 
+        return Result.Success;
+    }
+
+    /** A friend is checking whether we can answer location requests. Only answer people we share with. */
+    private static Result handleDeviceStatusRequest(@NonNull UserRecord user, @NonNull String accessToken, @NonNull KeyPair keyPair) {
+        FriendRecord f = DB.get().getFriendByUserId(user.id);
+        if (f == null || f.sendingBoxId == null) {
+            return Result.Success;
+        }
+        OscarClient.immediatelySendMessage(user, accessToken, keyPair, UserComm.newDeviceStatus(), true, true);
         return Result.Success;
     }
 

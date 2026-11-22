@@ -14,6 +14,9 @@ public enum CommType {
     LocationSharingRevocation("location_sharing_revocation"),
     Scream("scream"),
     ScreamBegan("scream_began"),
+    // Family Locator fork: "can you answer location requests right now?" and the reply (no location inside).
+    DeviceStatusRequest("device_status_request"),
+    DeviceStatus("device_status"),
     Unknown("unknown");
 
     public final String val;

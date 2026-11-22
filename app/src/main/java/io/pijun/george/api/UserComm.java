@@ -165,6 +165,23 @@ public class UserComm {
         return c;
     }
 
+    @NonNull @CheckResult
+    public static UserComm newDeviceStatusRequest() {
+        UserComm c = new UserComm();
+        c.type = CommType.DeviceStatusRequest;
+        return c;
+    }
+
+    /** Our current ability to answer location requests, for a friend who asked. */
+    @NonNull @CheckResult
+    public static UserComm newDeviceStatus() {
+        UserComm c = new UserComm();
+        c.type = CommType.DeviceStatus;
+        c.platform = PLATFORM_ANDROID;
+        c.liveRequests = LiveRequestService.isRunning();
+        return c;
+    }
+
     public static UserComm newScreamBegan() {
         UserComm c = new UserComm();
         c.type = CommType.ScreamBegan;
@@ -236,6 +253,10 @@ public class UserComm {
             case Scream:
                 return true;
             case ScreamBegan:
+                return true;
+            case DeviceStatusRequest:
+                return true;
+            case DeviceStatus:
                 return true;
             default:
                 L.i("encountered unknown commtype. probably from a different version of Zood");
