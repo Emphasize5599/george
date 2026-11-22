@@ -909,6 +909,16 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     private final InfoPanel.Listener infoPanelListener = new InfoPanel.Listener() {
 
         @Override
+        public void onInfoPanelCloseRequested() {
+            // Same as tapping an empty spot on the map.
+            friendForCameraToTrack = -1;
+            binding.myLocationFab.setSelected(false);
+            infoPanel.hide();
+            binding.timedShareFab.setVisibility(View.VISIBLE);
+            symbolTracker.hideErrorCircle();
+        }
+
+        @Override
         public void onInfoPanelLocationRequested(@NonNull FriendRecord friend) {
             App.runInBackground(new WorkerRunnable() {
                 @Override

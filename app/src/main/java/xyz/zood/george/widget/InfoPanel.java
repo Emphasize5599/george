@@ -116,6 +116,13 @@ public class InfoPanel {
             throw new IllegalArgumentException("'motion' is missing");
         }
 
+        root.findViewById(R.id.info_close).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                listener.onInfoPanelCloseRequested();
+            }
+        });
+
         overflowButton = root.findViewById(R.id.info_overflow);
         if (overflowButton == null) {
             throw new IllegalArgumentException("'infoOverflow is missing");
@@ -566,6 +573,8 @@ public class InfoPanel {
     };
 
     public interface Listener {
+        @UiThread
+        void onInfoPanelCloseRequested();
         @UiThread
         void onInfoPanelLocationRequested(@NonNull FriendRecord friend);
         @UiThread

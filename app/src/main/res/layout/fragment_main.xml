@@ -142,13 +142,28 @@
                 android:id="@+id/info_overflow"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
                 android:layout_marginTop="16dp"
                 android:background="?attr/selectableItemBackground"
                 android:contentDescription="@null"
                 android:padding="8dp"
                 android:paddingBottom="6dp"
                 android:src="@drawable/ic_sharp_more_vert_24dp"
+                app:tint="@color/text_secondary"
+                app:layout_constraintEnd_toStartOf="@id/info_close"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Family Locator: close button, same size and padding as the overflow button -->
+            <ImageButton
+                android:id="@+id/info_close"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="16dp"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/close"
+                android:padding="8dp"
+                android:paddingBottom="6dp"
+                android:src="@drawable/ic_close_black_24dp"
                 app:tint="@color/text_secondary"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
