@@ -41,7 +41,7 @@
 
     <ImageView
         android:id="@+id/logo"
-        android:src="@drawable/location_logo_113dp"
+        android:src="@drawable/welcome_logo"
         android:contentDescription="@null"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -155,7 +155,7 @@
 
     <ImageView
         android:id="@+id/si_logo_placeholder"
-        android:src="@drawable/location_logo_113dp"
+        android:src="@drawable/welcome_logo"
         android:visibility="invisible"
         tools:visibility="visible"
         android:contentDescription="@null"
@@ -272,7 +272,7 @@
 
     <ImageView
         android:id="@+id/register_logo_placeholder"
-        android:src="@drawable/location_logo_113dp"
+        android:src="@drawable/welcome_logo"
         android:visibility="invisible"
         android:contentDescription="@null"
         app:layout_constraintVertical_chainStyle="packed"
