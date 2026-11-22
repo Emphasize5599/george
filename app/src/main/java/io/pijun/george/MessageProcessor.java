@@ -318,7 +318,9 @@ public class MessageProcessor {
         }
         FriendDevices.record(App.getApp(), user.userId, comm);
         try {
+            io.pijun.george.database.FriendLocation previous = db.getFriendLocation(fr.id);
             db.setFriendLocation(fr.id, comm.latitude, comm.longitude, comm.time, comm.accuracy, comm.speed, comm.bearing, comm.movement, comm.batteryLevel, comm.batteryCharging);
+            UpdateStatusTracker.onLocationReceived(fr.id, comm.time, previous == null ? null : previous.time);
         } catch (DB.DBException ex) {
             L.w("handleLocationInfo", ex);
             return Result.ErrorDatabaseException;

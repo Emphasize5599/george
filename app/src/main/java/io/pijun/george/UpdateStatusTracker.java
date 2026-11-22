@@ -45,7 +45,7 @@ public class UpdateStatusTracker {
 
     @CheckResult
     @AnyThread
-    public static State getFriendState(long friendId) {
+    public static synchronized State getFriendState(long friendId) {
         long now = System.currentTimeMillis();
         Long reqTime = requestTimes.get(friendId);
         // if this is old data, remove it
@@ -113,6 +113,7 @@ public class UpdateStatusTracker {
     public static void setLastRequestTime(long friendId, long reqTime) {
         synchronized (UpdateStatusTracker.class) {
             requestTimes.put(friendId, reqTime);
+            responses.remove(friendId);
             notifyListeners(friendId);
         }
     }
@@ -120,8 +121,29 @@ public class UpdateStatusTracker {
     @AnyThread
     static void setUpdateRequestResponse(long friendId, long respTime, String message) {
         synchronized (UpdateStatusTracker.class) {
+            Response existing = responses.get(friendId);
+            // An acknowledgement can arrive after the location that already completed this request.
+            if (existing != null && UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED.equals(existing.action)) {
+                return;
+            }
             responses.put(friendId, new Response(respTime, message));
             notifyListeners(friendId);
+        }
+    }
+
+    /** A newer location satisfies a pending refresh, regardless of what caused the phone to send it. */
+    @AnyThread
+    static void onLocationReceived(long friendId, long locationTime, Long previousTime) {
+        synchronized (UpdateStatusTracker.class) {
+            if (previousTime != null && locationTime <= previousTime) {
+                return;
+            }
+            State state = getFriendState(friendId);
+            if (state == State.Requested || state == State.RequestedAndUnresponsive
+                    || state == State.RequestAcknowledged) {
+                setUpdateRequestResponse(friendId, System.currentTimeMillis(),
+                        UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED);
+            }
         }
     }
 
