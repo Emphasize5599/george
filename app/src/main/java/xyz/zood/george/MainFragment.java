@@ -78,6 +78,7 @@ import io.pijun.george.database.UserRecord;
 import io.pijun.george.view.AvatarRenderer;
 import xyz.zood.george.databinding.FragmentMainBinding;
 import xyz.zood.george.notifier.BackgroundDataRestrictionNotifier;
+import xyz.zood.george.notifier.BatteryOptimizationNotifier;
 import xyz.zood.george.notifier.BackgroundLocationPermissionNotifier;
 import xyz.zood.george.notifier.ClientNotConnectedNotifier;
 import xyz.zood.george.notifier.ForegroundLocationPermissionNotifier;
@@ -281,6 +282,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
         getLifecycle().addObserver(new MapLibreMapLifecycleObserver(binding.map));
         getLifecycle().addObserver(new BackgroundDataRestrictionNotifier(requireActivity(), binding.banners));
+        getLifecycle().addObserver(new BatteryOptimizationNotifier(requireActivity(), binding.banners));
         bgLocationPermissionNotifier = new BackgroundLocationPermissionNotifier(requireActivity(), binding.banners);
         getLifecycle().addObserver(bgLocationPermissionNotifier);
         fgLocationPermissionNotifier = new ForegroundLocationPermissionNotifier(requireActivity(), this, binding.banners);

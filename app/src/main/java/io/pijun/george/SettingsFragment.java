@@ -1,7 +1,5 @@
 package io.pijun.george;
 
-import android.annotation.SuppressLint;
-import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -9,8 +7,6 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.PowerManager;
-import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -40,6 +36,7 @@ import java.util.Locale;
 
 import xyz.zood.george.AvatarCropperActivity;
 import xyz.zood.george.AvatarManager;
+import xyz.zood.george.BatterySettings;
 import xyz.zood.george.FriendshipManager;
 import xyz.zood.george.LicensesFragment;
 import xyz.zood.george.R;
@@ -255,24 +252,11 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
                     LiveRequestService.setEnabled(ctx, !on);
                     adapter.refreshLiveRequestsItem();
                     if (!on) {
-                        requestIgnoreBatteryOptimizations(ctx);
+                        BatterySettings.requestUnrestrictedUsage(ctx);
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
-    }
-
-    /** Doze would otherwise cut the background socket; ask to be exempted so requests keep arriving. */
-    @SuppressLint("BatteryLife")
-    private void requestIgnoreBatteryOptimizations(@NonNull Context ctx) {
-        PowerManager pm = ctx.getSystemService(PowerManager.class);
-        if (pm.isIgnoringBatteryOptimizations(ctx.getPackageName())) {
-            return;
-        }
-        Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + ctx.getPackageName()));
-        try {
-            startActivity(i);
-        } catch (ActivityNotFoundException ignore) {}
     }
 
     @Override
