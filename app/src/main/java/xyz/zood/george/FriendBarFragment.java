@@ -226,7 +226,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         grid.setPadding(0, dp(4), 0, dp(4));
         scroll.addView(grid, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, gridHeight);
-        scrollParams.gravity = Gravity.CENTER_HORIZONTAL;
+        scrollParams.gravity = Gravity.START;
         body.addView(scroll, scrollParams);
         int index = 0;
         for (FriendRecord member : item.members) {
