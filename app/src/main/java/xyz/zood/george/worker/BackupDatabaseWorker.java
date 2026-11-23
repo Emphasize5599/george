@@ -66,7 +66,14 @@ public class BackupDatabaseWorker extends Worker {
     @WorkerThread
     private Result uploadSnapshot() {
         Context ctx = getApplicationContext();
+        // Never overwrite the backup of an account that's now active on another device; sign out instead.
+        Snapshot remote = xyz.zood.george.DeviceSession.fetchRemote(ctx);
+        if (xyz.zood.george.DeviceSession.isSupersededBy(remote)) {
+            xyz.zood.george.DeviceSession.signOutBecauseSupersededElsewhere(ctx);
+            return Result.success();
+        }
         Snapshot snapshot = DB.get().getSnapshot();
+        snapshot.activeDevice = xyz.zood.george.DeviceSession.recordFor(remote);
 
         byte[] symmetricKey = Prefs.get(ctx).getSymmetricKey();
         String token = Prefs.get(ctx).getAccessToken();

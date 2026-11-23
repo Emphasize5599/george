@@ -1,6 +1,5 @@
 package io.pijun.george.api.adapter;
 
-import android.util.Base64;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -15,11 +14,11 @@ import java.lang.reflect.Type;
 public class BytesToBase64Adapter implements JsonSerializer<byte[]>, JsonDeserializer<byte[]> {
     @Override
     public byte[] deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-        return Base64.decode(json.getAsString(), Base64.NO_WRAP);
+        return java.util.Base64.getMimeDecoder().decode(json.getAsString());
     }
 
     @Override
     public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
-        return new JsonPrimitive(Base64.encodeToString(src, Base64.NO_WRAP));
+        return new JsonPrimitive(java.util.Base64.getEncoder().encodeToString(src));
     }
 }

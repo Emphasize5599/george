@@ -217,10 +217,10 @@
     <string name="turn_off">Turn off</string>
     <string name="unsupported">Unsupported</string>
     <string name="checking_ellipsis">Checking…</string>
-    <string name="why_unsupported">Why is this unsupported?</string>
-    <string name="unsupported_title">Why is Refresh unsupported?</string>
+    <string name="why_unsupported">Why is on-demand refresh unsupported?</string>
+    <string name="unsupported_title">Why is on-demand refresh unsupported?</string>
     <string name="unsupported_iphone_body">%1$s\'s iPhone isn\'t listening for requests right now. Zood\'s servers can\'t wake an iPhone, so the app has to stay running in the background to hear one. That stops if Live Requests is off, or if the app was swiped closed.\n\nTheir location still updates on its own whenever they move. To enable Refresh, %1$s can open the app (and turn on Live Requests with location access \"Always\" if it\'s off).</string>
-    <string name="unsupported_android_body">%1$s has Live Requests turned off, so their phone isn\'t listening for requests.\n\nTheir location still updates on its own whenever they move. To enable Refresh, %1$s can turn on Live Requests in Settings.</string>
+    <string name="unsupported_android_body">%1$s uses an Android phone with Live Requests turned off, so it isn\'t listening for requests.\n\nTheir location still updates on its own whenever they move. Refresh comes back once %1$s turns on Live Requests in the Family Locator app\'s settings on their Android phone.</string>
     <string name="unrestricted_battery_title">Allow unrestricted battery usage</string>
     <string name="unrestricted_battery_needed">Allow unrestricted battery usage for reliable location sharing.</string>
     <string name="unrestricted_battery_message">Family Locator needs unrestricted battery usage to keep sharing your location and receive refresh requests while your phone is idle. This may use more battery.\n\nTap System settings, then Allow if Android asks to stop optimizing battery usage. If app settings open, choose Battery (or App battery usage) and select Unrestricted or Allow background usage. Labels vary by phone.</string>
@@ -258,5 +258,7 @@
     <string name="unlink_contact">Unlink Contact</string>
     <string name="unnamed_contact">Unnamed Contact</string>
     <string name="no_contacts_app">No contacts app is available.</string>
+    <string name="on_demand_refresh_unsupported">On-demand refresh unsupported</string>
+    <string name="signed_in_elsewhere">Signed out because your account was signed in on another device.</string>
     <string name="no_maps_app">No maps app is available.</string>
 </resources>

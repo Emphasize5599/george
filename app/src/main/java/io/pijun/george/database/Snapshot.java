@@ -55,6 +55,16 @@ public class Snapshot {
 
     @Nullable
     public ArrayList<Folder> folders;
+
+    // Family Locator: the device the account was most recently signed in on (see DeviceSession).
+    public static class ActiveDevice {
+        public String id;
+        public String platform;
+        public long since;
+    }
+
+    @Nullable
+    public ActiveDevice activeDevice;
     @Nullable
     public ArrayList<String> barOrder;
 

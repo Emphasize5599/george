@@ -292,7 +292,9 @@ public class InfoPanel {
                 && answeredAt != null && now - answeredAt < UPDATED_CHECK_DURATION;
 
         if (requestsUnsupported) {
-            text = context.getString(checkingSupport ? R.string.checking_ellipsis : R.string.unsupported);
+            // Keep the update time, with the note on its own line underneath.
+            String note = context.getString(checkingSupport ? R.string.checking_ellipsis : R.string.on_demand_refresh_unsupported);
+            text = currLoc != null ? updatedText(currLoc.time, now) + "\n" + note : note;
             showInfo = !checkingSupport;
             color = R.color.text_secondary;
         } else if (justUpdated) {
@@ -483,6 +485,9 @@ public class InfoPanel {
             return false;
         }
         refreshButton.setEnabled(false);
+        // Hidden (not just disabled) until a later check finds their phone can answer again. Invisible rather
+        // than gone, so the share switch beside it keeps its place.
+        refreshButton.setVisibility(View.INVISIBLE);
         // Re-check a cached "can't answer" before declaring it; the status row shows "Checking…" meanwhile.
         DeviceStatusProbe.probeIfNeeded(context, friend);
         checkingSupport = DeviceStatusProbe.isProbing(friend.user.userId);
@@ -490,7 +495,7 @@ public class InfoPanel {
             unsupportedTile.setVisibility(View.GONE);
         }
         @StringRes int body = device.isIPhone() ? R.string.unsupported_iphone_body : R.string.unsupported_android_body;
-        unsupportedTileBody.setText(context.getString(body, friend.user.username));
+        unsupportedTileBody.setText(context.getString(body, xyz.zood.george.Nicknames.displayName(friend.user)));
         return true;
     }
 

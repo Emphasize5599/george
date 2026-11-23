@@ -277,6 +277,8 @@ public class AuthenticationManager {
             xyz.zood.george.Nicknames.restore(restoredSnapshot);
             xyz.zood.george.LinkedContacts.restore(restoredSnapshot);
         }
+        // This is now the account's active device; any other signed-in device signs itself out.
+        xyz.zood.george.DeviceSession.claim(ctx);
 
         if (xyz.zood.george.Nicknames.own() != null) {
             // Signup can choose a name before authentication; back it up once credentials are ready.

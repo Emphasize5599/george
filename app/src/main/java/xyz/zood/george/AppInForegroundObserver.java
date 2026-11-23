@@ -11,6 +11,8 @@ public class AppInForegroundObserver implements DefaultLifecycleObserver {
     @Override
     public void onStart(@NonNull LifecycleOwner owner) {
         App.isInForeground = true;
+        // Signed in on another phone since we were last open? Then sign out here.
+        DeviceSession.checkInBackground(App.getApp());
     }
 
     @Override

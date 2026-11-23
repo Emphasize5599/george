@@ -112,11 +112,13 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
 
         Prefs prefs = Prefs.get(requireContext());
         String username = prefs.getUsername();
-        binding.avatar.setUsername(username);
+        binding.avatar.setUsername(ownNickname(username));
         Context ctx = requireContext();
         File myImg = AvatarManager.getMyAvatar(ctx);
         Picasso.with(ctx).load(myImg).into(binding.avatar);
-        binding.username.setText("@" + username);
+        // Your nickname (if you've set one) first, with your @username shown with it.
+        String ownNickname = xyz.zood.george.Nicknames.own();
+        binding.username.setText(ownNickname != null ? ownNickname + "  ·  @" + username : "@" + username);
         binding.detail.setText(R.string.change_photo);
         binding.detail.setTextColor(com.google.android.material.color.MaterialColors.getColor(binding.detail, androidx.appcompat.R.attr.colorPrimary));
         binding.detail.setMinHeight(Math.round(48 * getResources().getDisplayMetrics().density));
@@ -319,4 +321,9 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
     }
 
     //endregion
+
+    private static String ownNickname(String username) {
+        String nickname = xyz.zood.george.Nicknames.own();
+        return nickname != null ? nickname : username;
+    }
 }

@@ -16,7 +16,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
 
@@ -108,10 +107,22 @@ public class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
             Context ctx = h.avatar.getContext();
             h.avatar.setUsername(Nicknames.avatarName(friend.user));
             h.avatar.setContentDescription(Nicknames.displayName(friend.user));
-            Picasso.with(ctx).
-                    load(AvatarManager.getAvatar(ctx, friend.user.username)).
-                    resize(imgSize, imgSize).
-                    into(h.avatar);
+            // Load the photo directly (center-cropped) and apply it only if this row still shows the same person.
+            // A library callback target was easy to lose when the bar refreshed, leaving the initial showing.
+            final String username = friend.user.username;
+            h.avatar.setTag(username);
+            final java.io.File file = AvatarManager.getAvatar(ctx, username);
+            App.runInBackground(() -> {
+                android.graphics.Bitmap bitmap = io.pijun.george.view.AvatarRenderer.loadSquare(file, imgSize);
+                if (bitmap == null) {
+                    return;
+                }
+                App.runOnUiThread(() -> {
+                    if (username.equals(h.avatar.getTag())) {
+                        h.avatar.setImage(bitmap);
+                    }
+                });
+            });
         }
     }
 

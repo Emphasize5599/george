@@ -2,6 +2,7 @@ package io.pijun.george.view;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -21,9 +22,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.res.ResourcesCompat;
 
-import com.squareup.picasso.Picasso;
-
-import java.io.IOException;
+import java.io.File;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
@@ -107,12 +106,8 @@ public class AvatarRenderer {
     public static Bitmap getBitmap(@NonNull Context ctx, @NonNull String username, @NonNull String displayName, @DimenRes int sizeRes) {
         // Avatar files are keyed by immutable username; only the placeholder initial follows the nickname.
         int size = ctx.getResources().getDimensionPixelSize(sizeRes);
-        Bitmap img = null;
-        try {
-            img = Picasso.with(ctx).load(AvatarManager.getAvatar(ctx, username)).resize(size, size).get();
-        } catch (IOException ignore) {
-            // if the image doesn't exist, the AvatarRenderer will render an icon based on the username
-        }
+        // If there's no photo, the renderer draws the first letter instead.
+        Bitmap img = loadSquare(AvatarManager.getAvatar(ctx, username), size);
 
         AvatarRenderer renderer = new AvatarRenderer(ctx, false);
         renderer.setUsername(displayName);
@@ -126,6 +121,29 @@ public class AvatarRenderer {
         renderer.draw(c);
 
         return avatar;
+    }
+
+    /**
+     * Reads an avatar file and center-crops it to a size×size square, so a photo that isn't square is
+     * cropped rather than squashed. Returns null if there's no readable photo. Call off the main thread.
+     */
+    @AnyThread
+    @Nullable
+    public static Bitmap loadSquare(@NonNull File file, int size) {
+        if (!file.exists() || size <= 0) {
+            return null;
+        }
+        Bitmap source = BitmapFactory.decodeFile(file.getAbsolutePath());
+        if (source == null) {
+            return null;
+        }
+        int side = Math.min(source.getWidth(), source.getHeight());
+        Bitmap square = Bitmap.createBitmap(source, (source.getWidth() - side) / 2, (source.getHeight() - side) / 2, side, side);
+        Bitmap scaled = Bitmap.createScaledBitmap(square, size, size, true);
+        if (square != source) {
+            source.recycle();
+        }
+        return scaled;
     }
 
     @NonNull
@@ -173,11 +191,11 @@ public class AvatarRenderer {
         }
 
         if (image != null) {
-            float xScale = diameter / (float)image.getWidth();
-            float yScale = diameter / (float)image.getHeight();
-
+            // Scale evenly to fill the circle and center the image, cropping the overflow, so it's never stretched.
+            float scale = Math.max(diameter / (float) image.getWidth(), diameter / (float) image.getHeight());
             Matrix matrix = new Matrix();
-            matrix.postScale(xScale, yScale);
+            matrix.postScale(scale, scale);
+            matrix.postTranslate((diameter - image.getWidth() * scale) / 2f, (diameter - image.getHeight() * scale) / 2f);
             shader.setLocalMatrix(matrix);
         }
     }
