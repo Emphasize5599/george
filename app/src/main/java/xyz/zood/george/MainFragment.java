@@ -934,7 +934,15 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
     private void launchContactPicker() {
         if (contactLinkFriendId == null) return;
+        if (androidx.core.content.ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_CONTACTS)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            // Our own list: the Contacts app's picker can drop its result (AOSP Contacts does whenever it
+            // stops for its own permission screen first), which made linking silently do nothing.
+            ContactChooser.show(requireContext(), this::onContactPicked);
+            return;
+        }
         try {
+            // Without the permission, some contacts apps still grant access to the one picked contact.
             pickContactLauncher.launch(null);
         } catch (android.content.ActivityNotFoundException e) {
             contactLinkFriendId = null;

@@ -122,7 +122,7 @@ public class AvatarRenderer {
         return contactPhoto != null ? contactPhoto : loadSquare(AvatarManager.getAvatar(context, user.username), size);
     }
 
-    private static Bitmap render(Context ctx, String displayName, int size, @Nullable Bitmap img) {
+    public static Bitmap render(Context ctx, String displayName, int size, @Nullable Bitmap img) {
         AvatarRenderer renderer = new AvatarRenderer(ctx, false);
         renderer.setUsername(displayName);
         renderer.setDiameter(size);

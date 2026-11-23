@@ -227,7 +227,18 @@ public class LayoutTourActivity extends AppCompatActivity {
             @Override public void onInfoPanelLinkContact(@NonNull FriendRecord f) {
                 // Debug: the real system contact picker, then the real linking code.
                 tourLinkFriend = f.user.userId;
-                tourPicker.launch(null);
+                if (getIntent().getBooleanExtra("system-picker", false)) {
+                    tourPicker.launch(null);
+                } else {
+                    ContactChooser.show(LayoutTourActivity.this, uri -> {
+                        byte[] friend = f.user.userId;
+                        new Thread(() -> {
+                            boolean linked = LinkedContacts.linkPickedContact(friend, uri);
+                            android.util.Log.i("TourContactLink", "chooser uri=" + uri + " linked=" + linked
+                                    + " name=" + LinkedContacts.name(friend) + " photo=" + LinkedContacts.photoFile(friend).exists());
+                        }).start();
+                    });
+                }
             }
             @Override public void onInfoPanelShareToggled(@NonNull FriendRecord f, boolean share) {}
             @Override public void onInfoPanelViewSafetyNumber(@NonNull FriendRecord f) {

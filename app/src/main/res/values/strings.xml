@@ -257,6 +257,9 @@
     <string name="choose_different_contact">Choose Different Contact</string>
     <string name="unlink_contact">Unlink Contact</string>
     <string name="unnamed_contact">Unnamed Contact</string>
+    <string name="search_contacts">Search contacts</string>
+    <string name="loading_contacts">Loading contacts…</string>
+    <string name="no_contacts_found">No contacts</string>
     <string name="no_contacts_app">No contacts app is available.</string>
     <string name="on_demand_refresh_unsupported">On-demand refresh unsupported</string>
     <string name="linked_contact_toast">Linked to %s</string>
