@@ -11,6 +11,21 @@ import static org.junit.Assert.*;
 public class NicknameProtocolTest {
 
     @Test
+    public void returnGrantMatchesOnlyTheOriginalOffer() {
+        byte[] offer = new byte[16];
+        byte[] recipientBox = offer.clone();
+        recipientBox[0] = 1;
+        UserComm grant = UserComm.newLocationSharingGrant(recipientBox, offer);
+        String json = OscarClient.sGson.toJson(grant);
+        assertTrue(json.contains("\"reply_to_box\""));
+        UserComm restored = OscarClient.sGson.fromJson(json, UserComm.class);
+        assertTrue(restored.repliesToSharingOffer(offer));
+        assertFalse(restored.repliesToSharingOffer(null));
+        assertFalse(restored.repliesToSharingOffer(recipientBox));
+        assertFalse(UserComm.newLocationSharingGrant(recipientBox).repliesToSharingOffer(offer));
+    }
+
+    @Test
     public void distinguishesFriendRemovalFromOrdinaryRevocation() {
         UserComm ordinary = OscarClient.sGson.fromJson(OscarClient.sGson.toJson(UserComm.newLocationSharingRevocation()), UserComm.class);
         UserComm removed = OscarClient.sGson.fromJson(OscarClient.sGson.toJson(UserComm.newFriendRemoval()), UserComm.class);

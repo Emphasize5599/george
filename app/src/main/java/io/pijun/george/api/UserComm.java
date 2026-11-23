@@ -56,6 +56,7 @@ public class UserComm {
     public static final String PLATFORM_IOS = "ios";
     @Nullable public String platform;
     @Nullable public Boolean liveRequests;
+    @Nullable public byte[] replyToBox;
     @Nullable public Boolean friendRemoved;
 
     @Retention(SOURCE)
@@ -120,10 +121,21 @@ public class UserComm {
 
     @NonNull @CheckResult
     public static UserComm newLocationSharingGrant(@NonNull byte[] boxId) {
+        return newLocationSharingGrant(boxId, null);
+    }
+
+    @NonNull @CheckResult
+    public static UserComm newLocationSharingGrant(@NonNull byte[] boxId, @Nullable byte[] replyToBox) {
         UserComm c = new UserComm();
         c.type = CommType.LocationSharingGrant;
         c.dropBox = boxId;
+        c.replyToBox = replyToBox;
         return c;
+    }
+
+    public boolean repliesToSharingOffer(@Nullable byte[] boxId) {
+        return type == CommType.LocationSharingGrant && replyToBox != null
+                && replyToBox.length == Constants.DROP_BOX_ID_LENGTH && java.util.Arrays.equals(replyToBox, boxId);
     }
 
     @NonNull @CheckResult

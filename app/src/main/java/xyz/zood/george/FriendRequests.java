@@ -83,13 +83,15 @@ public final class FriendRequests {
     public static synchronized void receive(UserRecord user, UserComm comm) throws IOException, DB.DBException {
         if (isBlocked(user.userId)) return;
         FriendRecord friend = DB.get().getFriendByUserId(user.id);
-        if (friend != null && friend.receivingBoxId != null) {
+        ArrayList<Request> requests = pending();
+        boolean removedPending = requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId));
+        if (friend != null && (friend.receivingBoxId != null || comm.repliesToSharingOffer(friend.sendingBoxId))) {
             DB.get().sharingGrantedBy(user, comm.dropBox);
+            if (removedPending) save(requests);
             BackupDatabaseWorker.scheduleBackup(App.getApp());
+            fetchLatestIfSignedIn(user, comm.dropBox);
             return;
         }
-        ArrayList<Request> requests = pending();
-        requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId));
         Request request = new Request();
         request.user = new Snapshot.User();
         request.user.userId = user.userId;
@@ -139,9 +141,13 @@ public final class FriendRequests {
         if (key != null && token != null) {
             OscarClient.queueSendMessage(OscarClient.getQueue(App.getApp()), user, key, token,
                     UserComm.newAvatarRequest().toJSON(), false, false);
-            UserRecord sender = user;
-            App.runInBackground(() -> fetchLatest(sender, request.boxId, token));
         }
+        fetchLatestIfSignedIn(user, request.boxId);
+    }
+
+    private static void fetchLatestIfSignedIn(UserRecord user, byte[] boxId) {
+        String token = Prefs.get(App.getApp()).getAccessToken();
+        if (token != null) App.runInBackground(() -> fetchLatest(user, boxId, token));
     }
 
     private static void fetchLatest(UserRecord user, byte[] boxId, String token) {

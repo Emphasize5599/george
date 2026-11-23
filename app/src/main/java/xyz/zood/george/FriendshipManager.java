@@ -97,7 +97,7 @@ public class FriendshipManager {
         if (friend != null) {
             if (friend.sendingBoxId != null) {
                 // send the sending box id to this person one more time, just in case
-                UserComm comm = UserComm.newLocationSharingGrant(friend.sendingBoxId);
+                UserComm comm = UserComm.newLocationSharingGrant(friend.sendingBoxId, friend.receivingBoxId);
                 String errMsg = OscarClient.queueSendMessage(queue, user, keyPair, accessToken, comm.toJSON(), false, false);
                 if (errMsg != null) {
                     CloudLogger.log(errMsg);
@@ -181,7 +181,12 @@ public class FriendshipManager {
         byte[] sendingBoxId = new byte[Constants.DROP_BOX_ID_LENGTH];
         new SecureRandom().nextBytes(sendingBoxId);
         // send the sending box id to the friend
-        UserComm comm = UserComm.newLocationSharingGrant(sendingBoxId);
+        FriendRecord current = db.getFriendByUserId(friend.user.id);
+        if (current == null) {
+            listener.onShareOpFinished(false);
+            return;
+        }
+        UserComm comm = UserComm.newLocationSharingGrant(sendingBoxId, current.receivingBoxId);
         String errMsg = OscarClient.queueSendMessage(queue, friend.user, keyPair, accessToken, comm.toJSON(), false, false);
         if (errMsg != null) {
             L.w("startSharingWith - queueSendMessage", new RuntimeException(errMsg));

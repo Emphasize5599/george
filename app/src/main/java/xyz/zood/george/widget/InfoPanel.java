@@ -525,6 +525,11 @@ public class InfoPanel {
     }
 
     @UiThread
+    public void refreshSharingGrant(@NonNull FriendRecord friend) {
+        show(friend, currLoc);
+    }
+
+    @UiThread
     public void show(@NonNull FriendRecord friend, @Nullable FriendLocation loc) {
         // If the panel is not already visible, then slide it into view
         if (isHidden()) {

@@ -217,7 +217,6 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         locationManager = requireContext().getApplicationContext().getSystemService(LocationManager.class);
         locationRequestCmp = new LocationRequestCompat.Builder(1000).setQuality(LocationRequestCompat.QUALITY_HIGH_ACCURACY).build();
 
-        DB.get().addListener(this);
         AuthenticationManager.get().addListener(this);
 
         getLifecycle().addObserver(new AppInForegroundObserver());
@@ -371,7 +370,6 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                     }
                 }
 
-                MessageProcessor.retrieveAndProcessNewMessages(accessToken);
             }
         });
     }
@@ -1155,13 +1153,9 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             oscarSocket.watch(friend.receivingBoxId);
         }
 
-        // If the friend is currently visible on the info panel, update the panel
-        App.runOnUiThread(new UiRunnable() {
-            @Override
-            public void run() {
-                if (infoPanel.getFriendId() == friend.id) {
-                    showInfoPanel(friend, null);
-                }
+        App.runOnUiThread(() -> {
+            if (infoPanel != null && infoPanel.getFriendId() == friend.id) {
+                infoPanel.refreshSharingGrant(friend);
             }
         });
     }
@@ -1303,9 +1297,11 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             App.runOnUiThread(new UiRunnable() {
                 @Override
                 public void run() {
-                    notConnectedNotifier.hide();
+                    if (binding != null) notConnectedNotifier.hide();
                 }
             });
+            String token = Prefs.get(App.getApp()).getAccessToken();
+            if (token != null) MessageProcessor.retrieveAndProcessNewMessages(token);
         }
 
         @Override
