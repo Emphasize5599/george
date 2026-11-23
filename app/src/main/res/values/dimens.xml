@@ -27,4 +27,5 @@
 
     <dimen name="dialog_message_text">15sp</dimen>
     <dimen name="dialog_title_text">19sp</dimen>
+    <dimen name="folder_mini_avatar">15dp</dimen>
 </resources>

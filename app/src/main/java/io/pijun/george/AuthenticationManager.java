@@ -277,6 +277,11 @@ public class AuthenticationManager {
             xyz.zood.george.Nicknames.restore(restoredSnapshot);
             xyz.zood.george.LinkedContacts.restore(restoredSnapshot);
         }
+        try {
+            xyz.zood.george.FriendRequests.enforceBlocks();
+        } catch (DB.DBException ex) {
+            L.w("Unable to clean up restored blocked friends", ex);
+        }
         // This is now the account's active device; any other signed-in device signs itself out.
         xyz.zood.george.DeviceSession.claim(ctx);
 
@@ -312,6 +317,7 @@ public class AuthenticationManager {
             public void run() {
                 Prefs prefs = Prefs.get(ctx);
                 LiveRequestService.stop(ctx);
+                ctx.stopService(new android.content.Intent(ctx, io.pijun.george.service.TimedShareService.class));
                 prefs.clearAll();
                 FriendDevices.clearAll(ctx);
                 DB.get().deleteAllData();

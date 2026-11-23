@@ -67,7 +67,7 @@ public final class Nicknames {
     /** The name to show for a friend: private nickname, linked contact, shared nickname, then @username. */
     public static String displayName(UserRecord user) {
         String name = chosenName(user);
-        return name == null ? "@" + user.username : name;
+        return name == null ? Usernames.display(user.username) : name;
     }
 
     /** Same order as {@link #displayName}, without the "@" so avatar initials use the first letter. */
@@ -144,11 +144,24 @@ public final class Nicknames {
                 prefs.getKeyPair(), prefs.getAccessToken(), UserComm.newNicknameUpdate().toJSON(), false, false);
     }
 
+    static void recordShared(byte[] userId, String nickname) {
+        save("shared:" + Hex.toHexString(userId), nickname);
+    }
+
     public static void record(UserRecord user, UserComm comm) {
         // Missing means an older client; empty explicitly clears a previously shared nickname.
         if (comm.nickname != null && DB.get().getFriendByUserId(user.id) != null) {
-            save("shared:" + Hex.toHexString(user.userId), comm.nickname);
+            recordShared(user.userId, comm.nickname);
         }
+    }
+
+    static void deleteForAccount(byte[] account) {
+        String prefix = Hex.toHexString(account) + ":";
+        SharedPreferences.Editor editor = prefs().edit();
+        for (String key : prefs().getAll().keySet()) {
+            if (key.startsWith(prefix)) editor.remove(key);
+        }
+        editor.apply();
     }
 
     public static void restore(Snapshot snapshot) {

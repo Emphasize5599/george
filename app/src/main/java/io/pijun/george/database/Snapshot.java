@@ -41,12 +41,11 @@ public class Snapshot {
     @Nullable
     public byte[] avatar;
 
-    // Family Locator: accounts blocked in the iPhone app. Android doesn't block yet, but carries this list
-    // through its own backups unchanged so an Android backup never erases blocks made on an iPhone.
+    // Family Locator: accounts blocked by the user.
     @Nullable
     public ArrayList<User> blocked;
 
-    // Family Locator: the iPhone app's friend-bar folders and order. Android carries them through unchanged.
+    // Family Locator: friend bar folders and order.
     public static class Folder {
         public String id;
         public String name;

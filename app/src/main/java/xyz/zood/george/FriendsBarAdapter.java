@@ -1,247 +1,206 @@
 package xyz.zood.george;
 
-import android.content.Context;
-import android.content.res.Resources;
 import android.graphics.Outline;
-import android.util.SparseArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
+import android.widget.FrameLayout;
+import android.widget.GridLayout;
 import android.widget.ImageView;
+import android.widget.TextView;
 
-import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.UiThread;
 import androidx.recyclerview.widget.RecyclerView;
-
 
 import java.util.ArrayList;
 
 import io.pijun.george.App;
-import io.pijun.george.UiRunnable;
 import io.pijun.george.database.FriendRecord;
+import io.pijun.george.view.AvatarRenderer;
 import io.pijun.george.view.AvatarView;
-import io.pijun.george.view.RecyclerViewAdapterItem;
 
-public class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-
-    private static final int ADDFRIEND_ID = -4;
-    private static final int DIVIDER_ID = -3;
-    private static final int MARGIN_ID = -2;
-
-    private final Runnable namesChanged = this::notifyDataSetChanged;
-
-    private final ArrayList<RecyclerViewAdapterItem> items = new ArrayList<>();
+final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+    private static final int APP_ITEMS = 3;
+    private final FriendBarArrangement arrangement = new FriendBarArrangement();
+    private final FriendBarFragment listener;
     private ArrayList<FriendRecord> friends = new ArrayList<>();
-    private final SparseArray<FriendRecord> friendPositions = new SparseArray<>();
-    @NonNull
-    private final Listener listener;
+    private ArrayList<FriendBarArrangement.Item> people = new ArrayList<>();
+    private boolean dragging;
 
-    FriendsBarAdapter(@NonNull Listener l) {
-        this.listener = l;
-        Nicknames.observe(namesChanged);
-        setHasStableIds(true);
+    FriendsBarAdapter(FriendBarFragment listener) {
+        this.listener = listener;
     }
 
-    @AnyThread
-    void addFriend(final FriendRecord friend) {
-        App.runOnUiThread(new UiRunnable() {
-            @Override
-            public void run() {
-                _addFriend(friend);
+    void setFriends(ArrayList<FriendRecord> updated) {
+        friends = updated;
+        refresh();
+    }
+
+    void refresh() {
+        if (dragging) return;
+        people = arrangement.items(friends);
+        notifyDataSetChanged();
+    }
+
+    void startDrag() {
+        dragging = true;
+    }
+
+    void finishDrag(@Nullable FriendBarArrangement.Item moving, @Nullable FriendBarArrangement.Item target, boolean changed) {
+        dragging = false;
+        if (changed || target != null) {
+            arrangement.arrange(people);
+            if (target != null && moving != null) arrangement.group(moving, target);
+            arrangement.save();
+        }
+        refresh();
+    }
+
+    boolean move(int from, int to) {
+        if (from == to || itemAt(from) == null || itemAt(to) == null) return false;
+        people.add(to - 1, people.remove(from - 1));
+        notifyItemMoved(from, to);
+        return true;
+    }
+
+    void nudge(int position, int offset) {
+        if (move(position, position + offset)) finishDrag(null, null, true);
+    }
+
+    void rename(FriendBarArrangement.Item item, String name) {
+        item.folder.name = name.isEmpty() ? null : name;
+        arrangement.save();
+        refresh();
+    }
+
+    void ungroup(FriendBarArrangement.Item item) {
+        arrangement.arrange(people);
+        arrangement.ungroup(item);
+        arrangement.save();
+        refresh();
+    }
+
+    void moveOut(FriendBarArrangement.Item item, FriendRecord friend) {
+        arrangement.arrange(people);
+        arrangement.moveOut(item, friend);
+        arrangement.save();
+        refresh();
+    }
+
+    void moveMember(FriendBarArrangement.Item item, FriendRecord friend, int offset) {
+        int from = item.members.indexOf(friend);
+        int to = from + offset;
+        if (from < 0 || to < 0 || to >= item.members.size()) return;
+        byte[] id = friend.user.userId;
+        byte[] target = item.members.get(to).user.userId;
+        item.folder.members.removeIf(member -> java.util.Arrays.equals(id, member));
+        for (int index = 0; index < item.folder.members.size(); index++) {
+            if (java.util.Arrays.equals(target, item.folder.members.get(index))) {
+                item.folder.members.add(index + (offset > 0 ? 1 : 0), id);
+                break;
             }
-        });
-    }
-
-    @UiThread
-    private void _addFriend(FriendRecord friend) {
-        // check if we're replacing or adding the friend
-        int idx = friends.indexOf(friend);
-        if (idx == -1) {
-            friends.add(friend);
-        } else {
-            friends.set(idx, friend);
         }
-        rebuildItemsList();
-        notifyDataSetChanged();
+        arrangement.save();
+        refresh();
     }
 
-    @Override
-    public int getItemCount() {
-        return items.size();
+    @Nullable FriendBarArrangement.Item itemAt(int position) {
+        return position > 0 && position <= people.size() ? people.get(position - 1) : null;
     }
 
-    @Override
-    public long getItemId(int position) {
-        return items.get(position).id;
+    @Override public int getItemCount() {
+        return 1 + people.size() + APP_ITEMS;
     }
 
-    @Override
-    public int getItemViewType(int position) {
-        return items.get(position).viewType;
-    }
-
-    @UiThread
-    void onAvatarUpdated(@Nullable String username) {
-        if (username == null) {
-            return;
-        }
-
-        notifyDataSetChanged();
+    @Override public int getItemViewType(int position) {
+        if (position == 0) return R.layout.friends_bar_margin;
+        FriendBarArrangement.Item item = itemAt(position);
+        if (item != null) return item.folder == null ? R.layout.friends_bar_friend : R.layout.friends_bar_folder;
+        if (position == people.size() + 1) return R.layout.friends_bar_divider;
+        if (position == people.size() + 2) return R.layout.friends_bar_add_friend;
+        return R.layout.friends_bar_requests;
     }
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        RecyclerViewAdapterItem item = items.get(position);
-        if (holder instanceof AvatarViewHolder) {
-            FriendRecord friend = friendPositions.get(position);
-            if (friend == null) {
-                throw new RuntimeException("Unable to find the friend with id " + item.id);
+        FriendBarArrangement.Item item = itemAt(position);
+        View tile = holder.itemView;
+        if (item != null && item.folder == null) {
+            bindAvatar(tile.findViewById(R.id.avatar_image), item.friend(), R.dimen.forty);
+            setTileLabel(tile, Nicknames.displayName(item.friend().user));
+        } else if (item != null) {
+            GridLayout grid = tile.findViewById(R.id.folder_preview);
+            grid.removeAllViews();
+            for (FriendRecord member : item.members.subList(0, Math.min(4, item.members.size()))) {
+                AvatarView avatar = new AvatarView(grid.getContext());
+                GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+                int size = grid.getResources().getDimensionPixelSize(R.dimen.folder_mini_avatar);
+                params.width = size;
+                params.height = size;
+                params.setMargins(1, 1, 1, 1);
+                grid.addView(avatar, params);
+                bindAvatar(avatar, member, R.dimen.folder_mini_avatar);
             }
+            setTileLabel(tile, listener.folderTitle(item));
+        } else if (holder.getItemViewType() == R.layout.friends_bar_requests) {
+            TextView badge = tile.findViewById(R.id.requests_badge);
+            int count = FriendRequests.pending().size();
+            badge.setVisibility(count == 0 ? View.GONE : View.VISIBLE);
+            badge.setText(count > 99 ? tile.getContext().getString(R.string.requests_badge_overflow) : Integer.toString(count));
+            tile.setContentDescription(count == 0 ? tile.getContext().getString(R.string.friend_requests)
+                    : tile.getResources().getQuantityString(R.plurals.friend_requests_count, count, count));
+        }
+    }
 
-            AvatarViewHolder h = (AvatarViewHolder) holder;
-            Resources rsrcs = h.avatar.getResources();
-            int imgSize = rsrcs.getDimensionPixelSize(R.dimen.forty);
-            Context ctx = h.avatar.getContext();
-            h.avatar.setUsername(Nicknames.avatarName(friend.user));
-            h.avatar.setContentDescription(Nicknames.displayName(friend.user));
-            // Load the photo directly (center-cropped) and apply it only if this row still shows the same person.
-            // A library callback target was easy to lose when the bar refreshed, leaving the initial showing.
-            final String username = friend.user.username;
-            h.avatar.setTag(username);
-            final java.io.File file = AvatarManager.getAvatar(ctx, username);
-            App.runInBackground(() -> {
-                android.graphics.Bitmap bitmap = io.pijun.george.view.AvatarRenderer.loadSquare(file, imgSize);
-                if (bitmap == null) {
-                    return;
-                }
+    static void setTileLabel(View tile, String name) {
+        TextView label = tile.findViewById(R.id.bar_tile_label);
+        label.setText(name);
+        tile.setContentDescription(name);
+    }
+
+    static void bindAvatar(AvatarView avatar, FriendRecord friend, int sizeRes) {
+        avatar.setUsername(Nicknames.avatarName(friend.user));
+        Object request = new Object();
+        avatar.setTag(request);
+        var context = avatar.getContext().getApplicationContext();
+        int size = avatar.getResources().getDimensionPixelSize(sizeRes);
+        App.runInBackground(() -> {
+            var photo = AvatarRenderer.loadFriendPhoto(context, friend.user, size);
+            if (photo != null) {
                 App.runOnUiThread(() -> {
-                    if (username.equals(h.avatar.getTag())) {
-                        h.avatar.setImage(bitmap);
-                    }
+                    if (avatar.getTag() == request) avatar.setImage(photo);
                 });
-            });
-        }
-    }
-
-    @Override
-    @NonNull
-    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
-        View view = inflater.inflate(viewType, parent, false);
-        if (viewType == R.layout.friends_bar_friend) {
-            final AvatarViewHolder h = new AvatarViewHolder(view);
-            h.itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    FriendRecord friend = friendPositions.get(h.getAdapterPosition());
-                    if (friend == null) {
-                        throw new RuntimeException("Unable to find friend at position " + h.getAdapterPosition());
-                    }
-                    listener.onFriendSelected(friend);
-                }
-            });
-            return h;
-        } else if (viewType == R.layout.friends_bar_add_friend) {
-            final AddFriendViewHolder h = new AddFriendViewHolder(view);
-            h.itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    listener.onAddFriendAction();
-                }
-            });
-            return h;
-        }
-
-        return new NothingViewHolder(view);
-    }
-
-    @UiThread
-    private void rebuildItemsList() {
-        items.clear();
-
-        int position = 0;
-        items.add(new RecyclerViewAdapterItem(R.layout.friends_bar_margin, MARGIN_ID));
-        friendPositions.clear();
-        for (FriendRecord f : friends) {
-            position++;
-            items.add(new RecyclerViewAdapterItem(R.layout.friends_bar_friend, f.id));
-            friendPositions.put(position, f);
-        }
-        items.add(new RecyclerViewAdapterItem(R.layout.friends_bar_divider, DIVIDER_ID));
-        items.add(new RecyclerViewAdapterItem(R.layout.friends_bar_add_friend, ADDFRIEND_ID));
-    }
-
-    @UiThread
-    void removeFriend(long friendId) {
-        for (int i = 0; i< friends.size(); i++) {
-            if (friends.get(i).id == friendId) {
-                friends.remove(i);
-                break;
-            }
-        }
-
-        rebuildItemsList();
-        notifyDataSetChanged();
-    }
-
-    @AnyThread
-    public void setFriends(final ArrayList<FriendRecord> friends) {
-        App.runOnUiThread(new UiRunnable() {
-            @Override
-            public void run() {
-                _setFriends(friends);
             }
         });
     }
 
-    @UiThread
-    private void _setFriends(ArrayList<FriendRecord> friends) {
-        this.friends = friends;
-        rebuildItemsList();
-        notifyDataSetChanged();
-    }
-
-    private static class AddFriendViewHolder extends RecyclerView.ViewHolder {
-
-        ImageView image;
-
-        AddFriendViewHolder(View itemView) {
-            super(itemView);
-
-            image = itemView.findViewById(R.id.image);
+    @NonNull
+    @Override public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(viewType, parent, false);
+        RecyclerView.ViewHolder holder = new RecyclerView.ViewHolder(view) {};
+        if (viewType == R.layout.friends_bar_add_friend || viewType == R.layout.friends_bar_requests) {
+            ImageView image = view.findViewById(R.id.image);
             image.setOutlineProvider(new ViewOutlineProvider() {
-                @Override
-                public void getOutline(View view, Outline outline) {
-                    outline.setRoundRect(0, 0, image.getWidth(), image.getHeight(), image.getWidth()/2.0f);
+                @Override public void getOutline(View v, Outline outline) {
+                    outline.setOval(0, 0, v.getWidth(), v.getHeight());
                 }
             });
             image.setClipToOutline(true);
+            view.setOnClickListener(v -> {
+                if (viewType == R.layout.friends_bar_add_friend) listener.onAddFriendAction();
+                else listener.onRequestsAction();
+            });
+        } else if (viewType == R.layout.friends_bar_folder || viewType == R.layout.friends_bar_friend) {
+            view.setOnClickListener(v -> {
+                FriendBarArrangement.Item item = itemAt(holder.getBindingAdapterPosition());
+                if (item == null) return;
+                if (item.folder == null) listener.onFriendSelected(item.friend());
+                else listener.openFolder(view, item);
+            });
+            listener.addMoveActions((FrameLayout) view, holder);
         }
-    }
-
-    private static class AvatarViewHolder extends RecyclerView.ViewHolder {
-        final AvatarView avatar;
-
-        AvatarViewHolder(View itemView) {
-            super(itemView);
-
-            avatar = itemView.findViewById(R.id.avatar_image);
-        }
-    }
-
-    private static class NothingViewHolder extends RecyclerView.ViewHolder {
-        NothingViewHolder(View itemView) {
-            super(itemView);
-        }
-    }
-
-    public interface Listener {
-        @UiThread
-        void onAddFriendAction();
-        @UiThread
-        void onFriendSelected(@NonNull FriendRecord fr);
+        return holder;
     }
 }

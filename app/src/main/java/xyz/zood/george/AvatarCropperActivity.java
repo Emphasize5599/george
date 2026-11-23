@@ -18,9 +18,7 @@ import com.canhub.cropper.CropImageView;
 import java.io.IOException;
 
 import io.pijun.george.App;
-import io.pijun.george.UiRunnable;
 import io.pijun.george.Utils;
-import io.pijun.george.WorkerRunnable;
 
 import xyz.zood.george.databinding.ActivityAvatarCropperBinding;
 
@@ -55,6 +53,14 @@ public class AvatarCropperActivity extends AppCompatActivity implements CropImag
         if (uri == null) {
             throw new IllegalArgumentException("You promised me a uri");
         }
+        binding.done.setEnabled(false);
+        binding.cropImageView.setOnSetImageUriCompleteListener((view, loadedUri, error) -> {
+            if (error == null) {
+                binding.done.setEnabled(true);
+            } else {
+                showCropError(R.string.avatar_load_error);
+            }
+        });
         binding.cropImageView.setImageUriAsync(uri);
     }
 
@@ -64,7 +70,7 @@ public class AvatarCropperActivity extends AppCompatActivity implements CropImag
         binding.cropImageView.setEnabled(false);
 
         binding.cropImageView.setOnCropImageCompleteListener(this);
-        binding.cropImageView.croppedImageAsync(Bitmap.CompressFormat.JPEG, 80, 0, 0, CropImageView.RequestSizeOptions.RESIZE_INSIDE, null);
+        binding.cropImageView.croppedImageAsync(Bitmap.CompressFormat.JPEG, 80, 768, 768, CropImageView.RequestSizeOptions.RESIZE_INSIDE, null);
     }
 
     //region OnCropImageCompleteListener
@@ -72,45 +78,37 @@ public class AvatarCropperActivity extends AppCompatActivity implements CropImag
     @Override
     @UiThread
     public void onCropImageComplete(@NonNull CropImageView view, CropImageView.CropResult result) {
-        Bitmap bmp = result.getBitmap();
-        if (bmp == null) {
-            finish();
+        Bitmap bitmap = result.getBitmap();
+        if (bitmap == null) {
+            finishSaving(R.string.avatar_crop_error);
             return;
         }
 
-        App.runInBackground(new WorkerRunnable() {
-            @Override
-            public void run() {
-                try {
-                    boolean success = AvatarManager.setMyAvatar(AvatarCropperActivity.this, bmp);
-                    App.runOnUiThread(new UiRunnable() {
-                        @Override
-                        public void run() {
-                            if (success) {
-                                finish();
-                            } else {
-                                Utils.showAlert(AvatarCropperActivity.this, R.string.save_error,  R.string.unknown_avatar_save_error_msg, getSupportFragmentManager());
-                                binding.done.setEnabled(true);
-                                binding.cancel.setEnabled(true);
-                                binding.cropImageView.setEnabled(true);
-                            }
-                        }
-                    });
-                } catch (IOException ex) {
-                    App.runOnUiThread(new UiRunnable() {
-                        @Override
-                        public void run() {
-                            Utils.showAlert(AvatarCropperActivity.this, R.string.save_error, R.string.avatar_save_io_error_msg, getSupportFragmentManager());
-                            binding.done.setEnabled(true);
-                            binding.cancel.setEnabled(true);
-                            binding.cropImageView.setEnabled(true);
-                        }
-                    });
-                }
+        App.runInBackground(() -> {
+            int error;
+            try {
+                error = AvatarManager.setMyAvatar(this, bitmap) ? 0 : R.string.unknown_avatar_save_error_msg;
+            } catch (IOException ex) {
+                error = R.string.avatar_save_io_error_msg;
             }
+            int resultError = error;
+            App.runOnUiThread(() -> finishSaving(resultError));
         });
     }
 
+    private void finishSaving(int error) {
+        if (isFinishing() || isDestroyed()) return;
+        if (error == 0) {
+            finish();
+            return;
+        }
+        showCropError(error);
+        binding.done.setEnabled(true);
+        binding.cancel.setEnabled(true);
+        binding.cropImageView.setEnabled(true);
+    }
 
-    //endregion
+    private void showCropError(int error) {
+        Utils.showAlert(this, R.string.save_error, error, getSupportFragmentManager());
+    }
 }

@@ -15,19 +15,24 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.view.WindowCompat;
 
+import io.pijun.george.App;
+import io.pijun.george.Constants;
 import io.pijun.george.Prefs;
+import io.pijun.george.api.UserComm;
+import io.pijun.george.database.DB;
 import io.pijun.george.SettingsFragment;
 import io.pijun.george.UpdateStatusTracker;
 import io.pijun.george.database.FriendLocation;
 import io.pijun.george.database.FriendRecord;
 import io.pijun.george.database.TourFixtures;
+import io.pijun.george.database.UserRecord;
 import xyz.zood.george.widget.InfoPanel;
 
 /**
  * Debug-only fixture host for a dedicated tour emulator. No keys or access token are created.
  *
  * Scenes (adb shell am start -n <package>/xyz.zood.george.LayoutTourActivity --es scene <name>):
- * settings (default), friend, friend-long-name, friend-linked, friend-requesting.
+ * settings (default), friend, friend-long-name, friend-linked, friend-requesting, friend-unsupported, bar, avatar-crop.
  */
 public class LayoutTourActivity extends AppCompatActivity {
 
@@ -51,12 +56,85 @@ public class LayoutTourActivity extends AppCompatActivity {
 
         FrameLayout host = new FrameLayout(this);
         host.setId(R.id.fragment_host);
+        host.setBackgroundColor(getColor(R.color.background));
         setContentView(host);
+        if ("bar".equals(scene)) {
+            showFriendBar(host, state);
+            return;
+        }
+        if ("avatar-crop".equals(scene)) {
+            if (state == null) showAvatarCrop();
+            return;
+        }
         if (state == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_host, new SettingsFragment())
                     .commit();
         }
+    }
+
+    private void showAvatarCrop() {
+        var image = android.graphics.Bitmap.createBitmap(960, 640, android.graphics.Bitmap.Config.ARGB_8888);
+        var canvas = new android.graphics.Canvas(image);
+        var paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        canvas.drawColor(Color.rgb(43, 110, 126));
+        paint.setColor(Color.rgb(226, 170, 92));
+        canvas.drawCircle(370, 320, 225, paint);
+        paint.setColor(Color.rgb(112, 79, 146));
+        canvas.drawRect(520, 110, 890, 560, paint);
+        var file = new java.io.File(getCacheDir(), "tour-avatar.png");
+        try (var output = new java.io.FileOutputStream(file)) {
+            image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output);
+        } catch (java.io.IOException error) {
+            throw new IllegalStateException("Unable to write synthetic avatar", error);
+        } finally {
+            image.recycle();
+        }
+        startActivity(AvatarCropperActivity.newIntent(this, android.net.Uri.fromFile(file)));
+    }
+
+    private void showFriendBar(FrameLayout host, Bundle state) {
+        FrameLayout bar = new FrameLayout(this);
+        bar.setId(R.id.friends_bar_fragment);
+        int height = getResources().getDimensionPixelSize(R.dimen.sixtyFour);
+        host.addView(bar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height, android.view.Gravity.CENTER));
+        if (state != null) return;
+        App.runInBackground(() -> {
+            try {
+                String[] names = {"alex", "blair", "casey", "devon", "eli", "frankie", "gray", "harper", "jamie"};
+                for (int i = 0; i < names.length; i++) {
+                    UserRecord user = tourUser(i + 20, names[i]);
+                    if (DB.get().getFriendByUserId(user.id) == null) {
+                        DB.get().startSharingWith(user, new byte[Constants.DROP_BOX_ID_LENGTH]);
+                    }
+                }
+                for (int i = 0; i < 2; i++) {
+                    UserRecord sender = tourUser(40 + i, i == 0 ? "taylor" : "quin");
+                    if (DB.get().getFriendByUserId(sender.id) != null) continue;
+                    UserComm grant = UserComm.newLocationSharingGrant(new byte[Constants.DROP_BOX_ID_LENGTH]);
+                    grant.nickname = i == 0 ? "Taylor" : null;
+                    FriendRequests.receive(sender, grant);
+                    if (DB.get().getFriendByUserId(sender.id) != null) {
+                        throw new IllegalStateException("An unapproved sender appeared in the friends list");
+                    }
+                }
+            } catch (java.io.IOException | DB.DBException error) {
+                throw new IllegalStateException("Unable to seed synthetic friend bar", error);
+            }
+            runOnUiThread(() -> {
+                if (!isFinishing()) {
+                    getSupportFragmentManager().beginTransaction()
+                            .add(R.id.friends_bar_fragment, new FriendBarFragment()).commit();
+                }
+            });
+        });
+    }
+
+    private UserRecord tourUser(int number, String name) throws DB.DBException {
+        byte[] id = new byte[Constants.USER_ID_LENGTH];
+        java.util.Arrays.fill(id, (byte) number);
+        UserRecord existing = DB.get().getUser(id);
+        return existing == null ? DB.get().addUser(id, name, new byte[Constants.PUBLIC_KEY_LENGTH]) : existing;
     }
 
     /**
@@ -95,6 +173,10 @@ public class LayoutTourActivity extends AppCompatActivity {
         } else {
             LinkedContacts.unlink(friend.user.userId);
         }
+        UserComm capability = UserComm.newDeviceStatus();
+        capability.platform = UserComm.PLATFORM_IOS;
+        capability.liveRequests = !scene.equals("friend-unsupported");
+        FriendDevices.record(this, friend.user.userId, capability);
         if (scene.equals("friend-requesting")) {
             UpdateStatusTracker.setLastRequestTime(friend.id, System.currentTimeMillis());
         }

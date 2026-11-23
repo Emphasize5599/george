@@ -7,6 +7,10 @@ public final class Usernames {
 
     private Usernames() {}
 
+    public static String display(String username) {
+        return "@" + username;
+    }
+
     public static String forLookup(String value) {
         String trimmed = value.trim();
         if (trimmed.startsWith("@")) {

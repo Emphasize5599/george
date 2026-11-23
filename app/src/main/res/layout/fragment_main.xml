@@ -272,56 +272,6 @@
                 app:layout_constraintTop_toBottomOf="@id/status_row" />
 
 
-            <LinearLayout
-                android:id="@+id/unsupported_tile"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginEnd="16dp"
-                android:background="@drawable/bg_explanation_tile"
-                android:orientation="vertical"
-                android:padding="12dp"
-                android:visibility="gone"
-                tools:visibility="visible"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="@id/username"
-                app:layout_constraintTop_toBottomOf="@id/refresh_button">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/unsupported_title"
-                        android:textColor="@color/zood_navy"
-                        android:textStyle="bold"
-                        style="@style/Zood.Body2" />
-
-                    <ImageButton
-                        android:id="@+id/unsupported_tile_close"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/close"
-                        android:src="@drawable/ic_close_black_24dp"
-                        app:tint="@color/text_secondary" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/unsupported_tile_body"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/text_secondary"
-                    style="@style/Zood.Caption"
-                    tools:text="@string/unsupported_iphone_body" />
-            </LinearLayout>
-
             <TextView
                 android:id="@+id/share_switch_label"
                 android:text="@string/sharing"

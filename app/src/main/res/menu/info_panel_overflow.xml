@@ -6,5 +6,6 @@
         <menu><item android:id="@+id/copy_username" android:title="@string/copy_username" /></menu>
     </item>
     <item android:id="@+id/view_safety_number" android:title="@string/view_safety_number" />
+    <item android:id="@+id/remove_and_block" android:title="@string/remove_and_block" />
     <item android:id="@+id/remove_friend" android:title="@string/remove_friend" />
 </menu>

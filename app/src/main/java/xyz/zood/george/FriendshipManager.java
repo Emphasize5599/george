@@ -52,6 +52,16 @@ public class FriendshipManager {
             return;
         }
 
+        synchronized (FriendRequests.class) {
+            if (FriendRequests.isBlocked(user.userId)) {
+                listener.onAddFriendFinished(AddFriendResult.SharingGrantFailed, ctx.getString(R.string.unblock_before_sharing));
+                return;
+            }
+            addFriend(user, listener);
+        }
+    }
+
+    private void addFriend(UserRecord user, OnAddFriendFinishedListener listener) {
         // check if we already have this user as a friend, and if we're already sharing with them
         final FriendRecord friend = db.getFriendByUserId(user.id);
         if (friend != null) {
@@ -126,6 +136,16 @@ public class FriendshipManager {
 
     @WorkerThread
     void startSharingWith(@NonNull FriendRecord friend, @NonNull OnShareOpFinishedListener listener) {
+        synchronized (FriendRequests.class) {
+            if (FriendRequests.isBlocked(friend.user.userId)) {
+                listener.onShareOpFinished(false);
+                return;
+            }
+            startSharing(friend, listener);
+        }
+    }
+
+    private void startSharing(FriendRecord friend, OnShareOpFinishedListener listener) {
         byte[] sendingBoxId = new byte[Constants.DROP_BOX_ID_LENGTH];
         new SecureRandom().nextBytes(sendingBoxId);
         // send the sending box id to the friend

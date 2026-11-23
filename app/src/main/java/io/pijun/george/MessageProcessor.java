@@ -35,6 +35,7 @@ import xyz.zood.george.AvatarManager;
 import xyz.zood.george.Permissions;
 import xyz.zood.george.DeviceStatusProbe;
 import xyz.zood.george.FriendDevices;
+import xyz.zood.george.FriendRequests;
 import xyz.zood.george.service.LiveRequestService;
 import xyz.zood.george.service.LocationService;
 import xyz.zood.george.service.ScreamerService;
@@ -95,6 +96,8 @@ public class MessageProcessor {
             return handleMessageFromOurself(context, cipherText, nonce, ourId);
         }
 
+
+        if (FriendRequests.isBlocked(senderId)) return Result.Success;
 
         DB db = DB.get();
         UserRecord user = db.getUser(senderId);
@@ -161,6 +164,7 @@ public class MessageProcessor {
             return Result.ErrorInvalidCommunication;
         }
 //        L.i("  comm type: " + comm.type);
+        if (FriendRequests.isBlocked(senderId)) return Result.Success;
         xyz.zood.george.Nicknames.record(user, comm);
         switch (comm.type) {
             case NicknameUpdate:
@@ -179,13 +183,16 @@ public class MessageProcessor {
                 L.i("We shouldn't be receiving device_info from other users");
                 return Result.ErrorInvalidCommunication;
             case LocationSharingGrant:
-                Result result = handleLocationSharingGrant(context, user, comm);
+                Result result = handleLocationSharingGrant(user, comm);
                 xyz.zood.george.Nicknames.record(user, comm);
                 return result;
             case LocationSharingRevocation:
-                return handleLocationSharingRevocation(context, user);
+                return handleLocationSharingRevocation(user);
             case LocationInfo:
-                return handleLocationInfo(user, comm);
+                synchronized (FriendRequests.class) {
+                    if (FriendRequests.isBlocked(user.userId)) return Result.Success;
+                    return handleLocationInfo(user, comm);
+                }
             case LocationUpdateRequest:
                 return handleLocationUpdateRequest(context, user, token, keyPair);
             case LocationUpdateRequestReceived:
@@ -319,13 +326,14 @@ public class MessageProcessor {
     private static Result handleLocationInfo(@NonNull UserRecord user, @NonNull UserComm comm) {
         DB db = DB.get();
         FriendRecord fr = db.getFriendByUserId(user.id);
-        if (fr == null) {
-            // there should be a friend record for any locations that we receive
+        if (fr == null || fr.receivingBoxId == null) {
+            // there should be an approved friend record for any locations that we receive
             return Result.ErrorNotAFriend;
         }
         FriendDevices.record(App.getApp(), user.userId, comm);
         try {
             io.pijun.george.database.FriendLocation previous = db.getFriendLocation(fr.id);
+            if (previous != null && previous.time > comm.time) return Result.Success;
             db.setFriendLocation(fr.id, comm.latitude, comm.longitude, comm.time, comm.accuracy, comm.speed, comm.bearing, comm.movement, comm.batteryLevel, comm.batteryCharging);
             UpdateStatusTracker.onLocationReceived(fr.id, comm.time, previous == null ? null : previous.time);
         } catch (DB.DBException ex) {
@@ -336,13 +344,11 @@ public class MessageProcessor {
         return Result.Success;
     }
 
-    private static Result handleLocationSharingGrant(@NonNull Context context, @NonNull UserRecord user, @NonNull UserComm comm) {
+    private static Result handleLocationSharingGrant(@NonNull UserRecord user, @NonNull UserComm comm) {
         L.i("LocationSharingGrant");
-        DB db = DB.get();
         try {
-            db.sharingGrantedBy(user, comm.dropBox);
-            BackupDatabaseWorker.scheduleBackup(context);
-        } catch (DB.DBException ex) {
+            FriendRequests.receive(user, comm);
+        } catch (IOException | DB.DBException ex) {
             L.w("handleLocationSharingGrant", ex);
             return Result.ErrorDatabaseException;
         }
@@ -350,12 +356,15 @@ public class MessageProcessor {
         return Result.Success;
     }
 
-    private static Result handleLocationSharingRevocation(@NonNull Context context, @NonNull UserRecord user) {
+    private static Result handleLocationSharingRevocation(@NonNull UserRecord user) {
         L.i("LocationSharingRevocation");
-        DB db = DB.get();
-        db.sharingRevokedBy(user);
-        BackupDatabaseWorker.scheduleBackup(context);
-        return Result.Success;
+        try {
+            FriendRequests.revoke(user);
+            return Result.Success;
+        } catch (IOException ex) {
+            L.w("handleLocationSharingRevocation", ex);
+            return Result.ErrorDatabaseException;
+        }
     }
 
     private static Result handleLocationUpdateRequest(@NonNull Context context, @NonNull UserRecord userRecord, @NonNull String accessToken, @NonNull KeyPair keyPair) {

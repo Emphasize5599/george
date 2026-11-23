@@ -7,10 +7,11 @@ import android.text.SpannableStringBuilder;
 import android.text.style.ImageSpan;
 import android.text.style.UnderlineSpan;
 import android.text.format.DateUtils;
-import android.transition.TransitionManager;
+import android.widget.PopupWindow;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.widget.Button;
 import android.widget.CompoundButton;
@@ -112,13 +113,13 @@ public class InfoPanel {
     @NonNull private final TextView shareSwitchLabel;
     @NonNull private final TextView username;
     // Family Locator: one status line under the address ("Requesting…", "Updated 5 min. ago",
-    // "Unsupported (?)"), plus the explanation tile that the (?) opens.
+    // "Unsupported (?)"), plus the anchored help opened by the info button.
     @NonNull private final View statusRow;
     @NonNull private final ImageView statusIcon;
     @NonNull private final TextView statusText;
     @NonNull private final View unsupportedInfo;
-    @NonNull private final View unsupportedTile;
-    @NonNull private final TextView unsupportedTileBody;
+    @Nullable private PopupWindow refreshHelp;
+    @Nullable private String refreshHelpBody;
 
     // Set by applyRequestCapability(): the friend's phone has said it can't answer Refresh requests,
     // and whether we're still re-checking that before saying so.
@@ -207,26 +208,13 @@ public class InfoPanel {
         statusText = root.findViewById(R.id.status_text);
         unsupportedInfo = root.findViewById(R.id.unsupported_info);
         DeviceStatusProbe.addListener(deviceStatusListener);
-        unsupportedTile = root.findViewById(R.id.unsupported_tile);
-        unsupportedTileBody = root.findViewById(R.id.unsupported_tile_body);
-        if (statusRow == null || statusIcon == null || statusText == null
-                || unsupportedTile == null || unsupportedTileBody == null) {
+        if (statusRow == null || statusIcon == null || statusText == null || unsupportedInfo == null) {
             throw new IllegalArgumentException("status views are missing");
         }
-        root.findViewById(R.id.unsupported_info).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                boolean show = unsupportedTile.getVisibility() != View.VISIBLE;
-                TransitionManager.beginDelayedTransition(panel);
-                unsupportedTile.setVisibility(show ? View.VISIBLE : View.GONE);
-            }
-        });
-        root.findViewById(R.id.unsupported_tile_close).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                TransitionManager.beginDelayedTransition(panel);
-                unsupportedTile.setVisibility(View.GONE);
-            }
+        unsupportedInfo.setOnClickListener(this::showRefreshHelp);
+        panel.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View view) {}
+            @Override public void onViewDetachedFromWindow(View view) { dismissRefreshHelp(); }
         });
 
         refreshProgressBar = root.findViewById(R.id.refresh_progress_bar);
@@ -411,6 +399,7 @@ public class InfoPanel {
 
     @UiThread
     public void hide() {
+        dismissRefreshHelp();
         showId++;   // needs to be incremented here as well
         currFriend = null;
         currLoc = null;
@@ -452,6 +441,8 @@ public class InfoPanel {
                     clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.copy_username), "@" + friend.user.username));
                 } else if (item.getItemId() == R.id.link_contact) {
                     listener.onInfoPanelLinkContact(friend);
+                } else if (item.getItemId() == R.id.remove_and_block) {
+                    listener.onInfoPanelBlockFriend(friend);
                 } else if (item.getItemId() == R.id.remove_friend) {
                     listener.onInfoPanelRemoveFriend(friend);
                 } else if (item.getItemId() == R.id.view_safety_number) {
@@ -481,7 +472,7 @@ public class InfoPanel {
         requestsUnsupported = unsupported;
         if (!unsupported) {
             checkingSupport = false;
-            unsupportedTile.setVisibility(View.GONE);
+            dismissRefreshHelp();
             return false;
         }
         refreshButton.setEnabled(false);
@@ -492,10 +483,10 @@ public class InfoPanel {
         DeviceStatusProbe.probeIfNeeded(context, friend);
         checkingSupport = DeviceStatusProbe.isProbing(friend.user.userId);
         if (checkingSupport) {
-            unsupportedTile.setVisibility(View.GONE);
+            dismissRefreshHelp();
         }
         @StringRes int body = device.isIPhone() ? R.string.unsupported_iphone_body : R.string.unsupported_android_body;
-        unsupportedTileBody.setText(context.getString(body, xyz.zood.george.Nicknames.displayName(friend.user)));
+        refreshHelpBody = context.getString(body, xyz.zood.george.Nicknames.displayName(friend.user));
         return true;
     }
 
@@ -539,7 +530,7 @@ public class InfoPanel {
         }
 
         if (currFriend == null || currFriend.id != friend.id) {
-            unsupportedTile.setVisibility(View.GONE);
+            dismissRefreshHelp();
             lastStatus = null;  // a different friend: don't fade from the previous friend's status
         }
         currFriend = friend;
@@ -556,7 +547,7 @@ public class InfoPanel {
             setAddressMessage(R.string.not_sharing_with_you);
             refreshProgressBar.setVisibility(View.INVISIBLE);
             refreshButton.setVisibility(View.INVISIBLE);
-            unsupportedTile.setVisibility(View.GONE);
+            dismissRefreshHelp();
             updateStatusRow(System.currentTimeMillis());
             bearing.setVisibility(View.GONE);
             motion.setVisibility(View.GONE);
@@ -781,7 +772,30 @@ public class InfoPanel {
         }
     };
 
+    private void showRefreshHelp(View anchor) {
+        if (refreshHelpBody == null) return;
+        dismissRefreshHelp();
+        View content = android.view.LayoutInflater.from(context).inflate(R.layout.refresh_help_popup, null);
+        TextView message = content.findViewById(R.id.refresh_help_body);
+        message.setText(refreshHelpBody);
+        float density = context.getResources().getDisplayMetrics().density;
+        int width = Math.min(Math.round(300 * density), panel.getWidth() - Math.round(16 * density));
+        refreshHelp = new PopupWindow(content, width, ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        refreshHelp.setBackgroundDrawable(context.getDrawable(R.drawable.bg_folder_preview));
+        refreshHelp.setElevation(8 * density);
+        refreshHelp.setOutsideTouchable(true);
+        refreshHelp.showAsDropDown(anchor, 0, 0);
+    }
+
+    private void dismissRefreshHelp() {
+        if (refreshHelp != null) {
+            refreshHelp.dismiss();
+            refreshHelp = null;
+        }
+    }
+
     public interface Listener {
+        default void onInfoPanelBlockFriend(@NonNull FriendRecord friend) {}
         @UiThread
         void onInfoPanelCloseRequested();
         @UiThread

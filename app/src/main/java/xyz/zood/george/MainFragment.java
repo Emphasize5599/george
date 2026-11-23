@@ -6,9 +6,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.location.Location;
 import android.location.LocationManager;
-import android.database.Cursor;
 import android.net.Uri;
-import android.provider.ContactsContract;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
@@ -409,7 +407,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             return;
         }
 
-        Bitmap icon = AvatarRenderer.getBitmap(ctx, friend.user.username, Nicknames.avatarName(friend.user), R.dimen.thirtySix);
+        Bitmap icon = AvatarRenderer.getFriendBitmap(ctx, friend.user, R.dimen.thirtySix);
         App.runOnUiThread(new UiRunnable() {
             @Override
             public void run() {
@@ -940,20 +938,13 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         if (contactUri == null || friendId == null) {
             return; // cancelled
         }
-        // Keep only the name we display and the lookup URI; nothing else about the contact is read.
-        String name = null;
-        try (Cursor cursor = requireContext().getContentResolver().query(contactUri,
-                new String[]{ContactsContract.Contacts.DISPLAY_NAME_PRIMARY}, null, null, null)) {
-            if (cursor != null && cursor.moveToFirst()) {
-                name = cursor.getString(0);
+        var context = requireContext().getApplicationContext();
+        byte[] account = Prefs.get(context).getUserId();
+        App.runInBackground(() -> {
+            if (java.util.Arrays.equals(account, Prefs.get(context).getUserId())) {
+                LinkedContacts.linkPickedContact(friendId, contactUri);
             }
-        } catch (SecurityException e) {
-            L.w("Couldn't read the picked contact", e);
-        }
-        if (name == null || name.trim().isEmpty()) {
-            name = getString(R.string.unnamed_contact);
-        }
-        LinkedContacts.link(friendId, name.trim(), contactUri.toString());
+        });
     }
 
     //endregion
@@ -990,6 +981,29 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                     }
                 }
             });
+        }
+
+        @Override
+        public void onInfoPanelBlockFriend(@NonNull FriendRecord friend) {
+            Context context = requireContext().getApplicationContext();
+            byte[] account = Prefs.get(context).getUserId();
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(getString(R.string.confirm_friend_action, getString(R.string.remove_and_block), Nicknames.displayName(friend.user)))
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.remove_and_block, (dialog, which) -> App.runInBackground(() -> {
+                        if (!java.util.Arrays.equals(account, Prefs.get(context).getUserId())) return;
+                        try {
+                            var user = new io.pijun.george.database.Snapshot.User();
+                            user.userId = friend.user.userId;
+                            user.username = friend.user.username;
+                            user.publicKey = friend.user.publicKey;
+                            FriendRequests.block(user);
+                        } catch (java.io.IOException | DB.DBException error) {
+                            L.w("Unable to block friend", error);
+                            App.runOnUiThread(() -> Toast.makeText(context, R.string.friend_request_error, Toast.LENGTH_SHORT).show());
+                        }
+                    }))
+                    .show();
         }
 
         @Override
@@ -1036,7 +1050,12 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                             (d, which) -> pickContactFor(friend))
                     .setNegativeButton(R.string.cancel, null);
             if (linkedName != null) {
-                dialog.setNeutralButton(R.string.unlink_contact, (d, which) -> LinkedContacts.unlink(friend.user.userId));
+                dialog.setNeutralButton(R.string.unlink_contact, (d, which) ->
+                        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                                .setTitle(getString(R.string.confirm_unlink_contact, Nicknames.displayName(friend.user)))
+                                .setNegativeButton(android.R.string.cancel, null)
+                                .setPositiveButton(R.string.unlink_contact, (confirm, button) -> LinkedContacts.unlink(friend.user.userId))
+                                .show());
             }
             dialog.show();
         }
@@ -1062,7 +1081,8 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             SafetyNumberFragment fragment = SafetyNumberFragment.newInstance(username,
                     keyPair.publicKey,
                     friend.user.username,
-                    friend.user.publicKey);
+                    friend.user.publicKey,
+                    Nicknames.displayName(friend.user));
             FragmentManager mgr = getParentFragmentManager();
             mgr.beginTransaction()
                     .setCustomAnimations(R.animator.new_enter_from_right,
@@ -1236,7 +1256,8 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     private final AvatarManager.Listener avatarListener = new AvatarManager.Listener() {
         @Override
         public void onAvatarUpdated(@Nullable String username) {
-            if (username == null) {
+            Context context = getContext();
+            if (username == null || context == null) {
                 return;
             }
             App.runInBackground(new WorkerRunnable() {
@@ -1252,7 +1273,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                         // This person is no friend of ours. Get outta here.
                         return;
                     }
-                    Bitmap icon = AvatarRenderer.getBitmap(requireContext(), username, Nicknames.avatarName(user), R.dimen.thirtySix);
+                    Bitmap icon = AvatarRenderer.getFriendBitmap(context, user, R.dimen.thirtySix);
                     App.runOnUiThread(new UiRunnable() {
                         @Override
                         public void run() {

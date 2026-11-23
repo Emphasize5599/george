@@ -38,7 +38,9 @@ import xyz.zood.george.AvatarCropperActivity;
 import xyz.zood.george.AvatarManager;
 import xyz.zood.george.BatterySettings;
 import xyz.zood.george.FriendshipManager;
-import xyz.zood.george.LicensesFragment;
+import xyz.zood.george.FriendBarFragment;
+import xyz.zood.george.FriendRequestsFragment;
+import xyz.zood.george.NoticesFragment;
 import xyz.zood.george.R;
 import xyz.zood.george.ThemeDialog;
 import xyz.zood.george.databinding.FragmentSettingsBinding;
@@ -116,9 +118,8 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
         Context ctx = requireContext();
         File myImg = AvatarManager.getMyAvatar(ctx);
         Picasso.with(ctx).load(myImg).into(binding.avatar);
-        // Your nickname (if you've set one) first, with your @username shown with it.
         String ownNickname = xyz.zood.george.Nicknames.own();
-        binding.username.setText(ownNickname != null ? ownNickname + "  ·  @" + username : "@" + username);
+        binding.username.setText(ownNickname != null ? ownNickname : xyz.zood.george.Usernames.display(username));
         binding.detail.setText(R.string.change_photo);
         binding.detail.setTextColor(com.google.android.material.color.MaterialColors.getColor(binding.detail, androidx.appcompat.R.attr.colorPrimary));
         binding.detail.setMinHeight(Math.round(48 * getResources().getDisplayMetrics().density));
@@ -199,7 +200,7 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
             ZoodDialog dialog = ZoodDialog.newInstance(msg);
             dialog.setTitle(ctx.getString(R.string.app_name));
             dialog.setButton1(ctx.getString(R.string.ok), null);
-            dialog.setButton2(ctx.getString(R.string.licenses), v -> onShowLicensesClicked());
+            dialog.setButton2(ctx.getString(R.string.notices_and_trademarks), v -> showSettingsPage(new NoticesFragment()));
             dialog.show(getParentFragmentManager(), null);
         } catch (PackageManager.NameNotFoundException ignore) {
             L.w("Unable to read installed app version", ignore);
@@ -224,7 +225,7 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
                 });
             }
         });
-        dialog.setButton2(getString(R.string.no), null);
+        dialog.setButton2(getString(R.string.cancel), null);
         FragmentManager fm = getParentFragmentManager();
         dialog.show(fm, null);
     }
@@ -240,8 +241,17 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
         startActivity(i);
     }
 
-    private void onShowLicensesClicked() {
-        LicensesFragment fragment = LicensesFragment.newInstance();
+    @Override
+    public void onBlockedUsersAction() {
+        showSettingsPage(FriendRequestsFragment.newInstance(true));
+    }
+
+    @Override
+    public void onFolderGridAction() {
+        FriendBarFragment.chooseGridSize(requireContext());
+    }
+
+    private void showSettingsPage(Fragment fragment) {
         FragmentManager mgr = getParentFragmentManager();
         mgr.beginTransaction()
                 .setCustomAnimations(R.animator.new_enter_from_right,

@@ -28,7 +28,10 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
 
 import io.pijun.george.Constants;
+import io.pijun.george.database.UserRecord;
 import xyz.zood.george.AvatarManager;
+import xyz.zood.george.LinkedContacts;
+import xyz.zood.george.Nicknames;
 import xyz.zood.george.R;
 
 /**
@@ -104,11 +107,22 @@ public class AvatarRenderer {
     @AnyThread
     @NonNull
     public static Bitmap getBitmap(@NonNull Context ctx, @NonNull String username, @NonNull String displayName, @DimenRes int sizeRes) {
-        // Avatar files are keyed by immutable username; only the placeholder initial follows the nickname.
         int size = ctx.getResources().getDimensionPixelSize(sizeRes);
-        // If there's no photo, the renderer draws the first letter instead.
-        Bitmap img = loadSquare(AvatarManager.getAvatar(ctx, username), size);
+        return render(ctx, displayName, size, loadSquare(AvatarManager.getAvatar(ctx, username), size));
+    }
 
+    public static Bitmap getFriendBitmap(Context context, UserRecord user, @DimenRes int sizeRes) {
+        int size = context.getResources().getDimensionPixelSize(sizeRes);
+        return render(context, Nicknames.avatarName(user), size, loadFriendPhoto(context, user, size));
+    }
+
+    @Nullable
+    public static Bitmap loadFriendPhoto(Context context, UserRecord user, int size) {
+        Bitmap contactPhoto = loadSquare(LinkedContacts.photoFile(user.userId), size);
+        return contactPhoto != null ? contactPhoto : loadSquare(AvatarManager.getAvatar(context, user.username), size);
+    }
+
+    private static Bitmap render(Context ctx, String displayName, int size, @Nullable Bitmap img) {
         AvatarRenderer renderer = new AvatarRenderer(ctx, false);
         renderer.setUsername(displayName);
         renderer.setDiameter(size);
@@ -140,9 +154,8 @@ public class AvatarRenderer {
         int side = Math.min(source.getWidth(), source.getHeight());
         Bitmap square = Bitmap.createBitmap(source, (source.getWidth() - side) / 2, (source.getHeight() - side) / 2, side, side);
         Bitmap scaled = Bitmap.createScaledBitmap(square, size, size, true);
-        if (square != source) {
-            source.recycle();
-        }
+        if (source != scaled) source.recycle();
+        if (square != source && square != scaled) square.recycle();
         return scaled;
     }
 

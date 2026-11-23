@@ -29,6 +29,8 @@ import androidx.annotation.UiThread;
 import androidx.annotation.WorkerThread;
 import io.pijun.george.App;
 import xyz.zood.george.AvatarManager;
+import xyz.zood.george.FriendRequests;
+import xyz.zood.george.LinkedContacts;
 import io.pijun.george.CloudLogger;
 import io.pijun.george.Constants;
 import io.pijun.george.Hex;
@@ -339,12 +341,13 @@ public class DB {
     @CheckResult
     public ArrayList<FriendRecord> getFriends() {
         ArrayList<FriendRecord> records = new ArrayList<>();
+        var blocked = LinkedContacts.blockedUsers();
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
         try (Cursor cursor = db.query(FRIENDS_TABLE, FRIENDS_COLUMNS, null, null, null, null, null)) {
             while (cursor.moveToNext()) {
                 FriendRecord fr = readFriend(cursor);
                 fr.user = getUser(fr.userId);
-                records.add(fr);
+                if (fr.user != null && !FriendRequests.contains(blocked, fr.user.userId)) records.add(fr);
             }
         }
 
@@ -356,13 +359,14 @@ public class DB {
     @CheckResult
     public ArrayList<FriendRecord> getFriendsToShareWith() {
         ArrayList<FriendRecord> records = new ArrayList<>();
+        var blocked = LinkedContacts.blockedUsers();
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
         String selection = FRIENDS_COL_SENDING_BOX_ID + " IS NOT NULL";
         try (Cursor cursor = db.query(FRIENDS_TABLE, FRIENDS_COLUMNS, selection, null, null, null, null)) {
             while (cursor.moveToNext()) {
                 FriendRecord fr = readFriend(cursor);
                 fr.user = getUser(fr.userId);
-                records.add(fr);
+                if (fr.user != null && !FriendRequests.contains(blocked, fr.user.userId)) records.add(fr);
             }
         }
 
@@ -394,6 +398,7 @@ public class DB {
     @CheckResult
     public Snapshot getSnapshot() {
         Snapshot snapshot = new Snapshot();
+        snapshot.blocked = LinkedContacts.blockedUsers();
         snapshot.nickname = xyz.zood.george.Nicknames.own();
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
         db.beginTransaction();
@@ -420,12 +425,13 @@ public class DB {
                         continue;
                     }
                     f.userId = friendRecord.user.userId;
+                    if (FriendRequests.contains(snapshot.blocked, f.userId)) continue;
                     f.nickname = xyz.zood.george.Nicknames.local(f.userId);
                     f.sharedNickname = xyz.zood.george.Nicknames.shared(f.userId);
                     f.linkedContactName = xyz.zood.george.LinkedContacts.name(f.userId);
                     if (f.linkedContactName != null) {
                         f.linkedContactId = xyz.zood.george.LinkedContacts.uri(f.userId);
-                        f.linkedContactPlatform = "android";
+                        f.linkedContactPlatform = LinkedContacts.platform(f.userId);
                     }
                     f.sendingBoxId = friendRecord.sendingBoxId;
                     f.receivingBoxId = friendRecord.receivingBoxId;
@@ -433,9 +439,7 @@ public class DB {
                 }
             }
 
-            snapshot.blocked = xyz.zood.george.LinkedContacts.carriedBlockedUsers();
-            snapshot.folders = xyz.zood.george.LinkedContacts.carriedFolders();
-            snapshot.barOrder = xyz.zood.george.LinkedContacts.carriedBarOrder();
+            LinkedContacts.copyBarTo(snapshot);
             snapshot.schemaVersion = db.getVersion();
             snapshot.timestamp = System.currentTimeMillis();
 
@@ -566,12 +570,19 @@ public class DB {
     public void removeFriend(@NonNull FriendRecord friend) throws DBException {
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         int result;
+        db.beginTransaction();
         try {
             String[] args = new String[]{String.valueOf(friend.user.id)};
             result = db.delete(FRIENDS_TABLE, FRIENDS_COL_USER_ID + "=?", args);
+            if (result == 1) {
+                db.delete(LOCATIONS_TABLE, LOCATIONS_COL_FRIEND_ID + "=?", new String[]{String.valueOf(friend.id)});
+                db.setTransactionSuccessful();
+            }
         } catch (SQLException ex) {
             String msg = String.format(Locale.US, "Error removing friend %d (%s)", friend.id, friend.user.username);
             throw new DBException(msg, ex);
+        } finally {
+            db.endTransaction();
         }
 
         if (result != 1) {
@@ -597,6 +608,7 @@ public class DB {
                 addUser(u.userId, u.username, u.publicKey);
             }
             for (Snapshot.Friend f : snapshot.friends) {
+                if (FriendRequests.contains(snapshot.blocked, f.userId)) continue;
                 UserRecord user = getUser(f.userId);
                 if (user == null) {
                     throw new DBException("Found friend without corresponding user");
@@ -686,8 +698,17 @@ public class DB {
         cv.put(FRIENDS_COL_RECEIVING_BOX_ID, (byte[]) null);
         String whereClause = FRIENDS_COL_USER_ID + "=?";
         String[] args = new String[]{String.valueOf(user.id)};
-        db.update(FRIENDS_TABLE, cv, whereClause, args);
-
+        db.beginTransaction();
+        try {
+            FriendRecord friend = getFriendByUserId(user.id);
+            db.update(FRIENDS_TABLE, cv, whereClause, args);
+            if (friend != null) {
+                db.delete(LOCATIONS_TABLE, LOCATIONS_COL_FRIEND_ID + "=?", new String[]{String.valueOf(friend.id)});
+            }
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
         notifySharingRevoked(user.id);
     }
 

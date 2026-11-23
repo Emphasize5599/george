@@ -45,6 +45,23 @@ public class TimedShareFragment extends Fragment {
 
     private FragmentTimedShareBinding binding;
     private boolean ignoreNextToggle = false;
+
+    private void restoreRunningToggle() {
+        if (!binding.toggle.isChecked()) {
+            ignoreNextToggle = true;
+            binding.toggle.setChecked(true);
+        }
+    }
+
+    private void confirmStopTimedShare() {
+        Context context = requireContext();
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.confirm_stop_timed_sharing)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.stop_timed_sharing,
+                        (dialog, which) -> context.stopService(new Intent(context, TimedShareService.class)))
+                .show();
+    }
     private boolean isDown = false;
     private boolean isRunning = false;
     private float totalOffset = 0;
@@ -128,8 +145,8 @@ public class TimedShareFragment extends Fragment {
                 if (isChecked) {
                     startTimedShare();
                 } else {
-                    Context ctx = requireContext();
-                    ctx.stopService(new Intent(ctx, TimedShareService.class));
+                    restoreRunningToggle();
+                    confirmStopTimedShare();
                 }
             }
         });
@@ -193,8 +210,8 @@ public class TimedShareFragment extends Fragment {
                 }
                 long remainingMins = remainingMs / DateUtils.MINUTE_IN_MILLIS;
                 if (remainingMins <= 1) {
-                    Context ctx = requireContext();
-                    ctx.stopService(new Intent(ctx, TimedShareService.class));
+                    restoreRunningToggle();
+                    confirmStopTimedShare();
                     return;
                 }
                 long newDuration = remainingMs;
@@ -343,6 +360,7 @@ public class TimedShareFragment extends Fragment {
         Context ctx = requireContext();
         if (!Permissions.checkForegroundLocationPermission(ctx)) {
             Toast.makeText(ctx, R.string.location_permission_needed, Toast.LENGTH_LONG).show();
+            ignoreNextToggle = true;
             binding.toggle.setChecked(false);
             return;
         }

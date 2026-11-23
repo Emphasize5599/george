@@ -352,7 +352,8 @@ public class WelcomeActivity extends AppCompatActivity implements WelcomeViewHol
 
         boolean foundError = false;
         final Editable usernameText = binding.regUsername.getText();
-        int msgId = Utils.getInvalidUsernameReason(usernameText);
+        String username = xyz.zood.george.Usernames.forLookup(usernameText == null ? "" : usernameText.toString());
+        int msgId = Utils.getInvalidUsernameReason(username);
         if (msgId != 0) {
             binding.regUsernameContainer.setError(getString(msgId));
             foundError = true;
@@ -382,9 +383,6 @@ public class WelcomeActivity extends AppCompatActivity implements WelcomeViewHol
             return;
         }
 
-        // This will always result in storing the username, because a null username gets checked
-        // for up above.
-        String username = usernameText != null ? usernameText.toString() : "";
         final String email = emailTmp;
         final String nickname = binding.regNickname.getText() == null ? null : binding.regNickname.getText().toString();
 

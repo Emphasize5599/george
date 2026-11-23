@@ -25,19 +25,21 @@ public class SafetyNumberFragment extends Fragment {
     private static final String ARG_MY_USERNAME = "my_username";
     private static final String ARG_MY_PUBLIC_KEY = "my_public_key";
     private static final String ARG_OTHER_USERNAME = "other_username";
+    private static final String ARG_OTHER_DISPLAY_NAME = "other_display_name";
     private static final String ARG_OTHER_PUBLIC_KEY = "other_public_key";
 
     private FragmentSafetyNumberBinding binding;
     private String safetyNumber;
-    private String otherUsername;
+    private String otherDisplayName;
 
-    static SafetyNumberFragment newInstance(@NonNull String myUsername, @NonNull byte[] myPublicKey, @NonNull String otherUsername, @NonNull byte[] otherPublicKey) {
+    static SafetyNumberFragment newInstance(@NonNull String myUsername, @NonNull byte[] myPublicKey, @NonNull String otherUsername, @NonNull byte[] otherPublicKey, @NonNull String otherDisplayName) {
         SafetyNumberFragment fragment = new SafetyNumberFragment();
 
         Bundle args = new Bundle();
         args.putString(ARG_MY_USERNAME, myUsername);
         args.putByteArray(ARG_MY_PUBLIC_KEY, myPublicKey);
         args.putString(ARG_OTHER_USERNAME, otherUsername);
+        args.putString(ARG_OTHER_DISPLAY_NAME, otherDisplayName);
         args.putByteArray(ARG_OTHER_PUBLIC_KEY, otherPublicKey);
 
         fragment.setArguments(args);
@@ -72,10 +74,11 @@ public class SafetyNumberFragment extends Fragment {
         if (myUsername == null || myUsername.isEmpty()) {
             throw new RuntimeException("missing my username");
         }
-        otherUsername = args.getString(ARG_OTHER_USERNAME);
+        final String otherUsername = args.getString(ARG_OTHER_USERNAME);
         if (otherUsername == null || otherUsername.isEmpty()) {
             throw new RuntimeException("missing other username");
         }
+        otherDisplayName = args.getString(ARG_OTHER_DISPLAY_NAME, Usernames.display(otherUsername));
         final byte[] myPublicKey = args.getByteArray(ARG_MY_PUBLIC_KEY);
         if (myPublicKey == null || myPublicKey.length != Constants.PUBLIC_KEY_LENGTH) {
             throw new RuntimeException("missing my public key");
@@ -120,7 +123,7 @@ public class SafetyNumberFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         binding = DataBindingUtil.inflate(inflater, R.layout.fragment_safety_number, container, false);
-        binding.instructions.setText(getString(R.string.safety_number_instructions_msg, otherUsername));
+        binding.instructions.setText(getString(R.string.safety_number_instructions_msg, otherDisplayName));
         binding.safetyNumber.setText(safetyNumber);
         binding.back.setOnClickListener(new View.OnClickListener() {
             @Override

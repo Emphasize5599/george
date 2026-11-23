@@ -44,7 +44,9 @@ public class BackupDatabaseWorker extends Worker {
             return Result.success();
         }
 
-        return uploadSnapshot();
+        synchronized (BackupDatabaseWorker.class) {
+            return uploadSnapshot();
+        }
     }
 
     @AnyThread

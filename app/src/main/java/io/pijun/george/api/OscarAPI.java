@@ -25,6 +25,9 @@ public interface OscarAPI {
     @POST("users")
     Call<CreateUserResponse> createUser(@Body User user);
 
+    @DELETE("users/me")
+    Call<Void> deleteAccount();
+
     @DELETE("users/me/fcm-tokens/{fcmToken}")
     Call<Void> deleteFcmToken(@Path("fcmToken") String fcmToken);
 
