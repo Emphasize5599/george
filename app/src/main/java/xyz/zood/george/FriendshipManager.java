@@ -117,21 +117,22 @@ public class FriendshipManager {
 
     @WorkerThread
     void removeFriend(@NonNull FriendRecord friend, @NonNull OnRemoveFriendFinishedListener listener) {
-        stopSharingWith(friend, new OnShareOpFinishedListener() {
-            @Override
-            public void onShareOpFinished(boolean success) {
-                if (!success) {
-                    listener.onRemoveFriendFinished(false);
-                }
-                try {
-                    db.removeFriend(friend);
-                    listener.onRemoveFriendFinished(true);
-                } catch (DB.DBException ex) {
-                    L.w("removeFriend - db.removeFriend", ex);
-                    listener.onRemoveFriendFinished(false);
-                }
+        synchronized (FriendRequests.class) {
+            String error = OscarClient.queueSendMessage(queue, friend.user, keyPair, accessToken,
+                    UserComm.newFriendRemoval().toJSON(), false, false);
+            if (error != null) {
+                L.w("Unable to queue friendship removal");
+                listener.onRemoveFriendFinished(false);
+                return;
             }
-        });
+            try {
+                FriendRequests.forget(friend.user);
+                listener.onRemoveFriendFinished(true);
+            } catch (DB.DBException | IOException ex) {
+                L.w("Unable to remove friend locally", ex);
+                listener.onRemoveFriendFinished(false);
+            }
+        }
     }
 
     @WorkerThread

@@ -9,18 +9,14 @@
         android:fitsSystemWindows="true"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-        <com.canhub.cropper.CropImageView
+        <xyz.zood.george.AvatarFramingView
             android:id="@+id/crop_image_view"
-            app:cropShape="oval"
-            app:cropGuidelines="off"
-            app:cropAspectRatioX="1"
-            app:cropAspectRatioY="1"
-            app:cropFlipHorizontally="false"
-            app:cropFlipVertically="false"
-            app:cropFixAspectRatio="true"
-            app:cropMultiTouchEnabled="true"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/instructions"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
         <com.google.android.material.button.MaterialButton
             android:id="@+id/done"
             android:text="@string/done"

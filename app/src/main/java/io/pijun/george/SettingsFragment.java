@@ -6,21 +6,13 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.view.LayoutInflater;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.PopupMenu;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.PickVisualMediaRequest;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.core.content.FileProvider;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
@@ -30,16 +22,11 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.squareup.picasso.Picasso;
 
 import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 
-import xyz.zood.george.AvatarCropperActivity;
 import xyz.zood.george.AvatarManager;
 import xyz.zood.george.BatterySettings;
 import xyz.zood.george.FriendshipManager;
 import xyz.zood.george.FriendBarFragment;
-import xyz.zood.george.FriendRequestsFragment;
 import xyz.zood.george.NoticesFragment;
 import xyz.zood.george.R;
 import xyz.zood.george.ThemeDialog;
@@ -51,9 +38,6 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
 
     private FragmentSettingsBinding binding;
     private SettingsAdapter adapter;
-    private String imgCapturePath;
-    private ActivityResultLauncher<PickVisualMediaRequest> pickMedia;
-    private ActivityResultLauncher<Uri> takePicture;
 
     public static SettingsFragment newInstance() {
         return new SettingsFragment();
@@ -79,24 +63,6 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
         super.onCreate(savedInstanceState);
 
         adapter = new SettingsAdapter(this);
-        pickMedia = registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), uri -> {
-            if (uri == null) {
-                return;
-            }
-
-            Intent i = AvatarCropperActivity.newIntent(requireContext(), uri);
-            startActivity(i);
-        });
-        takePicture = registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
-            if (!success) {
-                return;
-            }
-
-            Uri uri = Uri.fromFile(new File(imgCapturePath));
-            Intent i = AvatarCropperActivity.newIntent(requireContext(), uri);
-            startActivity(i);
-        });
-
         AvatarManager.addListener(this);
     }
 
@@ -119,22 +85,11 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
         File myImg = AvatarManager.getMyAvatar(ctx);
         Picasso.with(ctx).load(myImg).into(binding.avatar);
         String ownNickname = xyz.zood.george.Nicknames.own();
-        binding.username.setText(ownNickname != null ? ownNickname : xyz.zood.george.Usernames.display(username));
-        binding.detail.setText(R.string.change_photo);
-        binding.detail.setTextColor(com.google.android.material.color.MaterialColors.getColor(binding.detail, androidx.appcompat.R.attr.colorPrimary));
-        binding.detail.setMinHeight(Math.round(48 * getResources().getDisplayMetrics().density));
-        binding.detail.setOnClickListener(view -> onChangeProfilePhoto(binding.avatar));
-        binding.profileItem.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                getParentFragmentManager().beginTransaction()
-                        .setCustomAnimations(R.animator.new_enter_from_right, R.animator.new_exit_to_left,
-                                R.animator.new_enter_from_left, R.animator.new_exit_to_right)
-                        .replace(R.id.fragment_host, new xyz.zood.george.AccountFragment())
-                        .addToBackStack(null)
-                        .commit();
-            }
-        });
+        String handle = xyz.zood.george.Usernames.display(username);
+        binding.username.setText(ownNickname != null ? ownNickname : handle);
+        binding.detail.setText(handle);
+        binding.detail.setVisibility(ownNickname != null ? View.VISIBLE : View.GONE);
+        binding.profileItem.setOnClickListener(view -> showSettingsPage(new xyz.zood.george.AccountFragment()));
 
         applySystemUIInsets(binding);
 
@@ -156,35 +111,6 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
     }
 
     //endregion
-
-    private void onChangeProfilePhoto(View anchor) {
-        // Check if there is a camera on this device.
-        Context ctx = requireContext();
-        PackageManager pm = ctx.getPackageManager();
-        boolean hasCamera = pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY);
-        if (!hasCamera) {
-            // no camera, so just show the avatar picker
-            startImagePicker();
-            return;
-        }
-
-        // Show a popup menu to let the user pick
-        PopupMenu menu = new PopupMenu(requireContext(), anchor);
-        MenuInflater menuInflater = new MenuInflater(requireContext());
-        menuInflater.inflate(R.menu.profile_photo, menu.getMenu());
-        menu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem item) {
-                if (item.getItemId() == R.id.camera) {
-                    startCamera();
-                } else if (item.getItemId() == R.id.images) {
-                    startImagePicker();
-                }
-                return true;
-            }
-        });
-        menu.show();
-    }
 
     //region SettingsAdapter.Listener methods
 
@@ -242,11 +168,6 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
     }
 
     @Override
-    public void onBlockedUsersAction() {
-        showSettingsPage(FriendRequestsFragment.newInstance(true));
-    }
-
-    @Override
     public void onFolderGridAction() {
         FriendBarFragment.chooseGridSize(requireContext());
     }
@@ -284,30 +205,6 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
     @Override
     public void onThemeAction() {
         ThemeDialog.newInstance().show(getParentFragmentManager(), null);
-    }
-
-    //endregion
-
-    //region Profile photo taking/selection
-
-    private void startCamera() {
-        try {
-            Context ctx = requireContext();
-            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
-            File storageDir = ctx.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-            File imgFile = File.createTempFile(timeStamp, ".jpg", storageDir);
-            imgCapturePath = imgFile.getAbsolutePath();
-            Uri photoUri  = FileProvider.getUriForFile(ctx, "xyz.zood.george.fileprovider", imgFile);
-            takePicture.launch(photoUri);
-        } catch (Throwable t) {
-            L.w("startCamera", t);
-        }
-    }
-
-    private void startImagePicker() {
-        pickMedia.launch(new PickVisualMediaRequest.Builder()
-                .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
-                .build());
     }
 
     //endregion

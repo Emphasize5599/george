@@ -187,7 +187,7 @@ public class MessageProcessor {
                 xyz.zood.george.Nicknames.record(user, comm);
                 return result;
             case LocationSharingRevocation:
-                return handleLocationSharingRevocation(user);
+                return handleLocationSharingRevocation(user, comm);
             case LocationInfo:
                 synchronized (FriendRequests.class) {
                     if (FriendRequests.isBlocked(user.userId)) return Result.Success;
@@ -356,12 +356,13 @@ public class MessageProcessor {
         return Result.Success;
     }
 
-    private static Result handleLocationSharingRevocation(@NonNull UserRecord user) {
+    private static Result handleLocationSharingRevocation(@NonNull UserRecord user, @NonNull UserComm comm) {
         L.i("LocationSharingRevocation");
         try {
-            FriendRequests.revoke(user);
+            if (Boolean.TRUE.equals(comm.friendRemoved)) FriendRequests.forget(user);
+            else FriendRequests.revoke(user);
             return Result.Success;
-        } catch (IOException ex) {
+        } catch (IOException | DB.DBException ex) {
             L.w("handleLocationSharingRevocation", ex);
             return Result.ErrorDatabaseException;
         }

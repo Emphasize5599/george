@@ -27,7 +27,6 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     private static final int PRIVACY_POLICY = 9;
     private static final int THEME = 10;
     private static final int LIVE_REQUESTS = 11;
-    private static final int BLOCKED_USERS = 12;
     private static final int FOLDER_GRID = 13;
 
     private final ArrayList<RecyclerViewAdapterItem> adapterItems = new ArrayList<>();
@@ -168,13 +167,6 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                         0);
                 break;
             }
-            case BLOCKED_USERS: {
-                SettingsListItemViewHolder h = (SettingsListItemViewHolder) holder;
-                h.textView.setText(R.string.blocked_users);
-                h.textView.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_outlined_privacy_tip_24dp, 0, 0, 0);
-                h.textView.setOnClickListener(view -> listener.onBlockedUsersAction());
-                break;
-            }
             case FOLDER_GRID: {
                 SettingsListItemViewHolder h = (SettingsListItemViewHolder) holder;
                 h.textView.setText(R.string.friend_folder_grid);
@@ -211,7 +203,6 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, LIVE_REQUESTS));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, THEME));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, FOLDER_GRID));
-        adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, BLOCKED_USERS));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, PRIVACY_POLICY));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, ABOUT_ID));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, INVITE_A_FRIEND));
@@ -219,7 +210,6 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
 
     interface Listener {
         @UiThread void onAboutAction();
-        @UiThread void onBlockedUsersAction();
         @UiThread void onFolderGridAction();
         @UiThread void onInviteFriendAction();
         @UiThread void onLiveRequestsAction();

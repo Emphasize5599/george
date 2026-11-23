@@ -63,41 +63,54 @@
                 android:layout_marginStart="24dp"
                 android:layout_width="64dp"
                 android:layout_height="64dp" />
-            <TextView
-                android:id="@+id/username"
-                tools:text="username"
-                android:fontFamily="@font/montserrat_extra_bold"
-                android:textSize="18sp"
-                android:lineHeight="25sp"
-                android:textColor="@color/text_body"
-                app:layout_constraintStart_toEndOf="@id/avatar"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@id/avatar"
-                app:layout_constraintBottom_toTopOf="@+id/detail"
-                app:layout_constraintVertical_chainStyle="packed"
-                android:layout_marginTop="16dp"
+            <LinearLayout
+                android:orientation="vertical"
+                android:gravity="center_vertical"
                 android:layout_marginStart="16dp"
-                android:layout_marginEnd="24dp"
+                android:layout_marginEnd="12dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                tools:ignore="UnusedAttribute" />
-            <TextView
-                android:id="@+id/detail"
-                android:text="@string/tap_to_change_avatar"
-                android:fontFamily="sans-serif"
-                android:textSize="14sp"
-                android:textStyle="normal"
-                android:textColor="@color/text_tertiary"
-                android:lineSpacingExtra="7sp"
                 app:layout_constraintStart_toEndOf="@id/avatar"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/username"
-                app:layout_constraintBottom_toBottomOf="@id/avatar"
-                android:layout_marginStart="16dp"
+                app:layout_constraintEnd_toStartOf="@+id/account_chevron"
+                app:layout_constraintTop_toTopOf="@id/avatar"
+                app:layout_constraintBottom_toBottomOf="@id/avatar">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/account"
+                    android:textColor="@color/text_secondary" />
+                <TextView
+                    android:id="@+id/username"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserrat_extra_bold"
+                    android:textSize="18sp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/text_body"
+                    tools:text="Alex" />
+                <TextView
+                    android:id="@+id/detail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    tools:text="alex" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/account_chevron"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:layout_marginEnd="24dp"
-                android:layout_marginBottom="16dp"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content" />
+                android:importantForAccessibility="no"
+                android:rotation="180"
+                android:src="@drawable/ic_chevron_left_24dp"
+                app:tint="@color/text_secondary"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/avatar"
+                app:layout_constraintBottom_toBottomOf="@id/avatar" />
 
             <View
                 android:id="@+id/divider"

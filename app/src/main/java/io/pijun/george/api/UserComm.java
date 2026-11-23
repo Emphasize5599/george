@@ -56,6 +56,7 @@ public class UserComm {
     public static final String PLATFORM_IOS = "ios";
     @Nullable public String platform;
     @Nullable public Boolean liveRequests;
+    @Nullable public Boolean friendRemoved;
 
     @Retention(SOURCE)
     @StringDef({
@@ -125,6 +126,13 @@ public class UserComm {
         UserComm c = new UserComm();
         c.type = CommType.LocationSharingRevocation;
         return c;
+    }
+
+    @NonNull @CheckResult
+    public static UserComm newFriendRemoval() {
+        UserComm comm = newLocationSharingRevocation();
+        comm.friendRemoved = true;
+        return comm;
     }
 
     @NonNull @CheckResult

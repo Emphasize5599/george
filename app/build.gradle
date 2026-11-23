@@ -12,8 +12,8 @@ android {
         compileSdk = 36
         minSdkVersion 29
         targetSdkVersion 36
-        versionCode 79
-        versionName "1.1.9-family"
+        versionCode 80
+        versionName "1.1.10-family"
         multiDexEnabled = true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += ['en', 'tr', 'ru']
@@ -133,7 +133,6 @@ dependencies {
 
     implementation 'com.squareup.picasso:picasso:2.5.2'
 
-    implementation 'com.vanniktech:android-image-cropper:4.6.0'
     implementation 'org.maplibre.gl:android-sdk:12.3.1'
     implementation 'org.maplibre.gl:android-plugin-annotation-v9:3.0.2'
 

@@ -119,8 +119,8 @@ final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         FriendBarArrangement.Item item = itemAt(position);
         if (item != null) return item.folder == null ? R.layout.friends_bar_friend : R.layout.friends_bar_folder;
         if (position == people.size() + 1) return R.layout.friends_bar_divider;
-        if (position == people.size() + 2) return R.layout.friends_bar_add_friend;
-        return R.layout.friends_bar_requests;
+        if (position == people.size() + 2) return R.layout.friends_bar_requests;
+        return R.layout.friends_bar_add_friend;
     }
 
     @Override

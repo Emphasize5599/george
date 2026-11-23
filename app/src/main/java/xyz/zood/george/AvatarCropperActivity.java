@@ -3,112 +3,106 @@ package xyz.zood.george;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.ImageDecoder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.UiThread;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.databinding.DataBindingUtil;
 
-import com.canhub.cropper.CropImageView;
-
+import java.io.File;
 import java.io.IOException;
 
 import io.pijun.george.App;
 import io.pijun.george.Utils;
-
 import xyz.zood.george.databinding.ActivityAvatarCropperBinding;
 
-public class AvatarCropperActivity extends AppCompatActivity implements CropImageView.OnCropImageCompleteListener {
-
+public class AvatarCropperActivity extends AppCompatActivity {
     private static final String ARG_URI = "uri";
-
     private ActivityAvatarCropperBinding binding;
 
-    public static Intent newIntent(@NonNull Context ctx, @NonNull Uri uri) {
-        Intent i = new Intent(ctx, AvatarCropperActivity.class);
-        i.putExtra(ARG_URI, uri);
-        return i;
+    public static Intent newIntent(@NonNull Context context, @NonNull Uri uri) {
+        return new Intent(context, AvatarCropperActivity.class).putExtra(ARG_URI, uri);
     }
 
-    @UiThread
-    public void onCancel(View v) {
+    public void onCancel(View view) {
         finish();
     }
 
-    @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
+    @Override protected void onCreate(@Nullable Bundle state) {
+        super.onCreate(state);
         binding = DataBindingUtil.setContentView(this, R.layout.activity_avatar_cropper);
-
-        Bundle extras = getIntent().getExtras();
-        if (extras == null) {
-            throw new IllegalArgumentException("You need to use newIntent to start the activity");
-        }
-        Uri uri = extras.getParcelable(ARG_URI);
+        binding.done.setEnabled(false);
+        Uri uri = getIntent().getParcelableExtra(ARG_URI);
         if (uri == null) {
-            throw new IllegalArgumentException("You promised me a uri");
-        }
-        binding.done.setEnabled(false);
-        binding.cropImageView.setOnSetImageUriCompleteListener((view, loadedUri, error) -> {
-            if (error == null) {
-                binding.done.setEnabled(true);
-            } else {
-                showCropError(R.string.avatar_load_error);
-            }
-        });
-        binding.cropImageView.setImageUriAsync(uri);
-    }
-
-    public void onDone(View v) {
-        binding.cancel.setEnabled(false);
-        binding.done.setEnabled(false);
-        binding.cropImageView.setEnabled(false);
-
-        binding.cropImageView.setOnCropImageCompleteListener(this);
-        binding.cropImageView.croppedImageAsync(Bitmap.CompressFormat.JPEG, 80, 768, 768, CropImageView.RequestSizeOptions.RESIZE_INSIDE, null);
-    }
-
-    //region OnCropImageCompleteListener
-
-    @Override
-    @UiThread
-    public void onCropImageComplete(@NonNull CropImageView view, CropImageView.CropResult result) {
-        Bitmap bitmap = result.getBitmap();
-        if (bitmap == null) {
-            finishSaving(R.string.avatar_crop_error);
+            Utils.showAlert(this, R.string.save_error, R.string.avatar_load_error, getSupportFragmentManager());
             return;
         }
+        App.runInBackground(() -> load(uri));
+    }
 
+    private void load(Uri uri) {
+        try {
+            var source = "file".equals(uri.getScheme())
+                    ? ImageDecoder.createSource(new File(uri.getPath()))
+                    : ImageDecoder.createSource(getContentResolver(), uri);
+            Bitmap bitmap = ImageDecoder.decodeBitmap(source, (decoder, info, input) -> {
+                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
+                int longest = Math.max(info.getSize().getWidth(), info.getSize().getHeight());
+                if (longest > 2048) {
+                    float ratio = 2048f / longest;
+                    decoder.setTargetSize(Math.max(1, Math.round(info.getSize().getWidth() * ratio)),
+                            Math.max(1, Math.round(info.getSize().getHeight() * ratio)));
+                }
+            });
+            App.runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    bitmap.recycle();
+                    return;
+                }
+                binding.cropImageView.setImage(bitmap);
+                binding.done.setEnabled(true);
+            });
+        } catch (IOException | SecurityException error) {
+            App.runOnUiThread(() -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    Utils.showAlert(this, R.string.save_error, R.string.avatar_load_error, getSupportFragmentManager());
+                }
+            });
+        }
+    }
+
+    public void onDone(View view) {
+        setSaving(true);
+        Bitmap bitmap = binding.cropImageView.crop();
         App.runInBackground(() -> {
             int error;
             try {
                 error = AvatarManager.setMyAvatar(this, bitmap) ? 0 : R.string.unknown_avatar_save_error_msg;
             } catch (IOException ex) {
                 error = R.string.avatar_save_io_error_msg;
+            } finally {
+                bitmap.recycle();
             }
-            int resultError = error;
-            App.runOnUiThread(() -> finishSaving(resultError));
+            int result = error;
+            App.runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (result == 0) {
+                    finish();
+                } else {
+                    setSaving(false);
+                    Utils.showAlert(this, R.string.save_error, result, getSupportFragmentManager());
+                }
+            });
         });
     }
 
-    private void finishSaving(int error) {
-        if (isFinishing() || isDestroyed()) return;
-        if (error == 0) {
-            finish();
-            return;
-        }
-        showCropError(error);
-        binding.done.setEnabled(true);
-        binding.cancel.setEnabled(true);
-        binding.cropImageView.setEnabled(true);
-    }
-
-    private void showCropError(int error) {
-        Utils.showAlert(this, R.string.save_error, error, getSupportFragmentManager());
+    private void setSaving(boolean saving) {
+        binding.done.setEnabled(!saving);
+        binding.cancel.setEnabled(!saving);
+        binding.cropImageView.setEnabled(!saving);
     }
 }

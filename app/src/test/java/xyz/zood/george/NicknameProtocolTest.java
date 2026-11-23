@@ -11,6 +11,18 @@ import static org.junit.Assert.*;
 public class NicknameProtocolTest {
 
     @Test
+    public void distinguishesFriendRemovalFromOrdinaryRevocation() {
+        UserComm ordinary = OscarClient.sGson.fromJson(OscarClient.sGson.toJson(UserComm.newLocationSharingRevocation()), UserComm.class);
+        UserComm removed = OscarClient.sGson.fromJson(OscarClient.sGson.toJson(UserComm.newFriendRemoval()), UserComm.class);
+        assertTrue(ordinary.isValid());
+        assertTrue(removed.isValid());
+        assertSame(ordinary.type, removed.type);
+        assertNull(ordinary.friendRemoved);
+        assertEquals(Boolean.TRUE, removed.friendRemoved);
+        assertTrue(OscarClient.sGson.toJson(removed).contains("\"friend_removed\""));
+    }
+
+    @Test
     public void distinguishesLegacyProfilesFromExplicitResets() {
         UserComm legacy = OscarClient.sGson.fromJson("{\"type\":\"avatar_request\"}", UserComm.class);
         UserComm reset = OscarClient.sGson.fromJson("{\"type\":\"nickname_update\",\"nickname\":\"\"}", UserComm.class);

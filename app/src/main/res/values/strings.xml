@@ -69,7 +69,7 @@
     <string name="friends">Friends</string>
     <string name="server_key_retrieval_bad_response_msg">The server sent us a malformed response while trying to retrieve its public key. Try again later, and if the problem persists, please contact support.</string>
     <string name="remove_friend">Remove friend</string>
-    <string name="remove_friend_prompt_msg">You will not be able to see their location, and they won\'t be able to see yours. If you want to temporarily prevent them from seeing your location, simply toggle the sharing switch instead.</string>
+    <string name="remove_friend_prompt_msg">You’ll be removed from each other’s maps. Either of you can send a new request later.</string>
     <string name="never_mind">Never mind</string>
     <string name="toast_disable_sharing_error_msg">Error disabling sharing. Try again.</string>
     <string name="toast_enable_sharing_error_msg">Error enabling sharing. Try again.</string>
@@ -81,7 +81,7 @@
     <string name="camera">Camera</string>
     <string name="photos">Photos</string>
     <string name="images">Images</string>
-    <string name="crop_instructions_msg">Move and pinch to frame your profile photo.</string>
+    <string name="crop_instructions_msg">Drag to move, pinch to zoom, or resize using the corner handles.</string>
     <string name="done">Done</string>
     <string name="timed_share">Timed share</string>
     <string name="error_loading_key">Error loading key</string>

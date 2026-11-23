@@ -91,6 +91,12 @@ public class FriendRequestsFragment extends Fragment {
             for (FriendRequests.Request request : requests) {
                 String name = request.displayName();
                 addName(name);
+                if (request.nickname != null) {
+                    TextView handle = new TextView(requireContext());
+                    handle.setText(Usernames.display(request.user.username));
+                    handle.setTextColor(requireContext().getColor(R.color.text_secondary));
+                    rows.addView(handle);
+                }
                 LinearLayout actions = new LinearLayout(requireContext());
                 rows.addView(actions);
                 addAction(actions, R.string.approve_request, () -> runAction(() -> FriendRequests.approve(request)));

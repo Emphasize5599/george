@@ -108,6 +108,16 @@ public final class FriendRequests {
         BackupDatabaseWorker.scheduleBackup(App.getApp());
     }
 
+    public static synchronized void forget(UserRecord user) throws IOException, DB.DBException {
+        ArrayList<Request> requests = storedRequests();
+        if (requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId))) save(requests);
+        FriendRecord friend = DB.get().getFriendByUserId(user.id);
+        if (friend != null) {
+            DB.get().removeFriend(friend);
+            BackupDatabaseWorker.scheduleBackup(App.getApp());
+        }
+    }
+
     static synchronized void deny(Request request) throws IOException {
         ArrayList<Request> requests = pending();
         if (requests.removeIf(current -> matches(current, request))) save(requests);

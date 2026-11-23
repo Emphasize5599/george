@@ -1,28 +1,46 @@
 package xyz.zood.george;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.text.InputType;
-import android.widget.Toast;
+import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
-import androidx.fragment.app.Fragment;
+import androidx.core.content.FileProvider;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+import com.squareup.picasso.Picasso;
 
+import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Objects;
 
 import io.pijun.george.App;
@@ -30,8 +48,110 @@ import io.pijun.george.AuthenticationManager;
 import io.pijun.george.L;
 import io.pijun.george.Prefs;
 import io.pijun.george.api.OscarClient;
+import io.pijun.george.view.AvatarView;
 
-public class AccountFragment extends Fragment {
+public class AccountFragment extends Fragment implements AvatarManager.Listener {
+    private String imgCapturePath;
+    private ActivityResultLauncher<PickVisualMediaRequest> pickMedia;
+    private ActivityResultLauncher<Uri> takePicture;
+    private AvatarView avatar;
+
+    @Override public void onCreate(@Nullable Bundle state) {
+        super.onCreate(state);
+        if (state != null) imgCapturePath = state.getString("capture_path");
+        pickMedia = registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), uri -> {
+            if (uri == null) {
+                return;
+            }
+
+            Intent i = AvatarCropperActivity.newIntent(requireContext(), uri);
+            startActivity(i);
+        });
+        takePicture = registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
+            if (!success || imgCapturePath == null) {
+                return;
+            }
+
+            Uri uri = Uri.fromFile(new File(imgCapturePath));
+            Intent i = AvatarCropperActivity.newIntent(requireContext(), uri);
+            startActivity(i);
+        });
+
+        AvatarManager.addListener(this);
+    }
+
+    @Override public void onSaveInstanceState(@NonNull Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putString("capture_path", imgCapturePath);
+    }
+
+    @Override public void onDestroyView() {
+        avatar = null;
+        super.onDestroyView();
+    }
+
+    @Override public void onDestroy() {
+        AvatarManager.removeListener(this);
+        super.onDestroy();
+    }
+
+    @Override public void onAvatarUpdated(@Nullable String username) {
+        if (username == null && avatar != null) {
+            Context context = avatar.getContext();
+            Picasso.with(context).load(AvatarManager.getMyAvatar(context)).into(avatar);
+        }
+    }
+
+    private void onChangeProfilePhoto(View anchor) {
+        // Check if there is a camera on this device.
+        Context ctx = requireContext();
+        PackageManager pm = ctx.getPackageManager();
+        boolean hasCamera = pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY);
+        if (!hasCamera) {
+            // no camera, so just show the avatar picker
+            startImagePicker();
+            return;
+        }
+
+        // Show a popup menu to let the user pick
+        PopupMenu menu = new PopupMenu(requireContext(), anchor);
+        MenuInflater menuInflater = new MenuInflater(requireContext());
+        menuInflater.inflate(R.menu.profile_photo, menu.getMenu());
+        menu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                if (item.getItemId() == R.id.camera) {
+                    startCamera();
+                } else if (item.getItemId() == R.id.images) {
+                    startImagePicker();
+                }
+                return true;
+            }
+        });
+        menu.show();
+    }
+
+    private void startCamera() {
+        try {
+            Context ctx = requireContext();
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+            File storageDir = ctx.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+            File imgFile = File.createTempFile(timeStamp, ".jpg", storageDir);
+            imgCapturePath = imgFile.getAbsolutePath();
+            Uri photoUri  = FileProvider.getUriForFile(ctx, "xyz.zood.george.fileprovider", imgFile);
+            takePicture.launch(photoUri);
+        } catch (Throwable t) {
+            L.w("startCamera", t);
+        }
+    }
+
+    private void startImagePicker() {
+        pickMedia.launch(new PickVisualMediaRequest.Builder()
+                .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
+                .build());
+    }
+
+
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle state) {
@@ -53,6 +173,27 @@ public class AccountFragment extends Fragment {
         back.setIconResource(R.drawable.ic_chevron_left_24dp);
         back.setOnClickListener(view -> getParentFragmentManager().popBackStack());
         form.addView(back);
+
+        LinearLayout changePhoto = new LinearLayout(requireContext());
+        changePhoto.setGravity(Gravity.CENTER_VERTICAL);
+        changePhoto.setPadding(padding / 2, padding / 2, padding / 2, padding / 2);
+        changePhoto.setBackgroundResource(android.R.drawable.list_selector_background);
+        avatar = new AvatarView(requireContext());
+        String username = Prefs.get(requireContext()).getUsername();
+        avatar.setUsername(username == null ? "?" : username);
+        int avatarSize = getResources().getDimensionPixelSize(R.dimen.fortyEight);
+        changePhoto.addView(avatar, new LinearLayout.LayoutParams(avatarSize, avatarSize));
+        onAvatarUpdated(null);
+        TextView photoLabel = new TextView(requireContext());
+        photoLabel.setText(R.string.change_photo);
+        photoLabel.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+        photoLabel.setPadding(padding / 2, 0, 0, 0);
+        changePhoto.addView(photoLabel);
+        changePhoto.setFocusable(true);
+        changePhoto.setContentDescription(getString(R.string.change_photo));
+        changePhoto.setOnClickListener(this::onChangeProfilePhoto);
+        form.addView(changePhoto);
+        addDivider(form, padding);
 
         TextInputLayout field = new TextInputLayout(requireContext());
         field.setHint(getString(R.string.nickname_optional));
@@ -76,9 +217,21 @@ public class AccountFragment extends Fragment {
             android.widget.Toast.makeText(requireContext(), R.string.nickname_saved, android.widget.Toast.LENGTH_SHORT).show();
         });
         form.addView(save);
+        addDivider(form, padding);
+
+        MaterialButton blocked = new MaterialButton(requireContext(), null, androidx.appcompat.R.attr.borderlessButtonStyle);
+        blocked.setText(R.string.blocked_users);
+        blocked.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        blocked.setIconResource(R.drawable.ic_open_palm_24dp);
+        blocked.setOnClickListener(view -> getParentFragmentManager().beginTransaction()
+                .replace(R.id.fragment_host, FriendRequestsFragment.newInstance(true)).addToBackStack(null).commit());
+        form.addView(blocked);
+        addDivider(form, padding);
 
         MaterialButton logout = new MaterialButton(requireContext(), null, androidx.appcompat.R.attr.borderlessButtonStyle);
         logout.setText(R.string.log_out);
+        logout.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        logout.setTextColor(com.google.android.material.color.MaterialColors.getColor(logout, androidx.appcompat.R.attr.colorError));
         logout.setOnClickListener(view -> {
             new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                     .setMessage(R.string.confirm_log_out_msg)
@@ -92,10 +245,19 @@ public class AccountFragment extends Fragment {
 
         MaterialButton delete = new MaterialButton(requireContext(), null, androidx.appcompat.R.attr.borderlessButtonStyle);
         delete.setText(R.string.delete_account);
+        delete.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
         delete.setTextColor(com.google.android.material.color.MaterialColors.getColor(delete, androidx.appcompat.R.attr.colorError));
         delete.setOnClickListener(view -> showDeleteAccount(delete));
         form.addView(delete);
         return scroll;
+    }
+
+    private void addDivider(LinearLayout form, int padding) {
+        View divider = new View(requireContext());
+        divider.setBackgroundColor(requireContext().getColor(R.color.outline));
+        var layout = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, padding / 24));
+        layout.setMargins(0, padding / 2, 0, padding / 2);
+        form.addView(divider, layout);
     }
 
     private void showDeleteAccount(MaterialButton action) {
