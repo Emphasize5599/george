@@ -12,8 +12,8 @@ android {
         compileSdk = 36
         minSdkVersion 29
         targetSdkVersion 36
-        versionCode 87
-        versionName "1.1.17-family"
+        versionCode 88
+        versionName "1.1.18-family"
         multiDexEnabled = true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += ['en', 'tr', 'ru']
