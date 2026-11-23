@@ -20,6 +20,12 @@ public class Snapshot {
         public byte[] receivingBoxId;
         public String nickname;
         public String sharedNickname;
+        // Family Locator: the phone contact this friend is linked to (stock Zood ignores these keys).
+        // The name restores anywhere; the id is an Android lookup URI or an iOS Contacts identifier,
+        // so it's only reused on the platform named in linkedContactPlatform.
+        public String linkedContactName;
+        public String linkedContactId;
+        public String linkedContactPlatform;
     }
 
     public static class User {
@@ -34,6 +40,11 @@ public class Snapshot {
     public final ArrayList<User> users = new ArrayList<>();
     @Nullable
     public byte[] avatar;
+
+    // Family Locator: accounts blocked in the iPhone app. Android doesn't block yet, but carries this list
+    // through its own backups unchanged so an Android backup never erases blocks made on an iPhone.
+    @Nullable
+    public ArrayList<User> blocked;
 
     public String nickname;
 

@@ -275,6 +275,7 @@ public class AuthenticationManager {
         // Restore account-scoped names only after the new account identity is installed.
         if (restoredSnapshot != null) {
             xyz.zood.george.Nicknames.restore(restoredSnapshot);
+            xyz.zood.george.LinkedContacts.restore(restoredSnapshot);
         }
 
         if (xyz.zood.george.Nicknames.own() != null) {

@@ -422,12 +422,18 @@ public class DB {
                     f.userId = friendRecord.user.userId;
                     f.nickname = xyz.zood.george.Nicknames.local(f.userId);
                     f.sharedNickname = xyz.zood.george.Nicknames.shared(f.userId);
+                    f.linkedContactName = xyz.zood.george.LinkedContacts.name(f.userId);
+                    if (f.linkedContactName != null) {
+                        f.linkedContactId = xyz.zood.george.LinkedContacts.uri(f.userId);
+                        f.linkedContactPlatform = "android";
+                    }
                     f.sendingBoxId = friendRecord.sendingBoxId;
                     f.receivingBoxId = friendRecord.receivingBoxId;
                     snapshot.friends.add(f);
                 }
             }
 
+            snapshot.blocked = xyz.zood.george.LinkedContacts.carriedBlockedUsers();
             snapshot.schemaVersion = db.getVersion();
             snapshot.timestamp = System.currentTimeMillis();
 

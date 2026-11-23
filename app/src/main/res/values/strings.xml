@@ -252,7 +252,7 @@
     <string name="link_contact">Link Contact</string>
     <string name="linked_contact">Linked Contact</string>
     <string name="linked_contact_msg">Linked to %s</string>
-    <string name="link_contact_explanation">Choose a contact to use their name on this phone. A nickname you\'ve set takes priority. Contacts are never uploaded.</string>
+    <string name="link_contact_explanation">Choose a contact to show their name for this friend. A nickname you\'ve set takes priority. Only that contact\'s name and a reference to it are kept, here and in your end-to-end encrypted backup. Your other contacts are never read or uploaded.</string>
     <string name="choose_contact">Choose Contact</string>
     <string name="choose_different_contact">Choose Different Contact</string>
     <string name="unlink_contact">Unlink Contact</string>
