@@ -434,6 +434,8 @@ public class DB {
             }
 
             snapshot.blocked = xyz.zood.george.LinkedContacts.carriedBlockedUsers();
+            snapshot.folders = xyz.zood.george.LinkedContacts.carriedFolders();
+            snapshot.barOrder = xyz.zood.george.LinkedContacts.carriedBarOrder();
             snapshot.schemaVersion = db.getVersion();
             snapshot.timestamp = System.currentTimeMillis();
 

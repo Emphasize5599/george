@@ -46,6 +46,18 @@ public class Snapshot {
     @Nullable
     public ArrayList<User> blocked;
 
+    // Family Locator: the iPhone app's friend-bar folders and order. Android carries them through unchanged.
+    public static class Folder {
+        public String id;
+        public String name;
+        public ArrayList<byte[]> members;
+    }
+
+    @Nullable
+    public ArrayList<Folder> folders;
+    @Nullable
+    public ArrayList<String> barOrder;
+
     public String nickname;
 
     public int schemaVersion;

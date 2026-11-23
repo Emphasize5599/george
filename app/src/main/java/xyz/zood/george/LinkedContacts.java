@@ -27,8 +27,8 @@ import xyz.zood.george.worker.BackupDatabaseWorker;
  * Name priority (see {@link Nicknames#displayName}): your private nickname, then the linked contact,
  * then the friend's shared nickname, then their @username.
  *
- * This class also keeps the backup's blocked-user list, which the iPhone app writes. Android doesn't block
- * accounts yet, so it just carries that list through its own backups unchanged.
+ * This class also keeps the parts of the backup that only the iPhone app uses (blocked users, friend-bar
+ * folders and order) and writes them back unchanged, so an Android backup never erases them.
  */
 public final class LinkedContacts {
 
@@ -99,6 +99,12 @@ public final class LinkedContacts {
         if (snapshot.blocked != null) {
             editor.putString(blockedKey(), OscarClient.sGson.toJson(snapshot.blocked.toArray(new Snapshot.User[0])));
         }
+        if (snapshot.folders != null) {
+            editor.putString(accountKey("folders"), OscarClient.sGson.toJson(snapshot.folders.toArray(new Snapshot.Folder[0])));
+        }
+        if (snapshot.barOrder != null) {
+            editor.putString(accountKey("bar_order"), OscarClient.sGson.toJson(snapshot.barOrder.toArray(new String[0])));
+        }
         editor.apply();
         Nicknames.notifyListeners();
     }
@@ -118,7 +124,37 @@ public final class LinkedContacts {
         }
     }
 
+    /** The iPhone app's friend-bar folders, carried into the next backup (null if the backup had none). */
+    @Nullable
+    public static ArrayList<Snapshot.Folder> carriedFolders() {
+        return carried(accountKey("folders"), Snapshot.Folder[].class);
+    }
+
+    /** The iPhone app's friend-bar order, carried into the next backup (null if the backup had none). */
+    @Nullable
+    public static ArrayList<String> carriedBarOrder() {
+        return carried(accountKey("bar_order"), String[].class);
+    }
+
+    @Nullable
+    private static <T> ArrayList<T> carried(@NonNull String key, @NonNull Class<T[]> type) {
+        String json = prefs().getString(key, null);
+        if (json == null) {
+            return null;
+        }
+        try {
+            T[] values = OscarClient.sGson.fromJson(json, type);
+            return values == null ? null : new ArrayList<>(Arrays.asList(values));
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     private static String blockedKey() {
-        return Hex.toHexString(Prefs.get(App.getApp()).getUserId()) + ":blocked";
+        return accountKey("blocked");
+    }
+
+    private static String accountKey(@NonNull String name) {
+        return Hex.toHexString(Prefs.get(App.getApp()).getUserId()) + ":" + name;
     }
 }
