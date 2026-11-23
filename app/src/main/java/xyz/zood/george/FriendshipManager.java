@@ -44,7 +44,7 @@ public class FriendshipManager {
     }
 
     @WorkerThread
-    void addFriend(@NonNull String username, @NonNull OnAddFriendFinishedListener listener) {
+    void addFriend(@NonNull String username, boolean confirmedSharing, @NonNull OnAddFriendFinishedListener listener) {
         UserRecord user = db.getUser(username);
         if (user == null) {
             // the user should already have been added by the 'search as you type' feature
@@ -55,6 +55,25 @@ public class FriendshipManager {
         synchronized (FriendRequests.class) {
             if (FriendRequests.isBlocked(user.userId)) {
                 listener.onAddFriendFinished(AddFriendResult.SharingGrantFailed, ctx.getString(R.string.unblock_before_sharing));
+                return;
+            }
+            for (FriendRequests.Request request : FriendRequests.pending()) {
+                if (!java.util.Arrays.equals(request.user.userId, user.userId)) continue;
+                try {
+                    FriendRequests.approve(request);
+                    listener.onAddFriendFinished(AddFriendResult.Success, null);
+                } catch (DB.DBException | IOException error) {
+                    listener.onAddFriendFinished(AddFriendResult.DatabaseError, error.getLocalizedMessage());
+                }
+                return;
+            }
+            FriendRecord friend = db.getFriendByUserId(user.id);
+            if (friend != null && friend.receivingBoxId != null) {
+                listener.onAddFriendFinished(AddFriendResult.Success, null);
+                return;
+            }
+            if (!confirmedSharing) {
+                listener.onAddFriendFinished(AddFriendResult.ConfirmSharing, user.username);
                 return;
             }
             addFriend(user, listener);
@@ -201,6 +220,7 @@ public class FriendshipManager {
 
     enum AddFriendResult {
         Success,
+        ConfirmSharing,
         UserNotFound,
         SharingGrantFailed,
         DatabaseError,

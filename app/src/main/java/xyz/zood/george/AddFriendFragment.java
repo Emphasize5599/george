@@ -230,12 +230,11 @@ public class AddFriendFragment extends Fragment {
         }
         String username = Usernames.forLookup(text.toString());
 
-        App.runInBackground(new WorkerRunnable() {
-            @Override
-            public void run() {
-                friendshipManager.addFriend(username, AddFriendFragment.this::onAddFriendFinished);
-            }
-        });
+        addFriend(username, false);
+    }
+
+    private void addFriend(String username, boolean confirmedSharing) {
+        App.runInBackground(() -> friendshipManager.addFriend(username, confirmedSharing, this::onAddFriendFinished));
     }
 
     @WorkerThread
@@ -243,10 +242,19 @@ public class AddFriendFragment extends Fragment {
         App.runOnUiThread(new UiRunnable() {
             @Override
             public void run() {
+                if (binding == null || !isAdded()) return;
                 String errMsg;
                 switch (result) {
                     case Success:
                         getParentFragmentManager().popBackStack();
+                        return;
+                    case ConfirmSharing:
+                        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                                .setTitle(R.string.confirm_share_own_location)
+                                .setMessage(getString(R.string.confirm_share_with, Usernames.display(extraInfo)))
+                                .setNegativeButton(android.R.string.cancel, null)
+                                .setPositiveButton(R.string.share_my_location_action, (dialog, which) -> addFriend(extraInfo, true))
+                                .show();
                         return;
                     case UserNotFound:
                         errMsg = getString(R.string.unknown_error_getting_user_info);

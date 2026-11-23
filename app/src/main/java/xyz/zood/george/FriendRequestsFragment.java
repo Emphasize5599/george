@@ -90,18 +90,32 @@ public class FriendRequestsFragment extends Fragment {
             var requests = FriendRequests.pending();
             for (FriendRequests.Request request : requests) {
                 String name = request.displayName();
-                addName(name);
+                var card = new com.google.android.material.card.MaterialCardView(requireContext());
+                var cardParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                cardParams.bottomMargin = dp(8);
+                card.setRadius(dp(16));
+                card.setCardElevation(0);
+                card.setCardBackgroundColor(requireContext().getColor(R.color.surface));
+                rows.addView(card, cardParams);
+                var content = new LinearLayout(requireContext());
+                content.setOrientation(LinearLayout.VERTICAL);
+                content.setPadding(dp(12), dp(8), dp(12), dp(4));
+                card.addView(content, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                TextView heading = new TextView(requireContext());
+                heading.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+                heading.setText(name);
+                content.addView(heading);
                 if (request.nickname != null) {
                     TextView handle = new TextView(requireContext());
                     handle.setText(Usernames.display(request.user.username));
                     handle.setTextColor(requireContext().getColor(R.color.text_secondary));
-                    rows.addView(handle);
+                    content.addView(handle);
                 }
                 LinearLayout actions = new LinearLayout(requireContext());
-                rows.addView(actions);
-                addAction(actions, R.string.approve_request, () -> runAction(() -> FriendRequests.approve(request)));
-                addAction(actions, R.string.deny_request, () -> confirm(R.string.deny_request, name, () -> FriendRequests.deny(request)));
-                addAction(actions, R.string.block_user, () -> confirm(R.string.block_user, name, () -> FriendRequests.block(request.user)));
+                content.addView(actions, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                addRequestAction(actions, R.string.approve_request, () -> runAction(() -> FriendRequests.approve(request)));
+                addRequestAction(actions, R.string.deny_request, () -> confirm(R.string.deny_request, name, () -> FriendRequests.deny(request)));
+                addRequestAction(actions, R.string.block_user, () -> confirm(R.string.block_user, name, () -> FriendRequests.block(request.user)));
             }
             if (requests.isEmpty()) addName(getString(R.string.no_friend_requests));
         }
@@ -126,6 +140,23 @@ public class FriendRequestsFragment extends Fragment {
         MaterialButton button = button(label);
         button.setOnClickListener(view -> action.run());
         parent.addView(button);
+    }
+
+    private void addRequestAction(LinearLayout parent, int label, Runnable action) {
+        var button = button(label);
+        button.setAllCaps(false);
+        button.setMinWidth(0);
+        button.setMinimumHeight(dp(48));
+        button.setPadding(0, 0, 0, 0);
+        if (label != R.string.approve_request) {
+            button.setTextColor(com.google.android.material.color.MaterialColors.getColor(button, androidx.appcompat.R.attr.colorError));
+        }
+        button.setOnClickListener(view -> action.run());
+        parent.addView(button, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void confirm(int action, String name, Decision decision) {

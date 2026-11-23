@@ -200,8 +200,10 @@ public class MessageProcessor {
             case DeviceStatusRequest:
                 return handleDeviceStatusRequest(user, token, keyPair);
             case DeviceStatus:
+                FriendRecord reportingFriend = DB.get().getFriendByUserId(user.id);
+                if (reportingFriend == null || reportingFriend.receivingBoxId == null) return Result.Success;
                 FriendDevices.record(App.getApp(), user.userId, comm);
-                DeviceStatusProbe.onStatusReceived(user.userId);
+                DeviceStatusProbe.onStatusReceived(user.userId, comm.liveRequests);
                 return Result.Success;
             case Scream:
             default:
@@ -379,8 +381,9 @@ public class MessageProcessor {
             return Result.Success;
         }
 
-        // does the app have background location permission?
-        if (!Permissions.checkBackgroundLocationPermission(context)) {
+        boolean canUseForegroundLocation = App.isInForeground || LiveRequestService.isRunning();
+        if (!(canUseForegroundLocation ? Permissions.checkForegroundLocationPermission(context)
+                : Permissions.checkBackgroundLocationPermission(context))) {
             // we don't, so just inform the requester that we're done providing updates
             UserComm done = UserComm.newLocationUpdateRequestReceived(UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED);
             String errMsg = OscarClient.immediatelySendMessage(userRecord, accessToken, keyPair, done, true, true);

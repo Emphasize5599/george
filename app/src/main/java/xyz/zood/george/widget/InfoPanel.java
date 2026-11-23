@@ -115,6 +115,8 @@ public class InfoPanel {
     // Family Locator: one status line under the address ("Requesting…", "Updated 5 min. ago",
     // "Unsupported (?)"), plus the anchored help opened by the info button.
     @NonNull private final View statusRow;
+    @NonNull private final View statusLine;
+    @NonNull private final View unsupportedLine;
     @NonNull private final ImageView statusIcon;
     @NonNull private final TextView statusText;
     @NonNull private final View unsupportedInfo;
@@ -204,11 +206,14 @@ public class InfoPanel {
         });
 
         statusRow = root.findViewById(R.id.status_row);
+        statusLine = root.findViewById(R.id.status_line);
+        unsupportedLine = root.findViewById(R.id.unsupported_line);
         statusIcon = root.findViewById(R.id.status_icon);
         statusText = root.findViewById(R.id.status_text);
         unsupportedInfo = root.findViewById(R.id.unsupported_info);
         DeviceStatusProbe.addListener(deviceStatusListener);
-        if (statusRow == null || statusIcon == null || statusText == null || unsupportedInfo == null) {
+        if (statusRow == null || statusLine == null || unsupportedLine == null || statusIcon == null
+                || statusText == null || unsupportedInfo == null) {
             throw new IllegalArgumentException("status views are missing");
         }
         unsupportedInfo.setOnClickListener(this::showRefreshHelp);
@@ -280,10 +285,14 @@ public class InfoPanel {
                 && answeredAt != null && now - answeredAt < UPDATED_CHECK_DURATION;
 
         if (requestsUnsupported) {
-            // Keep the update time, with the note on its own line underneath.
-            String note = context.getString(checkingSupport ? R.string.checking_ellipsis : R.string.on_demand_refresh_unsupported);
-            text = currLoc != null ? updatedText(currLoc.time, now) + "\n" + note : note;
-            showInfo = !checkingSupport;
+            String update = currLoc == null ? "" : updatedText(currLoc.time, now);
+            if (checkingSupport) {
+                String checking = context.getString(R.string.checking_ellipsis);
+                text = update.isEmpty() ? checking : update + "\n" + checking;
+            } else {
+                text = update;
+                showInfo = true;
+            }
             color = R.color.text_secondary;
         } else if (justUpdated) {
             text = context.getString(R.string.updated);
@@ -316,14 +325,16 @@ public class InfoPanel {
 
         statusRow.setVisibility(View.VISIBLE);
         statusIcon.setVisibility(showCheck ? View.VISIBLE : View.GONE);
-        unsupportedInfo.setVisibility(showInfo ? View.VISIBLE : View.GONE);
+        statusLine.setVisibility(text.length() == 0 ? View.GONE : View.VISIBLE);
+        unsupportedLine.setVisibility(showInfo ? View.VISIBLE : View.GONE);
         statusText.setTextColor(ContextCompat.getColor(context, color));
         statusText.setText(text);
-        if (lastStatus != null && !lastStatus.toString().contentEquals(text)) {
+        CharSequence status = showInfo ? text + "\n" + context.getString(R.string.on_demand_refresh_unsupported) : text;
+        if (lastStatus != null && !lastStatus.toString().contentEquals(status)) {
             statusRow.setAlpha(0f);
             statusRow.animate().alpha(1f).setDuration(250).start();
         }
-        lastStatus = text;
+        lastStatus = status;
     }
 
     /** "Updated 5 min. ago" today; an older update gets a date so it can't be mistaken for a recent one. */
@@ -468,23 +479,19 @@ public class InfoPanel {
             platformIcon.setImageResource(device.isIPhone() ? R.drawable.ic_platform_apple : R.drawable.ic_platform_android);
             platformIcon.setContentDescription(context.getString(device.isIPhone() ? R.string.apple_device : R.string.android_device));
         }
-        boolean unsupported = friend != null && friend.receivingBoxId != null && device != null && device.cannotAnswerRequests();
-        requestsUnsupported = unsupported;
-        if (!unsupported) {
-            checkingSupport = false;
+        boolean reportedUnavailable = friend != null && friend.receivingBoxId != null
+                && device != null && device.cannotAnswerRequests();
+        if (reportedUnavailable) DeviceStatusProbe.probeIfNeeded(context, friend);
+        checkingSupport = reportedUnavailable && DeviceStatusProbe.isProbing(friend.user.userId);
+        requestsUnsupported = reportedUnavailable
+                && (checkingSupport || DeviceStatusProbe.isConfirmedUnavailable(friend.user.userId));
+        if (!requestsUnsupported) {
             dismissRefreshHelp();
             return false;
         }
         refreshButton.setEnabled(false);
-        // Hidden (not just disabled) until a later check finds their phone can answer again. Invisible rather
-        // than gone, so the share switch beside it keeps its place.
         refreshButton.setVisibility(View.INVISIBLE);
-        // Re-check a cached "can't answer" before declaring it; the status row shows "Checking…" meanwhile.
-        DeviceStatusProbe.probeIfNeeded(context, friend);
-        checkingSupport = DeviceStatusProbe.isProbing(friend.user.userId);
-        if (checkingSupport) {
-            dismissRefreshHelp();
-        }
+        if (checkingSupport) dismissRefreshHelp();
         @StringRes int body = device.isIPhone() ? R.string.unsupported_iphone_body : R.string.unsupported_android_body;
         refreshHelpBody = context.getString(body, xyz.zood.george.Nicknames.displayName(friend.user));
         return true;
@@ -502,6 +509,7 @@ public class InfoPanel {
                 calculateAndUpdateRefreshButton(System.currentTimeMillis());
             } else if (!applyRequestCapability()) {
                 refreshButton.setEnabled(friend.receivingBoxId != null);
+                refreshButton.setVisibility(friend.receivingBoxId != null ? View.VISIBLE : View.INVISIBLE);
             }
             updateStatusRow(System.currentTimeMillis());
         }

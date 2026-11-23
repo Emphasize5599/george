@@ -208,9 +208,6 @@
                 app:layout_constraintTop_toBottomOf="@id/battery_icon"
                 tools:text="1212 S. Westlake Blvd, Thousand Oaks" />
 
-            <!-- One status line under the address for everything about freshness: Requesting…,
-                 a brief green "Updated" check, No response / Unsupported (?), then "Updated 5 min. ago".
-                 Keeping it in one place means the card doesn't jump around during a request. -->
             <LinearLayout
                 android:id="@+id/status_row"
                 android:layout_width="0dp"
@@ -218,39 +215,71 @@
                 android:layout_marginEnd="16dp"
                 android:gravity="center_vertical"
                 android:minHeight="32dp"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="@id/username"
                 app:layout_constraintTop_toBottomOf="@id/address">
 
-                <ImageView
-                    android:id="@+id/status_icon"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginEnd="4dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/ic_check_black_24dp"
-                    android:visibility="gone"
-                    app:tint="@color/zood_green" />
-
-                <TextView
-                    android:id="@+id/status_text"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:id="@+id/status_line"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="@color/text_tertiary"
-                    style="@style/Zood.Caption"
-                    tools:text="Updated 25 min. ago" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <ImageButton
-                    android:id="@+id/unsupported_info"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/why_unsupported"
-                    android:src="@drawable/ic_help_outline_20dp"
-                    android:visibility="gone"
-                    app:tint="@color/zood_blue_dark" />
+                    <ImageView
+                        android:id="@+id/status_icon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginEnd="4dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_check_black_24dp"
+                        android:visibility="gone"
+                        app:tint="@color/zood_green" />
+
+                    <TextView
+                        android:id="@+id/status_text"
+                        style="@style/Zood.Caption"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_tertiary"
+                        tools:text="Updated 25 min. ago" />
+                </LinearLayout>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/unsupported_line"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/unsupported_label"
+                        style="@style/Zood.Caption"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/on_demand_refresh_unsupported"
+                        android:textColor="@color/text_secondary"
+                        app:layout_constrainedWidth="true"
+                        app:layout_constraintBottom_toBottomOf="@id/unsupported_info"
+                        app:layout_constraintEnd_toStartOf="@id/unsupported_info"
+                        app:layout_constraintHorizontal_bias="0"
+                        app:layout_constraintHorizontal_chainStyle="packed"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/unsupported_info" />
+
+                    <ImageButton
+                        android:id="@+id/unsupported_info"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/why_unsupported"
+                        android:src="@drawable/ic_help_outline_20dp"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/unsupported_label"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:tint="@color/zood_blue_dark" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
             </LinearLayout>
 
             <!-- Icon-only Refresh; the status row above already says what's happening. -->

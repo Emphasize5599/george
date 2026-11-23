@@ -71,6 +71,11 @@ public class UserComm {
 
     private UserComm() {}
 
+    private static boolean canAnswerLocationRequests() {
+        return (LiveRequestService.isRunning() || io.pijun.george.App.isInForeground)
+                && xyz.zood.george.Permissions.checkForegroundLocationPermission(io.pijun.george.App.getApp());
+    }
+
     public static UserComm newNicknameUpdate() {
         UserComm comm = new UserComm();
         comm.type = CommType.NicknameUpdate;
@@ -148,7 +153,7 @@ public class UserComm {
         c.type = CommType.LocationUpdateRequestReceived;
         c.locationUpdateRequestAction = action;
         c.platform = PLATFORM_ANDROID;
-        c.liveRequests = LiveRequestService.isRunning();
+        c.liveRequests = canAnswerLocationRequests();
         return c;
     }
 
@@ -172,7 +177,7 @@ public class UserComm {
         c.batteryLevel = batteryLevel;
         c.batteryCharging = batteryCharging;
         c.platform = PLATFORM_ANDROID;
-        c.liveRequests = LiveRequestService.isRunning();
+        c.liveRequests = canAnswerLocationRequests();
 
         return c;
     }
@@ -197,7 +202,7 @@ public class UserComm {
         UserComm c = new UserComm();
         c.type = CommType.DeviceStatus;
         c.platform = PLATFORM_ANDROID;
-        c.liveRequests = LiveRequestService.isRunning();
+        c.liveRequests = canAnswerLocationRequests();
         return c;
     }
 

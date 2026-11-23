@@ -177,6 +177,7 @@ public class LayoutTourActivity extends AppCompatActivity {
         capability.platform = UserComm.PLATFORM_IOS;
         capability.liveRequests = !scene.equals("friend-unsupported");
         FriendDevices.record(this, friend.user.userId, capability);
+        if (scene.equals("friend-unsupported")) DeviceStatusProbe.onStatusReceived(friend.user.userId, false);
         if (scene.equals("friend-requesting")) {
             UpdateStatusTracker.setLastRequestTime(friend.id, System.currentTimeMillis());
         }

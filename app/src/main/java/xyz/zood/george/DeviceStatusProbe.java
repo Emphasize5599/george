@@ -5,6 +5,7 @@ import android.text.format.DateUtils;
 
 import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 
 import java.lang.ref.WeakReference;
@@ -15,12 +16,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import io.pijun.george.App;
 import io.pijun.george.Hex;
 import io.pijun.george.Prefs;
-import io.pijun.george.MessageProcessor;
-import io.pijun.george.crypto.EncryptedData;
-import java.io.IOException;
-import retrofit2.Response;
 import io.pijun.george.UiRunnable;
-import io.pijun.george.WorkerRunnable;
 import io.pijun.george.api.OscarClient;
 import io.pijun.george.api.UserComm;
 import io.pijun.george.crypto.KeyPair;
@@ -30,7 +26,7 @@ import io.pijun.george.database.FriendRecord;
  * Before we tell someone a friend's phone "can't answer location requests", make sure that's still true.
  * The cached report (FriendDevices) only changes when the friend sends a location, so a phone that became able
  * to answer again but hasn't moved keeps looking Unsupported. We ask it directly with a transient
- * device_status_request: a listening phone replies at once with device_status; silence means it really can't.
+ * device_status_request: a listening phone can reply with device_status. Silence leaves manual refresh available.
  */
 public class DeviceStatusProbe {
 
@@ -38,6 +34,7 @@ public class DeviceStatusProbe {
     private static final long MIN_INTERVAL_MS = DateUtils.MINUTE_IN_MILLIS;
 
     private static final HashSet<String> probing = new HashSet<>();
+    private static final HashMap<String, Long> unavailableUntil = new HashMap<>();
     private static final HashMap<String, Long> lastProbe = new HashMap<>();
     private static final CopyOnWriteArrayList<WeakReference<Listener>> listeners = new CopyOnWriteArrayList<>();
 
@@ -55,6 +52,11 @@ public class DeviceStatusProbe {
         return probing.contains(Hex.toHexString(userId));
     }
 
+    public static synchronized boolean isConfirmedUnavailable(@NonNull byte[] userId) {
+        Long expiration = unavailableUntil.get(Hex.toHexString(userId));
+        return expiration != null && expiration > android.os.SystemClock.elapsedRealtime();
+    }
+
     /** Starts a probe if the cached report says this friend can't answer and we haven't asked recently. */
     @UiThread
     public static void probeIfNeeded(@NonNull Context ctx, @NonNull FriendRecord friend) {
@@ -62,6 +64,10 @@ public class DeviceStatusProbe {
         if (friend.receivingBoxId == null || device == null || !device.cannotAnswerRequests()) {
             return;
         }
+        Prefs prefs = Prefs.get(ctx);
+        String token = prefs.getAccessToken();
+        KeyPair keyPair = prefs.getKeyPair();
+        if (token == null || keyPair == null) return;
         String key = Hex.toHexString(friend.user.userId);
         long now = System.currentTimeMillis();
         synchronized (DeviceStatusProbe.class) {
@@ -73,34 +79,8 @@ public class DeviceStatusProbe {
             probing.add(key);
         }
         notifyChanged(friend.user.userId);
-        Context app = ctx.getApplicationContext();
-        App.runInBackground(new WorkerRunnable() {
-            @Override
-            public void run() {
-                Prefs prefs = Prefs.get(app);
-                String token = prefs.getAccessToken();
-                KeyPair kp = prefs.getKeyPair();
-                if (token != null && kp != null) {
-                    // Refresh the package even if we have already seen this location: its device flags may differ.
-                    try {
-                        Response<EncryptedData> response = OscarClient.newInstance(token)
-                                .pickUpPackage(Hex.toHexString(friend.receivingBoxId)).execute();
-                        EncryptedData pkg = response.body();
-                        if (response.isSuccessful() && pkg != null) {
-                            MessageProcessor.decryptAndProcess(app, friend.user.userId, pkg.cipherText, pkg.nonce);
-                        }
-                    } catch (IOException ignored) {
-                        // Still try the live status request if the package fetch fails.
-                    }
-                    FriendDevices.Device updated = FriendDevices.get(app, friend.user.userId);
-                    if (updated != null && !updated.cannotAnswerRequests()) {
-                        finish(friend.user.userId);
-                        return;
-                    }
-                    OscarClient.immediatelySendMessage(friend.user, token, kp, UserComm.newDeviceStatusRequest(), true, true);
-                }
-            }
-        });
+        App.runInBackground(() -> OscarClient.immediatelySendMessage(
+                friend.user, token, keyPair, UserComm.newDeviceStatusRequest(), true, true));
         App.runOnUiThread(new UiRunnable() {
             @Override
             public void run() {
@@ -111,7 +91,23 @@ public class DeviceStatusProbe {
 
     /** A device_status reply arrived (it's already been recorded in FriendDevices). */
     @AnyThread
-    public static void onStatusReceived(@NonNull byte[] userId) {
+    public static void onStatusReceived(@NonNull byte[] userId, @Nullable Boolean liveRequests) {
+        if (liveRequests != null) {
+            String id = Hex.toHexString(userId);
+            long expiration = android.os.SystemClock.elapsedRealtime() + 30_000;
+            synchronized (DeviceStatusProbe.class) {
+                if (liveRequests) unavailableUntil.remove(id);
+                else unavailableUntil.put(id, expiration);
+            }
+            if (!liveRequests) {
+                App.runOnUiThread(() -> {
+                    synchronized (DeviceStatusProbe.class) {
+                        if (!unavailableUntil.remove(id, expiration)) return;
+                    }
+                    notifyChanged(userId);
+                }, 30_000);
+            }
+        }
         finish(userId);
     }
 
