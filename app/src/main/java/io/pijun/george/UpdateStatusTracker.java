@@ -8,6 +8,7 @@ import java.util.HashSet;
 import androidx.annotation.AnyThread;
 import androidx.annotation.CheckResult;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 import io.pijun.george.api.UserComm;
 
@@ -87,6 +88,17 @@ public class UpdateStatusTracker {
         }
 
         return State.RequestDenied;
+    }
+
+    /**
+     * When the friend answered the current request, or null if they haven't.
+     * The friend card uses it to show a brief "Updated" check before returning to the regular time.
+     */
+    @Nullable
+    @AnyThread
+    public static synchronized Long getResponseTime(long friendId) {
+        Response resp = responses.get(friendId);
+        return resp == null ? null : resp.responseTime;
     }
 
     @AnyThread

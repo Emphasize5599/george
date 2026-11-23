@@ -350,7 +350,7 @@
         tools:visibility="invisible"
         android:visibility="invisible"
         app:layout_constraintTop_toBottomOf="@id/reg_username_container"
-        app:layout_constraintBottom_toTopOf="@id/reg_email_container"
+        app:layout_constraintBottom_toTopOf="@id/reg_nickname_container"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
@@ -366,6 +366,30 @@
             android:inputType="textPassword" />
     </com.google.android.material.textfield.TextInputLayout>
     <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/reg_nickname_container"
+        app:hintEnabled="true"
+        android:hint="@string/nickname_optional"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:textColorHint="@color/inactive_50"
+        tools:visibility="invisible"
+        android:visibility="invisible"
+        app:layout_constraintTop_toBottomOf="@id/reg_password_container"
+        app:layout_constraintBottom_toTopOf="@id/reg_email_container"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginTop="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/reg_nickname"
+            android:textSize="14sp"
+            android:imeOptions="actionNext"
+            android:inputType="textPersonName|textCapWords"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </com.google.android.material.textfield.TextInputLayout>
+    <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/reg_email_container"
         app:hintEnabled="true"
         android:hint="@string/email_hint_msg"
@@ -373,7 +397,7 @@
         android:textColorHint="@color/inactive_50"
         tools:visibility="invisible"
         android:visibility="invisible"
-        app:layout_constraintTop_toBottomOf="@id/reg_password_container"
+        app:layout_constraintTop_toBottomOf="@id/reg_nickname_container"
         app:layout_constraintBottom_toTopOf="@id/register_button"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginStart="24dp"

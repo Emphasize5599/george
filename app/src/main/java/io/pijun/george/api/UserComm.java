@@ -23,6 +23,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 public class UserComm {
 
     public CommType type;
+    @Nullable public String nickname;
     public byte[] dropBox;
 
     public byte[] avatar;
@@ -68,6 +69,16 @@ public class UserComm {
     public static final String LOCATION_UPDATE_REQUEST_ACTION_FINISHED = "finished";
 
     private UserComm() {}
+
+    public static UserComm newNicknameUpdate() {
+        UserComm comm = new UserComm();
+        comm.type = CommType.NicknameUpdate;
+        comm.nickname = xyz.zood.george.Nicknames.own();
+        if (comm.nickname == null) {
+            comm.nickname = "";
+        }
+        return comm;
+    }
 
     @NonNull
     @CheckResult
@@ -254,6 +265,8 @@ public class UserComm {
                 return true;
             case ScreamBegan:
                 return true;
+            case NicknameUpdate:
+                return nickname != null;
             case DeviceStatusRequest:
                 return true;
             case DeviceStatus:
@@ -273,6 +286,11 @@ public class UserComm {
     @CheckResult
     @NonNull
     public byte[] toJSON() {
+        // Piggyback profile changes on encrypted traffic so dormant clients catch up on their next update.
+        nickname = xyz.zood.george.Nicknames.own();
+        if (nickname == null) {
+            nickname = "";
+        }
         String s = OscarClient.sGson.toJson(this);
         return s.getBytes(Constants.utf8);
     }

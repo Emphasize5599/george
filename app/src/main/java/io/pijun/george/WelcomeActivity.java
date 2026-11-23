@@ -260,7 +260,7 @@ public class WelcomeActivity extends AppCompatActivity implements WelcomeViewHol
     }
 
     @WorkerThread
-    private void registerUser(User user, String password) {
+    private void registerUser(User user, String password, String nickname) {
         OscarAPI api = OscarClient.newInstance(null);
         FragmentManager fm = getSupportFragmentManager();
         try {
@@ -275,6 +275,7 @@ public class WelcomeActivity extends AppCompatActivity implements WelcomeViewHol
                 Prefs prefs = Prefs.get(this);
                 prefs.setUserId(resp.id);
                 prefs.setUsername(user.username);
+                xyz.zood.george.Nicknames.storeOwn(nickname);
 
                 login(user.username, password);
             } else {
@@ -385,6 +386,7 @@ public class WelcomeActivity extends AppCompatActivity implements WelcomeViewHol
         // for up above.
         String username = usernameText != null ? usernameText.toString() : "";
         final String email = emailTmp;
+        final String nickname = binding.regNickname.getText() == null ? null : binding.regNickname.getText().toString();
 
         showProgressDialog(true);
         App.runInBackground(new WorkerRunnable() {
@@ -396,7 +398,7 @@ public class WelcomeActivity extends AppCompatActivity implements WelcomeViewHol
                     Utils.showAlert(WelcomeActivity.this, 0, R.string.unknown_user_generation_error_msg, getSupportFragmentManager());
                     return;
                 }
-                registerUser(user, password.toString());
+                registerUser(user, password.toString(), nickname);
             }
         });
     }
@@ -423,7 +425,7 @@ public class WelcomeActivity extends AppCompatActivity implements WelcomeViewHol
             return;
         }
 
-        String username = usernameText.toString().trim();
+        String username = xyz.zood.george.Usernames.forLookup(usernameText.toString());
         String password = passwordText.toString();
 
         showProgressDialog(true);

@@ -32,6 +32,8 @@ public class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
     private static final int DIVIDER_ID = -3;
     private static final int MARGIN_ID = -2;
 
+    private final Runnable namesChanged = this::notifyDataSetChanged;
+
     private final ArrayList<RecyclerViewAdapterItem> items = new ArrayList<>();
     private ArrayList<FriendRecord> friends = new ArrayList<>();
     private final SparseArray<FriendRecord> friendPositions = new SparseArray<>();
@@ -40,6 +42,7 @@ public class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
 
     FriendsBarAdapter(@NonNull Listener l) {
         this.listener = l;
+        Nicknames.observe(namesChanged);
         setHasStableIds(true);
     }
 
@@ -103,7 +106,8 @@ public class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
             Resources rsrcs = h.avatar.getResources();
             int imgSize = rsrcs.getDimensionPixelSize(R.dimen.forty);
             Context ctx = h.avatar.getContext();
-            h.avatar.setUsername(friend.user.username);
+            h.avatar.setUsername(Nicknames.avatarName(friend.user));
+            h.avatar.setContentDescription(Nicknames.displayName(friend.user));
             Picasso.with(ctx).
                     load(AvatarManager.getAvatar(ctx, friend.user.username)).
                     resize(imgSize, imgSize).

@@ -61,6 +61,14 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
 
         binding.regPassword.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_NEXT) {
+                binding.regNickname.requestFocus();
+                return true;
+            }
+            return false;
+        });
+
+        binding.regNickname.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_NEXT) {
                 binding.regEmail.requestFocus();
                 return true;
             }
@@ -80,6 +88,7 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         binding.regUsername.clearFocus();
         binding.regPassword.clearFocus();
         binding.regEmail.clearFocus();
+        binding.regNickname.clearFocus();
 
         binding.siUsername.clearFocus();
         binding.siPassword.clearFocus();
@@ -258,6 +267,7 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         // take out the registration views
         binding.registerButton.animate().setStartDelay(0).setDuration(dur).translationX(binding.root.getWidth() - binding.registerButton.getLeft());
         binding.regEmailContainer.animate().setStartDelay(100).setDuration(dur).translationX(xOffset);
+        binding.regNicknameContainer.animate().setStartDelay(100).setDuration(dur).translationX(xOffset);
         binding.regPasswordContainer.animate().setStartDelay(200).setDuration(dur).translationX(xOffset);
         binding.regUsernameContainer.animate().setStartDelay(300).setDuration(dur).translationX(xOffset);
         binding.registerSubtitle.animate().setStartDelay(400).setDuration(dur).translationX(xOffset);
@@ -280,6 +290,7 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
                 binding.regUsername.setText(null);
                 binding.regPassword.setText(null);
                 binding.regEmail.setText(null);
+                binding.regNickname.setText(null);
             }
         });
     }
@@ -301,6 +312,7 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         binding.regUsernameContainer.setTranslationX(xOffset);
         binding.regPasswordContainer.setTranslationX(xOffset);
         binding.regEmailContainer.setTranslationX(xOffset);
+        binding.regNicknameContainer.setTranslationX(xOffset);
         binding.registerButton.setTranslationX(binding.root.getWidth() - binding.registerButton.getLeft());
         // update their visibility
         binding.registerTitle.setVisibility(View.VISIBLE);
@@ -308,6 +320,7 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         binding.regUsernameContainer.setVisibility(View.VISIBLE);
         binding.regPasswordContainer.setVisibility(View.VISIBLE);
         binding.regEmailContainer.setVisibility(View.VISIBLE);
+        binding.regNicknameContainer.setVisibility(View.VISIBLE);
         binding.registerButton.setVisibility(View.VISIBLE);
 
         // move the 'main' stuff out first
@@ -323,6 +336,7 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         binding.regUsernameContainer.animate().setStartDelay(200).setDuration(dur).translationX(0);
         binding.regPasswordContainer.animate().setStartDelay(300).setDuration(dur).translationX(0);
         binding.regEmailContainer.animate().setStartDelay(400).setDuration(dur).translationX(0);
+        binding.regNicknameContainer.animate().setStartDelay(400).setDuration(dur).translationX(0);
         binding.registerButton.animate().setStartDelay(500).setDuration(dur).translationX(0);
     }
 

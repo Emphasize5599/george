@@ -99,6 +99,13 @@ public class AvatarRenderer {
     @AnyThread
     @NonNull
     public static Bitmap getBitmap(@NonNull Context ctx, @NonNull String username, @DimenRes int sizeRes) {
+        return getBitmap(ctx, username, username, sizeRes);
+    }
+
+    @AnyThread
+    @NonNull
+    public static Bitmap getBitmap(@NonNull Context ctx, @NonNull String username, @NonNull String displayName, @DimenRes int sizeRes) {
+        // Avatar files are keyed by immutable username; only the placeholder initial follows the nickname.
         int size = ctx.getResources().getDimensionPixelSize(sizeRes);
         Bitmap img = null;
         try {
@@ -108,7 +115,7 @@ public class AvatarRenderer {
         }
 
         AvatarRenderer renderer = new AvatarRenderer(ctx, false);
-        renderer.setUsername(username);
+        renderer.setUsername(displayName);
         renderer.setDiameter(size);
         if (img != null) {
             renderer.setImage(img);

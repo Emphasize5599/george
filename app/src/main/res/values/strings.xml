@@ -143,7 +143,7 @@
     <string name="share_safety_number_msg">Our Zood\u00A0Location safety number:\n%s</string>
     <string name="share_safety_number_via_ellipsis">Share safety number via…</string>
     <string name="back">Back</string>
-    <string name="app_version_msg">Version %s (build %d)</string>
+    <string name="app_version_msg">Version %1$s (build %2$d)</string>
     <string name="tap_to_change_avatar">Tap to change avatar</string>
     <string name="timed_sharing">Timed sharing</string>
     <string name="timed_share_subtitle_msg">Temporarily share your location with someone that doesn\'t have Zood\u00A0Location by sending them a link.</string>
@@ -224,4 +224,39 @@
     <string name="unrestricted_battery_title">Allow unrestricted battery usage</string>
     <string name="unrestricted_battery_needed">Allow unrestricted battery usage for reliable location sharing.</string>
     <string name="unrestricted_battery_message">Family Locator needs unrestricted battery usage to keep sharing your location and receive refresh requests while your phone is idle. This may use more battery.\n\nTap System settings, then Allow if Android asks to stop optimizing battery usage. If app settings open, choose Battery (or App battery usage) and select Unrestricted or Allow background usage. Labels vary by phone.</string>
+
+    <string name="account">Account</string>
+    <string name="nickname_optional">Nickname (optional)</string>
+    <string name="friend_nickname">Friend Nickname</string>
+    <string name="save_nickname">Save Nickname</string>
+    <string name="nickname_saved">Nickname saved</string>
+    <string name="shared_nickname_explanation">Updates for friends using your shared name. Names they\'ve set for you stay unchanged.</string>
+    <string name="local_nickname_explanation">Only you see this name. Leave it blank to use their shared name or username.</string>
+    <string name="view_username">View Username</string>
+    <string name="copy_username">Copy Username</string>
+    <string name="edit_nickname">Edit nickname</string>
+    <string name="change_photo">Change Photo</string>
+    <string name="apple_device">Apple device</string>
+    <string name="android_device">Android device</string>
+
+    <!-- Friend card: one status line under the address, the address as a Maps link, and linked contacts -->
+    <string name="updated_time_msg">Updated %s</string>
+    <string name="updated_just_now">Updated just now</string>
+    <string name="updated">Updated</string>
+    <string name="requesting_ellipsis">Requesting…</string>
+    <string name="getting_their_location_ellipsis">Getting their location…</string>
+    <string name="no_response">No response</string>
+    <string name="updated_moments_ago">They updated moments ago</string>
+    <string name="refresh_location">Refresh location</string>
+    <string name="open_address_in_maps">Open address in Maps</string>
+    <string name="link_contact">Link Contact</string>
+    <string name="linked_contact">Linked Contact</string>
+    <string name="linked_contact_msg">Linked to %s</string>
+    <string name="link_contact_explanation">Choose a contact to use their name on this phone. A nickname you\'ve set takes priority. Contacts are never uploaded.</string>
+    <string name="choose_contact">Choose Contact</string>
+    <string name="choose_different_contact">Choose Different Contact</string>
+    <string name="unlink_contact">Unlink Contact</string>
+    <string name="unnamed_contact">Unnamed Contact</string>
+    <string name="no_contacts_app">No contacts app is available.</string>
+    <string name="no_maps_app">No maps app is available.</string>
 </resources>

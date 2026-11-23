@@ -6,7 +6,9 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.location.Location;
 import android.location.LocationManager;
+import android.database.Cursor;
 import android.net.Uri;
+import android.provider.ContactsContract;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
@@ -91,6 +93,8 @@ import xyz.zood.george.service.LiveRequestService;
 
 public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Listener, AuthenticationManager.Listener, OnSymbolClickListener, LocationListenerCompat {
 
+    private static final String STATE_CONTACT_LINK_FRIEND = "contact_link_friend";
+
     static final String TAG = "main";
 
     private static final String ARG_ACCESS_TOKEN = "access_token";
@@ -111,6 +115,9 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     public ActivityResultLauncher<String[]> fgLocationPermLauncher;
     public ActivityResultLauncher<String[]> bgLocationPermLauncher;
     public ActivityResultLauncher<String[]> bgLocationPermToAddFriendLauncher;
+    private ActivityResultLauncher<Void> pickContactLauncher;
+    // The friend being linked while the system contact picker is open (kept across process death).
+    @Nullable private byte[] contactLinkFriendId;
     private LocationManager locationManager;
     private LocationRequestCompat locationRequestCmp;
     @Nullable private FriendSymbolTracker symbolTracker;
@@ -152,6 +159,9 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) {
+            contactLinkFriendId = savedInstanceState.getByteArray(STATE_CONTACT_LINK_FRIEND);
+        }
 
         Bundle args = getArguments();
         if (args == null) {
@@ -200,6 +210,10 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                 }
             }
         });
+
+        // The system contact picker returns only the contact the person chooses and grants us one-time
+        // access to it, so the app never needs the READ_CONTACTS permission or sees the rest of the address book.
+        pickContactLauncher = registerForActivityResult(new ActivityResultContracts.PickContact(), this::onContactPicked);
 
         viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
         locationManager = requireContext().getApplicationContext().getSystemService(LocationManager.class);
@@ -279,6 +293,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
         DB.get().addListener(this);
         AvatarManager.addListener(avatarListener);
+        Nicknames.observe(namesChanged);
 
         getLifecycle().addObserver(new MapLibreMapLifecycleObserver(binding.map));
         getLifecycle().addObserver(new BackgroundDataRestrictionNotifier(requireActivity(), binding.banners));
@@ -327,6 +342,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
+        outState.putByteArray(STATE_CONTACT_LINK_FRIEND, contactLinkFriendId);
 
         if (binding != null) {
             binding.map.onSaveInstanceState(outState);
@@ -393,7 +409,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             return;
         }
 
-        Bitmap icon = AvatarRenderer.getBitmap(ctx, friend.user.username, R.dimen.thirtySix);
+        Bitmap icon = AvatarRenderer.getBitmap(ctx, friend.user.username, Nicknames.avatarName(friend.user), R.dimen.thirtySix);
         App.runOnUiThread(new UiRunnable() {
             @Override
             public void run() {
@@ -906,6 +922,42 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
     //endregion
 
+    //region Linked contacts
+
+    private void pickContactFor(@NonNull FriendRecord friend) {
+        contactLinkFriendId = friend.user.userId;
+        try {
+            pickContactLauncher.launch(null);
+        } catch (android.content.ActivityNotFoundException e) {
+            contactLinkFriendId = null;
+            Toast.makeText(requireContext(), R.string.no_contacts_app, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void onContactPicked(@Nullable Uri contactUri) {
+        byte[] friendId = contactLinkFriendId;
+        contactLinkFriendId = null;
+        if (contactUri == null || friendId == null) {
+            return; // cancelled
+        }
+        // Keep only the name we display and the lookup URI; nothing else about the contact is read.
+        String name = null;
+        try (Cursor cursor = requireContext().getContentResolver().query(contactUri,
+                new String[]{ContactsContract.Contacts.DISPLAY_NAME_PRIMARY}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                name = cursor.getString(0);
+            }
+        } catch (SecurityException e) {
+            L.w("Couldn't read the picked contact", e);
+        }
+        if (name == null || name.trim().isEmpty()) {
+            name = getString(R.string.unnamed_contact);
+        }
+        LinkedContacts.link(friendId, name.trim(), contactUri.toString());
+    }
+
+    //endregion
+
     //region InfoPanel listener
 
     private final InfoPanel.Listener infoPanelListener = new InfoPanel.Listener() {
@@ -959,17 +1011,34 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             dialog.show(getParentFragmentManager(), null);
         }
 
-        public void onInfoPanelSendLocation(@NonNull String username, @Nullable FriendLocation location) {
-            if (location == null) {
-                // the friend isn't sharing their location with us
-                return;
+        @Override
+        public void onInfoPanelOpenInMaps(@NonNull String displayName, @NonNull FriendLocation location) {
+            // Label the pin with the same name the card shows, encoded so spaces or "()" can't break the URI.
+            var geoStr = String.format(Locale.ENGLISH, "geo:0,0?q=%f,%f(%s)",
+                    location.latitude, location.longitude, Uri.encode(displayName));
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(geoStr));
+            try {
+                startActivity(i);
+            } catch (android.content.ActivityNotFoundException e) {
+                Toast.makeText(requireContext(), R.string.no_maps_app, Toast.LENGTH_SHORT).show();
             }
+        }
 
-            Intent i = new Intent();
-            i.setAction(Intent.ACTION_VIEW);
-            var geoStr = String.format(Locale.ENGLISH, "geo:0,0?q=%f,%f(%s)", location.latitude, location.longitude, username);
-            i.setData(Uri.parse(geoStr));
-            startActivity(i);
+        @Override
+        public void onInfoPanelLinkContact(@NonNull FriendRecord friend) {
+            String linkedName = LinkedContacts.name(friend.user.userId);
+            var dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(linkedName == null ? R.string.link_contact : R.string.linked_contact)
+                    .setMessage(linkedName == null
+                            ? getString(R.string.link_contact_explanation)
+                            : getString(R.string.linked_contact_msg, linkedName) + "\n\n" + getString(R.string.link_contact_explanation))
+                    .setPositiveButton(linkedName == null ? R.string.choose_contact : R.string.choose_different_contact,
+                            (d, which) -> pickContactFor(friend))
+                    .setNegativeButton(R.string.cancel, null);
+            if (linkedName != null) {
+                dialog.setNeutralButton(R.string.unlink_contact, (d, which) -> LinkedContacts.unlink(friend.user.userId));
+            }
+            dialog.show();
         }
 
         @Override
@@ -1151,6 +1220,19 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
     //region AvatarManager.Listener
 
+    private final Runnable namesChanged = this::refreshNicknameAvatars;
+
+    private void refreshNicknameAvatars() {
+        App.runInBackground(() -> {
+            if (!isAdded()) {
+                return;
+            }
+            for (FriendRecord friend : DB.get().getFriends()) {
+                avatarListener.onAvatarUpdated(friend.user.username);
+            }
+        });
+    }
+
     private final AvatarManager.Listener avatarListener = new AvatarManager.Listener() {
         @Override
         public void onAvatarUpdated(@Nullable String username) {
@@ -1170,7 +1252,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                         // This person is no friend of ours. Get outta here.
                         return;
                     }
-                    Bitmap icon = AvatarRenderer.getBitmap(requireContext(), username, R.dimen.thirtySix);
+                    Bitmap icon = AvatarRenderer.getBitmap(requireContext(), username, Nicknames.avatarName(user), R.dimen.thirtySix);
                     App.runOnUiThread(new UiRunnable() {
                         @Override
                         public void run() {

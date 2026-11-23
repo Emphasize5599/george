@@ -221,6 +221,7 @@ public class AuthenticationManager {
             notifyLoginWatchers(Error.NetworkErrorRetrievingDatabaseBackup, null, watcher);
             return;
         }
+        Snapshot restoredSnapshot = null;
         if (!dbResponse.isSuccessful()) {
             OscarError err = OscarError.fromResponse(dbResponse);
             if (err == null || err.code != OscarError.ERROR_BACKUP_NOT_FOUND) {
@@ -240,6 +241,7 @@ public class AuthenticationManager {
                 return;
             }
             Snapshot snapshot = Snapshot.fromJson(jsonDb);
+            restoredSnapshot = snapshot;
             // restore the database
             if (snapshot == null) {
                 notifyLoginWatchers(Error.DatabaseBackupParsingFailed, null, watcher);
@@ -270,7 +272,15 @@ public class AuthenticationManager {
         prefs.setUserId(loginResponse.id);
         prefs.setUsername(username);
         prefs.setAccessToken(loginResponse.accessToken);
+        // Restore account-scoped names only after the new account identity is installed.
+        if (restoredSnapshot != null) {
+            xyz.zood.george.Nicknames.restore(restoredSnapshot);
+        }
 
+        if (xyz.zood.george.Nicknames.own() != null) {
+            // Signup can choose a name before authentication; back it up once credentials are ready.
+            xyz.zood.george.worker.BackupDatabaseWorker.scheduleBackup(ctx);
+        }
         notifyLoginWatchers(Error.None, null, watcher);
 
         // No push in this fork: keep a live socket in a foreground service instead (if enabled).

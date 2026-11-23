@@ -213,7 +213,7 @@ public class AddFriendFragment extends Fragment {
             binding.addFriend.setEnabled(false);
             return;
         }
-        String currEntry = text.toString().trim().toLowerCase(Locale.US);
+        String currEntry = Usernames.forLookup(text.toString());
         if (!currEntry.equals(username)) {
             return;
         }
@@ -228,7 +228,7 @@ public class AddFriendFragment extends Fragment {
         if (text == null) {
             throw new NullPointerException("How did we get into this state?");
         }
-        String username = text.toString().trim().toLowerCase(Locale.US);
+        String username = Usernames.forLookup(text.toString());
 
         App.runInBackground(new WorkerRunnable() {
             @Override
@@ -293,7 +293,7 @@ public class AddFriendFragment extends Fragment {
         @Override @UiThread
         public void afterTextChanged(Editable s) {
             if (s != null) {
-                String username = s.toString().trim().toLowerCase(Locale.US);
+                String username = Usernames.forLookup(s.toString());
                 if (username.isEmpty()) {
                     binding.addFriend.setEnabled(false);
                     layout.setEndIconDrawable(null);

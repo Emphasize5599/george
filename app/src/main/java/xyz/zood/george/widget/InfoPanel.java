@@ -3,6 +3,9 @@ package xyz.zood.george.widget;
 import android.content.Context;
 import android.graphics.Outline;
 import android.graphics.drawable.Drawable;
+import android.text.SpannableStringBuilder;
+import android.text.style.ImageSpan;
+import android.text.style.UnderlineSpan;
 import android.text.format.DateUtils;
 import android.transition.TransitionManager;
 import android.view.MenuInflater;
@@ -42,6 +45,7 @@ import io.pijun.george.database.FriendLocation;
 import io.pijun.george.database.FriendRecord;
 import xyz.zood.george.DeviceStatusProbe;
 import xyz.zood.george.FriendDevices;
+import xyz.zood.george.LinkedContacts;
 import xyz.zood.george.R;
 import xyz.zood.george.geocoding.RevGeocoding;
 import xyz.zood.george.geocoding.ReverseGeocodingCache;
@@ -49,8 +53,43 @@ import xyz.zood.george.geocoding.ReverseGeocodingCache;
 public class InfoPanel {
 
     private static final long REFRESH_INTERVAL = 15 * DateUtils.SECOND_IN_MILLIS;
+    /** How long the green "Updated" check shows before fading into the regular update time. */
+    private static final long UPDATED_CHECK_DURATION = 3 * DateUtils.SECOND_IN_MILLIS;
 
     private final Context context;
+    private ImageView platformIcon;
+    private final Runnable namesChanged = this::updateDisplayName;
+
+    private void updateDisplayName() {
+        if (currFriend != null) {
+            username.setText(xyz.zood.george.Nicknames.displayName(currFriend.user));
+        }
+    }
+
+    private void editNickname() {
+        FriendRecord friend = getFriend();
+        if (friend == null) {
+            return;
+        }
+        com.google.android.material.textfield.TextInputLayout field = new com.google.android.material.textfield.TextInputLayout(context);
+        field.setHint(context.getString(R.string.nickname_optional));
+        int padding = Math.round(24 * context.getResources().getDisplayMetrics().density);
+        field.setPadding(padding, padding / 2, padding, 0);
+        field.setHelperText(context.getString(R.string.local_nickname_explanation));
+        com.google.android.material.textfield.TextInputEditText input = new com.google.android.material.textfield.TextInputEditText(field.getContext());
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+        input.setText(xyz.zood.george.Nicknames.local(friend.user.userId));
+        field.addView(input);
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.friend_nickname)
+                .setView(field)
+                .setPositiveButton(R.string.save_nickname, (dialog, which) -> {
+                    xyz.zood.george.Nicknames.setLocal(friend.user.userId, input.getText() == null ? null : input.getText().toString());
+                    updateDisplayName();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
     private final Listener listener;
 
     private FriendRecord currFriend;
@@ -71,14 +110,22 @@ public class InfoPanel {
     @NonNull private final ProgressBar refreshProgressBar;
     @NonNull private final SwitchCompat shareSwitch;
     @NonNull private final TextView shareSwitchLabel;
-    @NonNull private final TextView updateTime;
     @NonNull private final TextView username;
-    // Family Locator: "Unsupported (?)" under Refresh, plus the explanation tile it opens
-    @NonNull private final View unsupportedRow;
-    @NonNull private final TextView unsupportedText;
+    // Family Locator: one status line under the address ("Requesting…", "Updated 5 min. ago",
+    // "Unsupported (?)"), plus the explanation tile that the (?) opens.
+    @NonNull private final View statusRow;
+    @NonNull private final ImageView statusIcon;
+    @NonNull private final TextView statusText;
     @NonNull private final View unsupportedInfo;
     @NonNull private final View unsupportedTile;
     @NonNull private final TextView unsupportedTileBody;
+
+    // Set by applyRequestCapability(): the friend's phone has said it can't answer Refresh requests,
+    // and whether we're still re-checking that before saying so.
+    private boolean requestsUnsupported;
+    private boolean checkingSupport;
+    // The last text shown in the status row, so a change can fade in instead of snapping.
+    @Nullable private CharSequence lastStatus;
 
     @UiThread
     public InfoPanel(@NonNull ConstraintLayout root, @NonNull Context ctx, @NonNull Listener listener) {
@@ -97,6 +144,13 @@ public class InfoPanel {
         if (address == null) {
             throw new IllegalArgumentException("'address' TextView is missing");
         }
+        // The address is the "Open in Maps" link (it used to live in the ⋮ menu).
+        address.setOnClickListener(v -> {
+            FriendRecord friend = getFriend();
+            if (friend != null && currLoc != null) {
+                listener.onInfoPanelOpenInMaps(xyz.zood.george.Nicknames.displayName(friend.user), currLoc);
+            }
+        });
 
         battery = root.findViewById(R.id.battery);
         if (battery == null) {
@@ -148,14 +202,16 @@ public class InfoPanel {
             }
         });
 
-        unsupportedRow = root.findViewById(R.id.unsupported_row);
-        unsupportedText = root.findViewById(R.id.unsupported_text);
+        statusRow = root.findViewById(R.id.status_row);
+        statusIcon = root.findViewById(R.id.status_icon);
+        statusText = root.findViewById(R.id.status_text);
         unsupportedInfo = root.findViewById(R.id.unsupported_info);
         DeviceStatusProbe.addListener(deviceStatusListener);
         unsupportedTile = root.findViewById(R.id.unsupported_tile);
         unsupportedTileBody = root.findViewById(R.id.unsupported_tile_body);
-        if (unsupportedRow == null || unsupportedTile == null || unsupportedTileBody == null) {
-            throw new IllegalArgumentException("unsupported views are missing");
+        if (statusRow == null || statusIcon == null || statusText == null
+                || unsupportedTile == null || unsupportedTileBody == null) {
+            throw new IllegalArgumentException("status views are missing");
         }
         root.findViewById(R.id.unsupported_info).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -188,11 +244,9 @@ public class InfoPanel {
             throw new IllegalArgumentException("'share_switch_label is missing");
         }
 
-        updateTime = root.findViewById(R.id.update_time);
-        if (updateTime == null) {
-            throw new IllegalArgumentException("'updateTime' is missing");
-        }
-
+        platformIcon = root.findViewById(R.id.friend_platform);
+        root.findViewById(R.id.edit_nickname).setOnClickListener(view -> editNickname());
+        xyz.zood.george.Nicknames.observe(namesChanged);
         username = root.findViewById(R.id.username);
         if (username == null) {
             throw new IllegalArgumentException("'username' TextView is missing");
@@ -201,42 +255,142 @@ public class InfoPanel {
 
     @UiThread
     private void calculateAndUpdateRefreshButton(long currTime) {
-        // if it's been less than 3 minutes since the last update, disable the refresh button
         refreshButton.setVisibility(View.VISIBLE);
         if (applyRequestCapability()) {
             return;
         }
-        if ((currTime - currLoc.time) < 2 * DateUtils.MINUTE_IN_MILLIS) {
-            refreshButton.setEnabled(false);
-            long secondsSince = (currTime - currLoc.time) / 1000;
-            int minutes;
-            if (secondsSince <= 60) {
-                minutes = 2;
-            } else {
-                minutes = 1;
-            }
-            refreshButton.setText(context.getString(R.string.wait_duration_msg, minutes));
-        } else {
-            refreshButton.setEnabled(true);
-            refreshButton.setText(R.string.refresh);
-        }
+        // Zood's original rule: a location from the last 2 minutes is fresh enough, so Refresh rests.
+        // The button is icon-only now; the status row already shows how recent the location is.
+        boolean recent = (currTime - currLoc.time) < 2 * DateUtils.MINUTE_IN_MILLIS;
+        refreshButton.setEnabled(!recent);
     }
 
+    // region Status row
+
+    /**
+     * Picks the one line shown under the address. Request progress wins over the plain update time,
+     * because it's what the person is waiting on right after tapping Refresh.
+     */
     @UiThread
-    private void calculateAndSetUpdateTime(long currTime) {
-        final CharSequence relTime;
-        if (currLoc.time >= currTime-60* DateUtils.SECOND_IN_MILLIS) {
-            relTime = context.getString(R.string.now);
-        } else {
-            relTime = DateUtils.getRelativeTimeSpanString(
-                    currLoc.time,
-                    System.currentTimeMillis(),
-                    DateUtils.MINUTE_IN_MILLIS,
-                    DateUtils.FORMAT_ABBREV_RELATIVE);
+    private void updateStatusRow(long now) {
+        FriendRecord friend = currFriend;
+        if (friend == null || friend.receivingBoxId == null) {
+            // Not sharing with us: the address line already says so.
+            statusRow.setVisibility(View.GONE);
+            lastStatus = null;
+            return;
         }
-        updateTime.setText(context.getString(R.string.info_panel_last_update_msg, relTime));
-        updateTime.setVisibility(View.VISIBLE);
+
+        boolean showCheck = false;
+        boolean showInfo = false;
+        @ColorRes int color = R.color.text_tertiary;
+        CharSequence text;
+
+        UpdateStatusTracker.State state = UpdateStatusTracker.getFriendState(friend.id);
+        Long answeredAt = UpdateStatusTracker.getResponseTime(friend.id);
+        boolean justUpdated = state == UpdateStatusTracker.State.RequestFulfilled
+                && answeredAt != null && now - answeredAt < UPDATED_CHECK_DURATION;
+
+        if (requestsUnsupported) {
+            text = context.getString(checkingSupport ? R.string.checking_ellipsis : R.string.unsupported);
+            showInfo = !checkingSupport;
+            color = R.color.text_secondary;
+        } else if (justUpdated) {
+            text = context.getString(R.string.updated);
+            showCheck = true;
+            color = R.color.zood_green;
+            // Come back when the check has had its moment and fade into the regular time.
+            long id = showId;
+            App.runOnUiThread(() -> {
+                if (showId == id) {
+                    updateStatusRow(System.currentTimeMillis());
+                }
+            }, UPDATED_CHECK_DURATION - (now - answeredAt) + 50);
+        } else if (state == UpdateStatusTracker.State.Requested) {
+            text = context.getString(R.string.requesting_ellipsis);
+        } else if (state == UpdateStatusTracker.State.RequestAcknowledged) {
+            text = context.getString(R.string.getting_their_location_ellipsis);
+        } else if (state == UpdateStatusTracker.State.RequestedAndUnresponsive) {
+            text = context.getString(R.string.no_response);
+            color = R.color.zood_orange;
+        } else if (state == UpdateStatusTracker.State.RequestDenied) {
+            text = context.getString(R.string.updated_moments_ago);
+        } else if (currLoc != null) {
+            text = updatedText(currLoc.time, now);
+        } else {
+            // Waiting for their first location: the address line already says so.
+            statusRow.setVisibility(View.GONE);
+            lastStatus = null;
+            return;
+        }
+
+        statusRow.setVisibility(View.VISIBLE);
+        statusIcon.setVisibility(showCheck ? View.VISIBLE : View.GONE);
+        unsupportedInfo.setVisibility(showInfo ? View.VISIBLE : View.GONE);
+        statusText.setTextColor(ContextCompat.getColor(context, color));
+        statusText.setText(text);
+        if (lastStatus != null && !lastStatus.toString().contentEquals(text)) {
+            statusRow.setAlpha(0f);
+            statusRow.animate().alpha(1f).setDuration(250).start();
+        }
+        lastStatus = text;
     }
+
+    /** "Updated 5 min. ago" today; an older update gets a date so it can't be mistaken for a recent one. */
+    @NonNull
+    private String updatedText(long time, long now) {
+        if (time >= now - DateUtils.MINUTE_IN_MILLIS) {
+            return context.getString(R.string.updated_just_now);
+        }
+        CharSequence when;
+        if (DateUtils.isToday(time)) {
+            when = DateUtils.getRelativeTimeSpanString(time, now,
+                    DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
+        } else {
+            when = DateUtils.formatDateTime(context, time,
+                    DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_MONTH);
+        }
+        return context.getString(R.string.updated_time_msg, when);
+    }
+
+    // endregion
+
+    // region Address
+
+    /**
+     * Shows the address as a Maps link: underlined in its normal color, with a small map glyph that
+     * takes space on the first line only, so wrapped lines still start at the card's left padding.
+     */
+    @UiThread
+    private void setAddressLink(@NonNull CharSequence text) {
+        SpannableStringBuilder link = new SpannableStringBuilder();
+        Drawable glyph = AppCompatResources.getDrawable(context, R.drawable.ic_map_20dp);
+        if (glyph != null) {
+            glyph = glyph.mutate();
+            // About one line of text tall, never bigger.
+            int size = Math.round(address.getTextSize());
+            glyph.setBounds(0, 0, size, size);
+            glyph.setTint(address.getCurrentTextColor());
+            link.append(" ", new ImageSpan(glyph, ImageSpan.ALIGN_CENTER), 0);
+            link.append(' ');
+        }
+        int start = link.length();
+        link.append(text);
+        link.setSpan(new UnderlineSpan(), start, link.length(), 0);
+        address.setText(link);
+        address.setClickable(true);
+        address.setContentDescription(text + ". " + context.getString(R.string.open_address_in_maps));
+    }
+
+    /** A plain message in the address slot ("Waiting for location…"), which isn't a link. */
+    @UiThread
+    private void setAddressMessage(@StringRes int message) {
+        address.setText(message);
+        address.setClickable(false);
+        address.setContentDescription(null);
+    }
+
+    // endregion
 
     @Nullable
     @UiThread
@@ -283,11 +437,19 @@ public class InfoPanel {
         PopupMenu menu = new PopupMenu(context, overflowButton);
         MenuInflater inflater = new MenuInflater(context);
         inflater.inflate(R.menu.info_panel_overflow, menu.getMenu());
+        menu.setForceShowIcon(true);
+        menu.getMenu().findItem(R.id.copy_username).setTitle("@" + friend.user.username);
+        menu.getMenu().findItem(R.id.copy_username).setIcon(R.drawable.ic_copy_username);
+        boolean linked = LinkedContacts.name(friend.user.userId) != null;
+        menu.getMenu().findItem(R.id.link_contact).setTitle(linked ? R.string.linked_contact : R.string.link_contact);
         menu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             @Override
             public boolean onMenuItemClick(MenuItem item) {
-                if (item.getItemId() == R.id.send_location) {
-                    listener.onInfoPanelSendLocation(friend.user.username, currLoc);
+                if (item.getItemId() == R.id.copy_username) {
+                    android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.copy_username), "@" + friend.user.username));
+                } else if (item.getItemId() == R.id.link_contact) {
+                    listener.onInfoPanelLinkContact(friend);
                 } else if (item.getItemId() == R.id.remove_friend) {
                     listener.onInfoPanelRemoveFriend(friend);
                 } else if (item.getItemId() == R.id.view_safety_number) {
@@ -308,21 +470,23 @@ public class InfoPanel {
     private boolean applyRequestCapability() {
         FriendRecord friend = currFriend;
         FriendDevices.Device device = friend == null ? null : FriendDevices.get(context, friend.user.userId);
+        platformIcon.setVisibility(device == null || device.platform == null ? View.GONE : View.VISIBLE);
+        if (device != null && device.platform != null) {
+            platformIcon.setImageResource(device.isIPhone() ? R.drawable.ic_platform_apple : R.drawable.ic_platform_android);
+            platformIcon.setContentDescription(context.getString(device.isIPhone() ? R.string.apple_device : R.string.android_device));
+        }
         boolean unsupported = friend != null && friend.receivingBoxId != null && device != null && device.cannotAnswerRequests();
+        requestsUnsupported = unsupported;
         if (!unsupported) {
-            unsupportedRow.setVisibility(View.GONE);
+            checkingSupport = false;
             unsupportedTile.setVisibility(View.GONE);
             return false;
         }
         refreshButton.setEnabled(false);
-        refreshButton.setText(R.string.refresh);
-        unsupportedRow.setVisibility(View.VISIBLE);
-        // Re-check a cached "can't answer" before declaring it; show "Checking…" meanwhile.
+        // Re-check a cached "can't answer" before declaring it; the status row shows "Checking…" meanwhile.
         DeviceStatusProbe.probeIfNeeded(context, friend);
-        boolean checking = DeviceStatusProbe.isProbing(friend.user.userId);
-        unsupportedText.setText(checking ? R.string.checking_ellipsis : R.string.unsupported);
-        unsupportedInfo.setVisibility(checking ? View.GONE : View.VISIBLE);
-        if (checking) {
+        checkingSupport = DeviceStatusProbe.isProbing(friend.user.userId);
+        if (checkingSupport) {
             unsupportedTile.setVisibility(View.GONE);
         }
         @StringRes int body = device.isIPhone() ? R.string.unsupported_iphone_body : R.string.unsupported_android_body;
@@ -343,6 +507,7 @@ public class InfoPanel {
             } else if (!applyRequestCapability()) {
                 refreshButton.setEnabled(friend.receivingBoxId != null);
             }
+            updateStatusRow(System.currentTimeMillis());
         }
     };
 
@@ -370,26 +535,26 @@ public class InfoPanel {
 
         if (currFriend == null || currFriend.id != friend.id) {
             unsupportedTile.setVisibility(View.GONE);
+            lastStatus = null;  // a different friend: don't fade from the previous friend's status
         }
         currFriend = friend;
         currLoc = loc;
         showId++;
 
         // common stuff
-        username.setText(friend.user.username);
+        username.setText(xyz.zood.george.Nicknames.displayName(friend.user));
         applySharingState(friend);
 
         // If they're not sharing with us
         if (friend.receivingBoxId == null) {
             // show the empty state and get out of here
-            address.setText(R.string.not_sharing_with_you);
+            setAddressMessage(R.string.not_sharing_with_you);
             refreshProgressBar.setVisibility(View.INVISIBLE);
             refreshButton.setVisibility(View.INVISIBLE);
-            unsupportedRow.setVisibility(View.GONE);
             unsupportedTile.setVisibility(View.GONE);
+            updateStatusRow(System.currentTimeMillis());
             bearing.setVisibility(View.GONE);
             motion.setVisibility(View.GONE);
-            updateTime.setVisibility(View.INVISIBLE);
             battery.setVisibility(View.INVISIBLE);
             batteryIcon.setVisibility(View.INVISIBLE);
             return;
@@ -397,11 +562,10 @@ public class InfoPanel {
 
         // If we don't have location info yet (from a new friend)
         if (loc == null) {
-            address.setText(R.string.waiting_for_location_ellipsis);
+            setAddressMessage(R.string.waiting_for_location_ellipsis);
             refreshButton.setVisibility(View.VISIBLE);
-            refreshButton.setText(R.string.refresh);
             refreshButton.setEnabled(!applyRequestCapability());
-            updateTime.setVisibility(View.INVISIBLE);
+            updateStatusRow(System.currentTimeMillis());
             bearing.setVisibility(View.GONE);
             motion.setVisibility(View.GONE);
             battery.setVisibility(View.INVISIBLE);
@@ -410,10 +574,9 @@ public class InfoPanel {
         }
 
         // == They are sharing with us ==
-        // update time
         long now = System.currentTimeMillis();
-        calculateAndSetUpdateTime(now);
         calculateAndUpdateRefreshButton(now);
+        updateStatusRow(now);
 
         // refresh status
         updateRefreshProgressBarState(loc.friendId);
@@ -502,9 +665,9 @@ public class InfoPanel {
         // the address
         RevGeocoding rg = ReverseGeocodingCache.get(loc.latitude, loc.longitude);
         if (rg != null) {
-            address.setText(rg.getAddress());
+            setAddressLink(rg.getAddress());
         } else {
-            address.setText(R.string.loading_ellipsis);
+            setAddressMessage(R.string.loading_ellipsis);
             ReverseGeocodingCache.fetch(context, loc.latitude, loc.longitude, new ReverseGeocodingCache.OnCachedListener() {
                 @Override
                 public void onReverseGeocodingCached(@Nullable RevGeocoding rg) {
@@ -513,9 +676,9 @@ public class InfoPanel {
                     }
                     if (currLoc.latitude == loc.latitude && currLoc.longitude == loc.longitude) {
                         if (rg != null) {
-                            address.setText(rg.getAddress());
+                            setAddressLink(rg.getAddress());
                         } else {
-                            address.setText(formatCoordinates(loc.latitude, loc.longitude));
+                            setAddressLink(formatCoordinates(loc.latitude, loc.longitude));
                         }
                     }
                 }
@@ -596,6 +759,9 @@ public class InfoPanel {
                     ContextCompat.getColor(context, colorId));
         }
         refreshProgressBar.setVisibility(vis);
+        if (currFriend != null && currFriend.id == friendId) {
+            updateStatusRow(System.currentTimeMillis());
+        }
     }
 
     private final CompoundButton.OnCheckedChangeListener shareCheckedChangeListener = new CompoundButton.OnCheckedChangeListener() {
@@ -617,8 +783,12 @@ public class InfoPanel {
         void onInfoPanelLocationRequested(@NonNull FriendRecord friend);
         @UiThread
         void onInfoPanelRemoveFriend(@NonNull FriendRecord friend);
+        /** Open the friend's last location in a maps app, labeled with the name shown on the card. */
         @UiThread
-        void onInfoPanelSendLocation(@NonNull String username, @Nullable FriendLocation friend);
+        void onInfoPanelOpenInMaps(@NonNull String displayName, @NonNull FriendLocation location);
+        /** Link (or relink / unlink) the friend to one of this phone's contacts. */
+        @UiThread
+        void onInfoPanelLinkContact(@NonNull FriendRecord friend);
         @UiThread
         void onInfoPanelShareToggled(@NonNull FriendRecord friend, boolean shouldShare);
         @UiThread
@@ -640,8 +810,8 @@ public class InfoPanel {
 
             // update the relative time, and refresh button
             long now = System.currentTimeMillis();
-            calculateAndSetUpdateTime(now);
             calculateAndUpdateRefreshButton(now);
+            updateStatusRow(now);
 
             App.runOnUiThread(this, REFRESH_INTERVAL);
         }

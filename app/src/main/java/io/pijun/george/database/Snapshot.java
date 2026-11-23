@@ -18,6 +18,8 @@ public class Snapshot {
         public byte[] userId;
         public byte[] sendingBoxId;
         public byte[] receivingBoxId;
+        public String nickname;
+        public String sharedNickname;
     }
 
     public static class User {
@@ -32,6 +34,8 @@ public class Snapshot {
     public final ArrayList<User> users = new ArrayList<>();
     @Nullable
     public byte[] avatar;
+
+    public String nickname;
 
     public int schemaVersion;
     public long timestamp;

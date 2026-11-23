@@ -116,11 +116,20 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
         Context ctx = requireContext();
         File myImg = AvatarManager.getMyAvatar(ctx);
         Picasso.with(ctx).load(myImg).into(binding.avatar);
-        binding.username.setText(username);
+        binding.username.setText("@" + username);
+        binding.detail.setText(R.string.change_photo);
+        binding.detail.setTextColor(com.google.android.material.color.MaterialColors.getColor(binding.detail, androidx.appcompat.R.attr.colorPrimary));
+        binding.detail.setMinHeight(Math.round(48 * getResources().getDisplayMetrics().density));
+        binding.detail.setOnClickListener(view -> onChangeProfilePhoto(binding.avatar));
         binding.profileItem.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                onChangeProfilePhoto(binding.avatar);
+                getParentFragmentManager().beginTransaction()
+                        .setCustomAnimations(R.animator.new_enter_from_right, R.animator.new_exit_to_left,
+                                R.animator.new_enter_from_left, R.animator.new_exit_to_right)
+                        .replace(R.id.fragment_host, new xyz.zood.george.AccountFragment())
+                        .addToBackStack(null)
+                        .commit();
             }
         });
 
@@ -181,7 +190,8 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
         Context ctx = requireContext();
         PackageManager pkgMgr = ctx.getPackageManager();
         try {
-            PackageInfo pi = pkgMgr.getPackageInfo("xyz.zood.george", 0);
+            // Forks have their own application ID; querying upstream Zood's ID crashes on About.
+            PackageInfo pi = pkgMgr.getPackageInfo(ctx.getPackageName(), 0);
             long versionCode = pi.getLongVersionCode();
             String msg = getString(R.string.app_version_msg, pi.versionName, versionCode);
             ZoodDialog dialog = ZoodDialog.newInstance(msg);
@@ -190,7 +200,7 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
             dialog.setButton2(ctx.getString(R.string.licenses), v -> onShowLicensesClicked());
             dialog.show(getParentFragmentManager(), null);
         } catch (PackageManager.NameNotFoundException ignore) {
-            throw new RuntimeException("You need to specify the correct package name");
+            L.w("Unable to read installed app version", ignore);
         }
     }
 

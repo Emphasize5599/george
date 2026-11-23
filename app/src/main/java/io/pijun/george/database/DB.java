@@ -394,6 +394,7 @@ public class DB {
     @CheckResult
     public Snapshot getSnapshot() {
         Snapshot snapshot = new Snapshot();
+        snapshot.nickname = xyz.zood.george.Nicknames.own();
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
         db.beginTransaction();
         try {
@@ -419,6 +420,8 @@ public class DB {
                         continue;
                     }
                     f.userId = friendRecord.user.userId;
+                    f.nickname = xyz.zood.george.Nicknames.local(f.userId);
+                    f.sharedNickname = xyz.zood.george.Nicknames.shared(f.userId);
                     f.sendingBoxId = friendRecord.sendingBoxId;
                     f.receivingBoxId = friendRecord.receivingBoxId;
                     snapshot.friends.add(f);

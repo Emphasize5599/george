@@ -197,7 +197,6 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, PRIVACY_POLICY));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, ABOUT_ID));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, INVITE_A_FRIEND));
-        adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, LOG_OUT_ID));
     }
 
     interface Listener {

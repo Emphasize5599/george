@@ -161,7 +161,10 @@ public class MessageProcessor {
             return Result.ErrorInvalidCommunication;
         }
 //        L.i("  comm type: " + comm.type);
+        xyz.zood.george.Nicknames.record(user, comm);
         switch (comm.type) {
+            case NicknameUpdate:
+                return Result.Success;
             case AvatarRequest:
                 return handleAvatarRequest(context, user);
             case AvatarUpdate:
@@ -176,7 +179,9 @@ public class MessageProcessor {
                 L.i("We shouldn't be receiving device_info from other users");
                 return Result.ErrorInvalidCommunication;
             case LocationSharingGrant:
-                return handleLocationSharingGrant(context, user, comm);
+                Result result = handleLocationSharingGrant(context, user, comm);
+                xyz.zood.george.Nicknames.record(user, comm);
+                return result;
             case LocationSharingRevocation:
                 return handleLocationSharingRevocation(context, user);
             case LocationInfo:
@@ -228,6 +233,8 @@ public class MessageProcessor {
                 L.i("\tnot a friend");
                 return Result.Success;
             }
+            // A name is friendship metadata; photos still require outgoing location-sharing consent.
+            xyz.zood.george.Nicknames.sendTo(user);
             if (friend.sendingBoxId == null) {
                 L.i("\tno sending box id");
                 return Result.Success;

@@ -73,7 +73,7 @@
 
             <TextView
                 android:id="@+id/username"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:layout_marginTop="24dp"
@@ -81,8 +81,32 @@
                 style="@style/Zood.Headline6"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
+                android:layout_marginEnd="4dp"
+                app:layout_constraintEnd_toStartOf="@id/friend_platform"
                 tools:text="arash" />
 
+            <!-- Platform logo and edit pencil sit just left of the ⋮ and × buttons, so a long name
+                 wraps against the icons instead of having them pushed along behind its text. -->
+
+            <ImageButton
+                android:id="@+id/edit_nickname"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_edit_24dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/edit_nickname"
+                app:tint="@color/text_secondary"
+                app:layout_constraintEnd_toStartOf="@id/info_overflow"
+                app:layout_constraintTop_toTopOf="@id/info_overflow"
+                app:layout_constraintBottom_toBottomOf="@id/info_overflow" />
+            <ImageView
+                android:id="@+id/friend_platform"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:layout_constraintEnd_toStartOf="@id/edit_nickname"
+                app:layout_constraintTop_toTopOf="@id/edit_nickname"
+                app:layout_constraintBottom_toBottomOf="@id/edit_nickname"
+                app:tint="@color/text_tertiary" />
             <ImageView
                 android:id="@+id/motion"
                 android:layout_width="wrap_content"
@@ -105,9 +129,9 @@
                 android:src="@drawable/ic_sharp_navigation_20dp"
                 app:tint="@color/text_tertiary"
                 app:layout_constraintDimensionRatio="1:1"
-                app:layout_constraintStart_toEndOf="@id/username"
-                app:layout_constraintTop_toTopOf="@id/username"
-                app:layout_constraintBottom_toBottomOf="@id/username"/>
+                app:layout_constraintStart_toEndOf="@id/motion"
+                app:layout_constraintTop_toTopOf="@id/battery_icon"
+                app:layout_constraintBottom_toBottomOf="@id/battery_icon"/>
 
             <ImageView
                 android:id="@+id/battery_icon"
@@ -173,6 +197,9 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
+                android:background="?attr/selectableItemBackground"
+                android:minHeight="32dp"
+                android:gravity="center_vertical"
                 android:layout_marginEnd="16dp"
                 android:textColor="@color/text_secondary"
                 style="@style/Zood.Caption"
@@ -181,54 +208,39 @@
                 app:layout_constraintTop_toBottomOf="@id/battery_icon"
                 tools:text="1212 S. Westlake Blvd, Thousand Oaks" />
 
-            <TextView
-                android:id="@+id/update_time"
-                android:gravity="center_vertical"
-                android:fontFamily="sans-serif"
-                android:textColor="@color/text_tertiary"
-                android:textSize="12sp"
-                android:textStyle="normal"
-                android:lineSpacingExtra="6sp"
-                android:layout_width="wrap_content"
-                android:layout_height="0dp"
-                app:layout_constraintStart_toEndOf="@id/motion"
-                app:layout_constraintTop_toTopOf="@id/battery_icon"
-                app:layout_constraintBottom_toBottomOf="@id/battery_icon"
-                tools:text="  •  25 min. ago" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/refresh_button"
-                style="@style/Widget.MaterialComponents.Button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/refresh"
-                android:enabled="true"
-                android:visibility="invisible"
-                tools:visibility="visible"
-                app:icon="@drawable/ic_refresh_24dp"
-                app:layout_constraintStart_toStartOf="@id/username"
-                app:layout_constraintTop_toBottomOf="@id/address" />
-
-            <!-- Family Locator: shown under Refresh when the friend's phone can't answer requests -->
+            <!-- One status line under the address for everything about freshness: Requesting…,
+                 a brief green "Updated" check, No response / Unsupported (?), then "Updated 5 min. ago".
+                 Keeping it in one place means the card doesn't jump around during a request. -->
             <LinearLayout
-                android:id="@+id/unsupported_row"
-                android:layout_width="wrap_content"
+                android:id="@+id/status_row"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
                 android:gravity="center_vertical"
+                android:minHeight="32dp"
                 android:orientation="horizontal"
-                android:visibility="gone"
-                tools:visibility="visible"
-                app:layout_constraintStart_toStartOf="@id/refresh_button"
-                app:layout_constraintTop_toBottomOf="@id/refresh_button">
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="@id/username"
+                app:layout_constraintTop_toBottomOf="@id/address">
+
+                <ImageView
+                    android:id="@+id/status_icon"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="4dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_check_black_24dp"
+                    android:visibility="gone"
+                    app:tint="@color/zood_green" />
 
                 <TextView
-                    android:id="@+id/unsupported_text"
+                    android:id="@+id/status_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/unsupported"
-                    android:textColor="@color/text_secondary"
-                    style="@style/Zood.Caption" />
+                    android:layout_weight="1"
+                    android:textColor="@color/text_tertiary"
+                    style="@style/Zood.Caption"
+                    tools:text="Updated 25 min. ago" />
 
                 <ImageButton
                     android:id="@+id/unsupported_info"
@@ -237,8 +249,28 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/why_unsupported"
                     android:src="@drawable/ic_help_outline_20dp"
+                    android:visibility="gone"
                     app:tint="@color/zood_blue_dark" />
             </LinearLayout>
+
+            <!-- Icon-only Refresh; the status row above already says what's happening. -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/refresh_button"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:minWidth="64dp"
+                android:contentDescription="@string/refresh_location"
+                android:enabled="true"
+                android:visibility="invisible"
+                tools:visibility="visible"
+                app:icon="@drawable/ic_refresh_24dp"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:layout_constraintStart_toStartOf="@id/username"
+                app:layout_constraintTop_toBottomOf="@id/status_row" />
+
 
             <LinearLayout
                 android:id="@+id/unsupported_tile"
@@ -253,7 +285,7 @@
                 tools:visibility="visible"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="@id/username"
-                app:layout_constraintTop_toBottomOf="@id/unsupported_row">
+                app:layout_constraintTop_toBottomOf="@id/refresh_button">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -295,7 +327,8 @@
                 android:text="@string/sharing"
                 style="@style/Zood.Body2"
                 app:layout_constraintEnd_toStartOf="@id/share_switch"
-                app:layout_constraintBaseline_toBaselineOf="@id/share_switch"
+                app:layout_constraintTop_toTopOf="@id/share_switch"
+                app:layout_constraintBottom_toBottomOf="@id/share_switch"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
             <androidx.appcompat.widget.SwitchCompat
@@ -304,7 +337,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="16dp"
                 android:checked="true"
-                app:layout_constraintBaseline_toBaselineOf="@id/refresh_button"
+                app:layout_constraintTop_toTopOf="@id/refresh_button"
+                app:layout_constraintBottom_toBottomOf="@id/refresh_button"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:switchPadding="8dp"
                 app:thumbTint="@color/switch_thumb"
