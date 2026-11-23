@@ -1095,15 +1095,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                     friend.user.username,
                     friend.user.publicKey,
                     Nicknames.displayName(friend.user));
-            FragmentManager mgr = getParentFragmentManager();
-            mgr.beginTransaction()
-                    .setCustomAnimations(R.animator.new_enter_from_right,
-                            R.animator.new_exit_to_left,
-                            R.animator.new_enter_from_left,
-                            R.animator.new_exit_to_right)
-                    .replace(R.id.fragment_host, fragment)
-                    .addToBackStack(null)
-                    .commit();
+            fragment.show(getParentFragmentManager(), "safety-number");
         }
     };
 

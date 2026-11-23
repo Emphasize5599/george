@@ -1,160 +1,91 @@
 package xyz.zood.george;
 
+import android.app.Dialog;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.Gravity;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-import androidx.databinding.DataBindingUtil;
-import androidx.fragment.app.Fragment;
+import androidx.fragment.app.DialogFragment;
 
-import io.pijun.george.App;
-import io.pijun.george.Constants;
-import io.pijun.george.UiRunnable;
-import io.pijun.george.WorkerRunnable;
-import xyz.zood.george.databinding.FragmentSafetyNumberBinding;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-public class SafetyNumberFragment extends Fragment {
-
+public class SafetyNumberFragment extends DialogFragment {
     private static final String ARG_MY_USERNAME = "my_username";
     private static final String ARG_MY_PUBLIC_KEY = "my_public_key";
     private static final String ARG_OTHER_USERNAME = "other_username";
     private static final String ARG_OTHER_DISPLAY_NAME = "other_display_name";
     private static final String ARG_OTHER_PUBLIC_KEY = "other_public_key";
 
-    private FragmentSafetyNumberBinding binding;
-    private String safetyNumber;
-    private String otherDisplayName;
-
-    static SafetyNumberFragment newInstance(@NonNull String myUsername, @NonNull byte[] myPublicKey, @NonNull String otherUsername, @NonNull byte[] otherPublicKey, @NonNull String otherDisplayName) {
+    static SafetyNumberFragment newInstance(@NonNull String myUsername, @NonNull byte[] myPublicKey,
+                                            @NonNull String otherUsername, @NonNull byte[] otherPublicKey,
+                                            @NonNull String otherDisplayName) {
         SafetyNumberFragment fragment = new SafetyNumberFragment();
-
         Bundle args = new Bundle();
         args.putString(ARG_MY_USERNAME, myUsername);
         args.putByteArray(ARG_MY_PUBLIC_KEY, myPublicKey);
         args.putString(ARG_OTHER_USERNAME, otherUsername);
-        args.putString(ARG_OTHER_DISPLAY_NAME, otherDisplayName);
         args.putByteArray(ARG_OTHER_PUBLIC_KEY, otherPublicKey);
-
+        args.putString(ARG_OTHER_DISPLAY_NAME, otherDisplayName);
         fragment.setArguments(args);
-
         return fragment;
     }
 
-    // applySystemUIInsets applies the system view insets. It should only be called once after the fragment's view is created.
-    private void applySystemUIInsets(FragmentSafetyNumberBinding binding) {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (v, insets) -> {
-            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
-            ConstraintLayout.LayoutParams sbLP = (ConstraintLayout.LayoutParams) binding.statusBarPlaceholder.getLayoutParams();
-            sbLP.height = statusBarHeight;
-            binding.statusBarPlaceholder.setLayoutParams(sbLP);
-
-            int navBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
-            binding.getRoot().setPadding(0, 0, 0, navBarHeight);
-
-            return WindowInsetsCompat.CONSUMED;
-        });
-    }
-
+    @NonNull
     @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    public Dialog onCreateDialog(@Nullable Bundle state) {
+        Bundle args = requireArguments();
+        String myUsername = args.getString(ARG_MY_USERNAME);
+        String otherUsername = args.getString(ARG_OTHER_USERNAME);
+        String otherDisplayName = args.getString(ARG_OTHER_DISPLAY_NAME, Usernames.display(otherUsername));
+        byte[] myPublicKey = args.getByteArray(ARG_MY_PUBLIC_KEY);
+        byte[] otherPublicKey = args.getByteArray(ARG_OTHER_PUBLIC_KEY);
+        // Key order follows account usernames so both people see the same number.
+        boolean otherFirst = otherUsername.compareToIgnoreCase(myUsername) < 0;
+        byte[] first = otherFirst ? otherPublicKey : myPublicKey;
+        byte[] second = otherFirst ? myPublicKey : otherPublicKey;
+        byte[] keys = new byte[first.length + second.length];
+        System.arraycopy(first, 0, keys, 0, first.length);
+        System.arraycopy(second, 0, keys, first.length, second.length);
+        String safetyNumber = SafetyNumber.toSafetyNumber(keys, 4, "  ");
 
-        Bundle args = getArguments();
-        if (args == null) {
-            throw new RuntimeException("You must create the fragment via newInstance");
-        }
-        final String myUsername = args.getString(ARG_MY_USERNAME);
-        if (myUsername == null || myUsername.isEmpty()) {
-            throw new RuntimeException("missing my username");
-        }
-        final String otherUsername = args.getString(ARG_OTHER_USERNAME);
-        if (otherUsername == null || otherUsername.isEmpty()) {
-            throw new RuntimeException("missing other username");
-        }
-        otherDisplayName = args.getString(ARG_OTHER_DISPLAY_NAME, Usernames.display(otherUsername));
-        final byte[] myPublicKey = args.getByteArray(ARG_MY_PUBLIC_KEY);
-        if (myPublicKey == null || myPublicKey.length != Constants.PUBLIC_KEY_LENGTH) {
-            throw new RuntimeException("missing my public key");
-        }
-        final byte[] otherPublicKey = args.getByteArray(ARG_OTHER_PUBLIC_KEY);
-        if (otherPublicKey == null || otherPublicKey.length != Constants.PUBLIC_KEY_LENGTH) {
-            throw new RuntimeException("missing other public key");
-        }
+        var context = requireContext();
+        float density = getResources().getDisplayMetrics().density;
+        int padding = Math.round(24 * density);
+        LinearLayout tile = new LinearLayout(context);
+        tile.setOrientation(LinearLayout.VERTICAL);
+        tile.setPadding(padding, padding / 2, padding, 0);
 
-        App.runInBackground(new WorkerRunnable() {
-            @Override
-            public void run() {
-                byte[] firstKey;
-                byte[] secondKey;
-                if (otherUsername.compareToIgnoreCase(myUsername) < 0) {
-                    firstKey = otherPublicKey;
-                    secondKey = myPublicKey;
-                } else {
-                    firstKey = myPublicKey;
-                    secondKey = otherPublicKey;
-                }
+        TextView instructions = new TextView(context);
+        instructions.setText(getString(R.string.safety_number_instructions_msg, otherDisplayName));
+        instructions.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
+        tile.addView(instructions);
 
-                byte[] bytes = new byte[firstKey.length + secondKey.length];
-                System.arraycopy(firstKey, 0, bytes, 0, firstKey.length);
-                System.arraycopy(secondKey, 0, bytes, firstKey.length, secondKey.length);
+        TextView number = new TextView(context);
+        number.setText(safetyNumber);
+        number.setTextIsSelectable(true);
+        number.setGravity(Gravity.CENTER);
+        number.setTypeface(Typeface.MONOSPACE);
+        number.setTextSize(20);
+        number.setPadding(0, padding, 0, padding / 2);
+        tile.addView(number);
 
-                safetyNumber = SafetyNumber.toSafetyNumber(bytes, 4, "  ");
-                App.runOnUiThread(new UiRunnable() {
-                    @Override
-                    public void run() {
-                        if (binding == null) {
-                            return;
-                        }
-                        binding.safetyNumber.setText(safetyNumber);
-                    }
-                });
-            }
-        });
+        return new MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.safety_number)
+                .setView(tile)
+                .setNeutralButton(R.string.share_safety_number_via_ellipsis, (dialog, which) -> share(safetyNumber))
+                .setPositiveButton(R.string.close, null)
+                .create();
     }
 
-    @Nullable
-    @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        binding = DataBindingUtil.inflate(inflater, R.layout.fragment_safety_number, container, false);
-        binding.instructions.setText(getString(R.string.safety_number_instructions_msg, otherDisplayName));
-        binding.safetyNumber.setText(safetyNumber);
-        binding.back.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                getParentFragmentManager().popBackStack();
-            }
-        });
-        binding.share.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                onShare();
-            }
-        });
-
-        applySystemUIInsets(binding);
-
-        return binding.getRoot();
-    }
-
-    @Override
-    public void onDestroy() {
-        binding = null;
-
-        super.onDestroy();
-    }
-
-    private void onShare() {
-        String msg = getString(R.string.share_safety_number_msg, safetyNumber);
-        Intent shareIntent = new Intent(Intent.ACTION_SEND);
-        shareIntent.setType("text/plain");
-        shareIntent.putExtra(Intent.EXTRA_TEXT, msg);
-        startActivity(Intent.createChooser(shareIntent, getString(R.string.share_safety_number_via_ellipsis)));
+    private void share(String safetyNumber) {
+        Intent intent = new Intent(Intent.ACTION_SEND)
+                .putExtra(Intent.EXTRA_TEXT, getString(R.string.share_safety_number_msg, safetyNumber))
+                .setType("text/plain");
+        startActivity(Intent.createChooser(intent, getString(R.string.share_safety_number_via_ellipsis)));
     }
 }

@@ -319,4 +319,7 @@
     <string name="share_my_location_action">Share My Location</string>
     <string name="cant_add_yourself">You can’t add yourself.</string>
     <string name="contact_read_error">Couldn’t read that contact. Allow Contacts access for Family Locator and try again.</string>
+    <string name="username_copied">Username copied</string>
+    <string name="menu_expanded">Expanded</string>
+    <string name="menu_collapsed">Collapsed</string>
 </resources>

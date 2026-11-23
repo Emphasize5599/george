@@ -8,8 +8,11 @@ import android.text.style.ImageSpan;
 import android.text.style.UnderlineSpan;
 import android.text.format.DateUtils;
 import android.widget.PopupWindow;
-import android.view.MenuInflater;
-import android.view.MenuItem;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Toast;
+import android.graphics.drawable.GradientDrawable;
+import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
@@ -17,7 +20,6 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -121,6 +123,7 @@ public class InfoPanel {
     @NonNull private final TextView statusText;
     @NonNull private final View unsupportedInfo;
     @Nullable private PopupWindow refreshHelp;
+    @Nullable private PopupWindow overflowMenu;
     @Nullable private String refreshHelpBody;
 
     // Set by applyRequestCapability(): the friend's phone has said it can't answer Refresh requests,
@@ -219,7 +222,10 @@ public class InfoPanel {
         unsupportedInfo.setOnClickListener(this::showRefreshHelp);
         panel.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
             @Override public void onViewAttachedToWindow(View view) {}
-            @Override public void onViewDetachedFromWindow(View view) { dismissRefreshHelp(); }
+            @Override public void onViewDetachedFromWindow(View view) {
+                dismissRefreshHelp();
+                if (overflowMenu != null) overflowMenu.dismiss();
+            }
         });
 
         refreshProgressBar = root.findViewById(R.id.refresh_progress_bar);
@@ -429,37 +435,94 @@ public class InfoPanel {
 
     @UiThread
     private void onInfoOverflowClicked() {
-        final FriendRecord friend = getFriend();
-        if (friend == null) {
-            return;
-        }
-        PopupMenu menu = new PopupMenu(context, overflowButton);
-        MenuInflater inflater = new MenuInflater(context);
-        inflater.inflate(R.menu.info_panel_overflow, menu.getMenu());
-        menu.setForceShowIcon(true);
-        menu.getMenu().findItem(R.id.copy_username).setTitle("@" + friend.user.username);
-        menu.getMenu().findItem(R.id.copy_username).setIcon(R.drawable.ic_copy_username);
-        boolean linked = LinkedContacts.name(friend.user.userId) != null;
-        menu.getMenu().findItem(R.id.link_contact).setTitle(linked ? R.string.linked_contact : R.string.link_contact);
-        menu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem item) {
-                if (item.getItemId() == R.id.copy_username) {
-                    android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.copy_username), "@" + friend.user.username));
-                } else if (item.getItemId() == R.id.link_contact) {
-                    listener.onInfoPanelLinkContact(friend);
-                } else if (item.getItemId() == R.id.remove_and_block) {
-                    listener.onInfoPanelBlockFriend(friend);
-                } else if (item.getItemId() == R.id.remove_friend) {
-                    listener.onInfoPanelRemoveFriend(friend);
-                } else if (item.getItemId() == R.id.view_safety_number) {
-                    listener.onInfoPanelViewSafetyNumber(friend);
-                }
-                return true;
-            }
+        FriendRecord friend = getFriend();
+        if (friend == null) return;
+        if (overflowMenu != null) overflowMenu.dismiss();
+
+        LinearLayout list = new LinearLayout(context);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(0, dp(6), 0, dp(6));
+        ScrollView scroll = new ScrollView(context);
+        scroll.addView(list);
+        int width = Math.min(dp(270), panel.getWidth() - dp(16));
+        PopupWindow popup = new PopupWindow(scroll, width, ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setOutsideTouchable(true);
+        GradientDrawable background = new GradientDrawable();
+        background.setCornerRadius(dp(16));
+        background.setColor(context.getColor(R.color.surface_high));
+        popup.setBackgroundDrawable(background);
+        popup.setElevation(dp(8));
+        overflowMenu = popup;
+        popup.setOnDismissListener(() -> {
+            if (overflowMenu == popup) overflowMenu = null;
         });
-        menu.show();
+
+        addOverflowAction(list, R.string.remove_and_block, R.drawable.ic_open_palm_24dp,
+                () -> { popup.dismiss(); listener.onInfoPanelBlockFriend(friend); });
+        addOverflowAction(list, R.string.remove_friend, R.drawable.ic_menu_person_remove,
+                () -> { popup.dismiss(); listener.onInfoPanelRemoveFriend(friend); });
+        addOverflowAction(list, R.string.view_safety_number, R.drawable.ic_menu_safety,
+                () -> { popup.dismiss(); listener.onInfoPanelViewSafetyNumber(friend); });
+        TextView usernameRow = menuRow(context.getString(R.string.view_username), R.drawable.ic_menu_at);
+        list.addView(usernameRow);
+        String handle = xyz.zood.george.Usernames.display(friend.user.username);
+        TextView copyRow = menuRow(handle, R.drawable.ic_copy_username);
+        copyRow.setPaddingRelative(dp(28), dp(7), dp(16), dp(7));
+        copyRow.setVisibility(View.GONE);
+        list.addView(copyRow);
+        setUsernameExpansion(usernameRow, false);
+        usernameRow.setOnClickListener(view -> {
+            boolean expanded = copyRow.getVisibility() != View.VISIBLE;
+            copyRow.setVisibility(expanded ? View.VISIBLE : View.GONE);
+            setUsernameExpansion(usernameRow, expanded);
+            list.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
+            popup.update(width, Math.min(list.getMeasuredHeight(), dp(420)));
+        });
+        copyRow.setOnClickListener(view -> {
+            android.content.ClipboardManager clipboard = context.getSystemService(android.content.ClipboardManager.class);
+            if (clipboard != null) clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
+                    context.getString(R.string.copy_username), handle));
+            if (android.os.Build.VERSION.SDK_INT < 33) Toast.makeText(context, R.string.username_copied, Toast.LENGTH_SHORT).show();
+        });
+        boolean linked = LinkedContacts.name(friend.user.userId) != null;
+        addOverflowAction(list, linked ? R.string.linked_contact : R.string.link_contact, R.drawable.ic_menu_contact,
+                () -> { popup.dismiss(); listener.onInfoPanelLinkContact(friend); });
+        popup.showAsDropDown(overflowButton, 0, 0, android.view.Gravity.END);
+    }
+
+    private void setUsernameExpansion(TextView row, boolean expanded) {
+        row.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_menu_at, 0,
+                expanded ? R.drawable.ic_menu_expand_less : R.drawable.ic_menu_expand_more, 0);
+        androidx.core.view.ViewCompat.setStateDescription(row, context.getString(expanded ? R.string.menu_expanded : R.string.menu_collapsed));
+    }
+
+    private void addOverflowAction(LinearLayout list, int label, int icon, Runnable action) {
+        TextView row = menuRow(context.getString(label), icon);
+        row.setOnClickListener(view -> action.run());
+        list.addView(row);
+    }
+
+    private TextView menuRow(String title, int icon) {
+        TextView row = new TextView(context);
+        row.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        row.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
+        row.setTextColor(context.getColor(R.color.text_primary));
+        row.setText(title);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.setMinHeight(dp(48));
+        row.setPaddingRelative(dp(16), dp(7), dp(16), dp(7));
+        row.setCompoundDrawablePadding(dp(12));
+        row.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
+        row.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(context.getColor(R.color.text_secondary)));
+        TypedValue selectable = new TypedValue();
+        context.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, selectable, true);
+        row.setBackgroundResource(selectable.resourceId);
+        row.setFocusable(true);
+        return row;
+    }
+
+    private int dp(float value) {
+        return Math.round(value * context.getResources().getDisplayMetrics().density);
     }
 
     /**
