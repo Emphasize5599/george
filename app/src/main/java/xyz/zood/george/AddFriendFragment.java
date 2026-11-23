@@ -28,6 +28,7 @@ import java.util.Locale;
 
 import io.pijun.george.App;
 import io.pijun.george.L;
+import io.pijun.george.Prefs;
 import io.pijun.george.UiRunnable;
 import io.pijun.george.Utils;
 import io.pijun.george.WorkerRunnable;
@@ -256,6 +257,11 @@ public class AddFriendFragment extends Fragment {
                                 .setPositiveButton(R.string.share_my_location_action, (dialog, which) -> addFriend(extraInfo, true))
                                 .show();
                         return;
+                    case CantAddSelf:
+                        binding.usernameContainer.setError(getString(R.string.cant_add_yourself));
+                        showUserValidityIcon(false);
+                        binding.addFriend.setEnabled(false);
+                        return;
                     case UserNotFound:
                         errMsg = getString(R.string.unknown_error_getting_user_info);
                         break;
@@ -302,6 +308,13 @@ public class AddFriendFragment extends Fragment {
         public void afterTextChanged(Editable s) {
             if (s != null) {
                 String username = Usernames.forLookup(s.toString());
+                layout.setError(null);
+                if (Usernames.isOwn(username, Prefs.get(requireContext()).getUsername())) {
+                    layout.setError(getString(R.string.cant_add_yourself));
+                    showUserValidityIcon(false);
+                    binding.addFriend.setEnabled(false);
+                    return;
+                }
                 if (username.isEmpty()) {
                     binding.addFriend.setEnabled(false);
                     layout.setEndIconDrawable(null);

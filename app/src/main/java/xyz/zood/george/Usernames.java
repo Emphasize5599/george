@@ -11,6 +11,10 @@ public final class Usernames {
         return "@" + username;
     }
 
+    static boolean isOwn(String username, String accountUsername) {
+        return accountUsername != null && forLookup(username).equals(forLookup(accountUsername));
+    }
+
     public static String forLookup(String value) {
         String trimmed = value.trim();
         if (trimmed.startsWith("@")) {

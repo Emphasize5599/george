@@ -11,11 +11,13 @@ import androidx.annotation.WorkerThread;
 
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Collections;
 
 import io.pijun.george.CloudLogger;
 import io.pijun.george.Constants;
 import io.pijun.george.L;
+import io.pijun.george.Prefs;
 import io.pijun.george.api.OscarClient;
 import io.pijun.george.api.UserComm;
 import io.pijun.george.api.task.OscarTask;
@@ -45,7 +47,12 @@ public class FriendshipManager {
 
     @WorkerThread
     void addFriend(@NonNull String username, boolean confirmedSharing, @NonNull OnAddFriendFinishedListener listener) {
-        UserRecord user = db.getUser(username);
+        Prefs prefs = Prefs.get(ctx);
+        if (Usernames.isOwn(username, prefs.getUsername())) {
+            listener.onAddFriendFinished(AddFriendResult.CantAddSelf, null);
+            return;
+        }
+        UserRecord user = db.getUser(Usernames.forLookup(username));
         if (user == null) {
             // the user should already have been added by the 'search as you type' feature
             listener.onAddFriendFinished(AddFriendResult.UserNotFound, null);
@@ -53,12 +60,16 @@ public class FriendshipManager {
         }
 
         synchronized (FriendRequests.class) {
+            if (Arrays.equals(user.userId, prefs.getUserId())) {
+                listener.onAddFriendFinished(AddFriendResult.CantAddSelf, null);
+                return;
+            }
             if (FriendRequests.isBlocked(user.userId)) {
                 listener.onAddFriendFinished(AddFriendResult.SharingGrantFailed, ctx.getString(R.string.unblock_before_sharing));
                 return;
             }
             for (FriendRequests.Request request : FriendRequests.pending()) {
-                if (!java.util.Arrays.equals(request.user.userId, user.userId)) continue;
+                if (!Arrays.equals(request.user.userId, user.userId)) continue;
                 try {
                     FriendRequests.approve(request);
                     listener.onAddFriendFinished(AddFriendResult.Success, null);
@@ -157,7 +168,8 @@ public class FriendshipManager {
     @WorkerThread
     void startSharingWith(@NonNull FriendRecord friend, @NonNull OnShareOpFinishedListener listener) {
         synchronized (FriendRequests.class) {
-            if (FriendRequests.isBlocked(friend.user.userId)) {
+            if (Arrays.equals(friend.user.userId, Prefs.get(ctx).getUserId())
+                    || FriendRequests.isBlocked(friend.user.userId)) {
                 listener.onShareOpFinished(false);
                 return;
             }
@@ -221,6 +233,7 @@ public class FriendshipManager {
     enum AddFriendResult {
         Success,
         ConfirmSharing,
+        CantAddSelf,
         UserNotFound,
         SharingGrantFailed,
         DatabaseError,
