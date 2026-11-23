@@ -53,6 +53,10 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     private MainViewModel mainViewModel;
     private RecyclerView list;
     private PopupWindow folderPopup;
+    @Nullable private View folderCard;
+    @Nullable private String openFolderKey;
+    @Nullable private String folderClosedKey;
+    private long folderClosedByTapAt;
     private final Runnable namesChanged = () -> {
         if (list != null) adapter.refresh();
     };
@@ -170,7 +174,13 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
                 .show();
     }
 
+    /** A tap on a folder's tile in the bar: opens it, or closes it when it's the folder that's open. */
     void openFolder(View anchor, FriendBarArrangement.Item item) {
+        if (folderTapShouldClose(item.key)) return;
+        showFolder(anchor, item);
+    }
+
+    private void showFolder(View anchor, FriendBarArrangement.Item item) {
         closeFolder();
         Context context = anchor.getContext();
         MaterialCardView card = new MaterialCardView(context);
@@ -221,6 +231,9 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         int titleWidth = (int) Math.ceil(title.getPaint().measureText(folderTitle(item))) + dp(8) + dp(48);
         int width = Math.min(Math.max(Math.max(gridWidth, titleWidth), dp(140)) + dp(32), screenWidth - 2 * margin);
         var scroll = new ScrollView(context);
+        // Only a folder with more rows than fit can scroll, so only it shows a scroll bar.
+        int rows = (item.members.size() + usedColumns - 1) / usedColumns;
+        scroll.setVerticalScrollBarEnabled(rows > visibleRows);
         var grid = new GridLayout(context);
         grid.setColumnCount(usedColumns);
         grid.setPadding(0, dp(4), 0, dp(4));
@@ -259,21 +272,65 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         // floating just above the bar (over the map and any open friend card) without moving anything.
         int left = Math.max(margin, Math.min(anchorPosition[0] + (anchor.getWidth() - width) / 2, screenWidth - margin - width));
         int top = barPosition[1] - margin - height;
-        folderPopup = new PopupWindow(card, width, height, true);
+        // The window reaches down to the top of the bar and clips the card, so the card slides up out from
+        // behind the bar when it opens and back down behind it when it closes. A little room on the sides and
+        // top keeps the card's shadow from being clipped.
+        int shadow = dp(8);
+        card.setCardElevation(dp(6));
+        FrameLayout stage = new FrameLayout(context);
+        stage.setClipChildren(true);
+        stage.setPadding(shadow, shadow, shadow, 0);
+        stage.addView(card, new FrameLayout.LayoutParams(width, height, Gravity.TOP));
+        int travel = height + margin;
+        folderPopup = new PopupWindow(stage, width + 2 * shadow, height + margin + shadow, true);
         folderPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         folderPopup.setOutsideTouchable(true);
         folderPopup.setTouchModal(false);
-        folderPopup.setElevation(dp(12));
-        folderPopup.setOverlapAnchor(true);
+        folderPopup.setAnimationStyle(0);
         folderPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
-        folderPopup.showAtLocation(anchor.getRootView(), Gravity.TOP | Gravity.START, left, top);
+        String key = item.key;
+        // A tap outside slides the folder away. Tapping the folder's own tile closes it rather than reopening it.
+        folderPopup.setTouchInterceptor((view, event) -> {
+            if (event.getAction() == android.view.MotionEvent.ACTION_OUTSIDE) {
+                folderClosedByTapAt = android.os.SystemClock.uptimeMillis();
+                folderClosedKey = key;
+                closeFolder();
+                return true;
+            }
+            return false;
+        });
+        folderPopup.showAtLocation(anchor.getRootView(), Gravity.TOP | Gravity.START, left - shadow, top - shadow);
+        folderCard = card;
+        openFolderKey = key;
+        card.setTranslationY(travel);
+        card.animate().translationY(0).setDuration(250)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
+    }
+
+    /** True when this tap on a folder's tile should close that folder instead of opening it. */
+    boolean folderTapShouldClose(String key) {
+        if (key.equals(openFolderKey) && folderPopup != null) {
+            closeFolder();
+            return true;
+        }
+        return key.equals(folderClosedKey) && android.os.SystemClock.uptimeMillis() - folderClosedByTapAt < 1000;
     }
 
     private void closeFolder() {
-        if (folderPopup != null) {
-            folderPopup.dismiss();
-            folderPopup = null;
+        PopupWindow popup = folderPopup;
+        View card = folderCard;
+        folderPopup = null;
+        folderCard = null;
+        openFolderKey = null;
+        if (popup == null) return;
+        if (card == null || !card.isAttachedToWindow()) {
+            popup.dismiss();
+            return;
         }
+        card.animate().cancel();
+        card.animate().translationY(card.getHeight() + dp(12)).setDuration(200)
+                .setInterpolator(new android.view.animation.AccelerateInterpolator(2f))
+                .withEndAction(popup::dismiss).start();
     }
 
     /** The folder's ⋮ menu, opening above the button like the friend card's (below only if there's no room). */
@@ -435,7 +492,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             if (list != bar) return;
             var item = adapter.itemAt(position);
             var holder = bar.findViewHolderForAdapterPosition(position);
-            if (item != null && holder != null && key.equals(item.key)) openFolder(holder.itemView, item);
+            if (item != null && holder != null && key.equals(item.key)) showFolder(holder.itemView, item);
         });
     }
 

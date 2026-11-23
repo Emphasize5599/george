@@ -485,7 +485,7 @@ public class InfoPanel {
             if (android.os.Build.VERSION.SDK_INT < 33) Toast.makeText(context, R.string.username_copied, Toast.LENGTH_SHORT).show();
         });
         boolean linked = LinkedContacts.name(friend.user.userId) != null;
-        addOverflowAction(list, linked ? R.string.linked_contact : R.string.link_contact, R.drawable.ic_menu_contact,
+        addOverflowAction(list, linked ? R.string.manage_linked_contact : R.string.link_contact, R.drawable.ic_menu_contact,
                 () -> { popup.dismiss(); listener.onInfoPanelLinkContact(friend); });
         placeOverflowMenu(popup, list, width, false);
     }
@@ -570,10 +570,17 @@ public class InfoPanel {
         set.clone(panel);
         set.clear(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.TOP);
         set.clear(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.BOTTOM);
+        set.clear(R.id.status_row, androidx.constraintlayout.widget.ConstraintSet.END);
         if (visibility == View.GONE) {
-            set.connect(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.TOP,
-                    R.id.status_row, androidx.constraintlayout.widget.ConstraintSet.BOTTOM, dp(4));
+            // Condensed: the status lines sit to the left of the sharing switch, so "Unsupported (?)" ends
+            // up in the card's bottom-left corner with the switch beside it.
+            set.connect(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.BOTTOM,
+                    R.id.status_row, androidx.constraintlayout.widget.ConstraintSet.BOTTOM);
+            set.connect(R.id.status_row, androidx.constraintlayout.widget.ConstraintSet.END,
+                    R.id.share_switch_label, androidx.constraintlayout.widget.ConstraintSet.START, dp(8));
         } else {
+            set.connect(R.id.status_row, androidx.constraintlayout.widget.ConstraintSet.END,
+                    androidx.constraintlayout.widget.ConstraintSet.PARENT_ID, androidx.constraintlayout.widget.ConstraintSet.END, dp(16));
             set.connect(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.TOP,
                     R.id.refresh_button, androidx.constraintlayout.widget.ConstraintSet.TOP);
             set.connect(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.BOTTOM,
@@ -921,7 +928,17 @@ public class InfoPanel {
         refreshHelp.setBackgroundDrawable(context.getDrawable(R.drawable.bg_folder_preview));
         refreshHelp.setElevation(8 * density);
         refreshHelp.setOutsideTouchable(true);
-        refreshHelp.showAsDropDown(anchor, 0, 0);
+        // Above the (?) button, measured first so none of the text is cut off, and kept on screen.
+        content.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
+        int height = content.getMeasuredHeight();
+        refreshHelp.setHeight(height);
+        int[] at = new int[2];
+        anchor.getLocationOnScreen(at);
+        int margin = Math.round(8 * density);
+        int screenWidth = context.getResources().getDisplayMetrics().widthPixels;
+        int x = Math.max(margin, Math.min(at[0] + anchor.getWidth() / 2 - width / 2, screenWidth - margin - width));
+        int y = Math.max(margin, at[1] - height - Math.round(4 * density));
+        refreshHelp.showAtLocation(anchor.getRootView(), android.view.Gravity.TOP | android.view.Gravity.START, x, y);
     }
 
     private void dismissRefreshHelp() {

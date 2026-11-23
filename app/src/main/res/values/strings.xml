@@ -251,6 +251,7 @@
     <string name="open_address_in_maps">Open address in Maps</string>
     <string name="link_contact">Link Contact</string>
     <string name="linked_contact">Linked Contact</string>
+    <string name="manage_linked_contact">Manage Linked Contact</string>
     <string name="linked_contact_msg">Linked to %s</string>
     <string name="link_contact_explanation">Use the selected contact’s name as this friend’s nickname and show their photo on this phone. The name and contact reference are included in your end-to-end encrypted backup.</string>
     <string name="choose_contact">Choose Contact</string>

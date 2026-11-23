@@ -63,6 +63,7 @@ public class FriendSymbol implements MapLibreMap.OnCameraMoveListener {
         SymbolOptions so = new SymbolOptions()
                 .withLatLng(new LatLng(l.latitude, l.longitude))
                 .withIconImage(avatarImageName)
+                .withSymbolSortKey(1f) // above your own location dot
                 .withDraggable(false);
         avatar = symbolManager.create(so);
 
@@ -118,6 +119,16 @@ public class FriendSymbol implements MapLibreMap.OnCameraMoveListener {
         avatar.setIconImage(newImageName);
         style.removeImage(avatarImageName);
         avatarImageName = newImageName;
+        symbolManager.update(avatar);
+    }
+
+    /** The selected friend draws above everyone else (and above your own location). */
+    @UiThread
+    public void setRaised(boolean raised) {
+        float key = raised ? 2f : 1f;
+        Float current = avatar.getSymbolSortKey();
+        if (current != null && current == key) return;
+        avatar.setSymbolSortKey(key);
         symbolManager.update(avatar);
     }
 

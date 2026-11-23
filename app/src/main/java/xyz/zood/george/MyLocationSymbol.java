@@ -66,6 +66,7 @@ public class MyLocationSymbol implements MapLibreMap.OnCameraMoveListener {
         SymbolOptions so = new SymbolOptions()
                 .withLatLng(new LatLng(location.getLatitude(), location.getLongitude()))
                 .withIconImage(myBlueDotSymbolName)
+                .withSymbolSortKey(0f) // under friends, so someone standing next to you stays visible
                 .withDraggable(false);
         myDot = symbolManager.create(so);
 

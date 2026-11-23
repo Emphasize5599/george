@@ -52,6 +52,14 @@ public class FriendSymbolTracker {
         return null;
     }
 
+    /** Raises the selected friend's avatar above the others; -1 (or 0, yourself) raises nobody. */
+    @UiThread
+    public void setSelected(long friendId) {
+        for (var entry : idToSymbol.entrySet()) {
+            entry.getValue().setRaised(entry.getKey() == friendId);
+        }
+    }
+
     @UiThread
     public void hideErrorCircle() {
         for (var fs: idToSymbol.values()) {

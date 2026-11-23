@@ -270,6 +270,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             public void onClick(View v) {
                 binding.myLocationFab.setSelected(true);
                 friendForCameraToTrack = 0;
+                if (symbolTracker != null) symbolTracker.setSelected(friendForCameraToTrack);
                 flyCameraToMyLocation();
 
                 // if we're showing the avatar info, hide it
@@ -464,6 +465,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         // Is the info panel already showing for this user? If so, just center the camera and follow
         if (infoPanel.getFriendId() == fr.id) {
             friendForCameraToTrack = fr.id;
+            if (symbolTracker != null) symbolTracker.setSelected(friendForCameraToTrack);
             var update = CameraUpdateFactory.newLatLng(fs.getLatLng());
             mlMap.animateCamera(update);
             return;
@@ -479,6 +481,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
         // the camera should track this friend
         friendForCameraToTrack = fr.id;
+        if (symbolTracker != null) symbolTracker.setSelected(friendForCameraToTrack);
         binding.myLocationFab.setSelected(false);
         var zoom = Math.max(mlMap.getCameraPosition().zoom, Constants.DEFAULT_ZOOM_LEVEL);
         CameraPosition cp = new CameraPosition.Builder()
@@ -730,6 +733,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                 @Override
                 public boolean onMapClick(@NonNull LatLng latLng) {
                     friendForCameraToTrack = -1;
+                    if (symbolTracker != null) symbolTracker.setSelected(friendForCameraToTrack);
                     binding.myLocationFab.setSelected(false);
                     infoPanel.hide();
                     binding.timedShareFab.setVisibility(View.VISIBLE);
@@ -750,6 +754,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                     return;
                 }
                 friendForCameraToTrack = -1;
+                if (symbolTracker != null) symbolTracker.setSelected(friendForCameraToTrack);
                 binding.myLocationFab.setSelected(false);
             }
         });
@@ -885,6 +890,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
         // make the camera track this friend
         friendForCameraToTrack = fs.getFriendId();
+        if (symbolTracker != null) symbolTracker.setSelected(friendForCameraToTrack);
 
         // move the camera to the friend
         var update = CameraUpdateFactory.newLatLng(fs.getLatLng());
@@ -982,6 +988,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         public void onInfoPanelCloseRequested() {
             // Same as tapping an empty spot on the map.
             friendForCameraToTrack = -1;
+            if (symbolTracker != null) symbolTracker.setSelected(friendForCameraToTrack);
             binding.myLocationFab.setSelected(false);
             infoPanel.hide();
             binding.timedShareFab.setVisibility(View.VISIBLE);
@@ -1150,6 +1157,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         if (friend != null && friend.id == friendId) {
             infoPanel.hide();
             friendForCameraToTrack = -1;
+            if (symbolTracker != null) symbolTracker.setSelected(friendForCameraToTrack);
             binding.timedShareFab.setVisibility(View.VISIBLE);
         }
     }
