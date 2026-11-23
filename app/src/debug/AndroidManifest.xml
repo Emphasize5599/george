@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug only: lets the layout tour add a photo to a test contact on the emulator. -->
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
     <application>
         <activity android:name="xyz.zood.george.LayoutTourActivity" android:exported="true" android:theme="@style/AppTheme" />
     </application>

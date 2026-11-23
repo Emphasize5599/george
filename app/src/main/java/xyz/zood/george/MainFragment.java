@@ -954,6 +954,11 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             if (java.util.Arrays.equals(account, Prefs.get(context).getUserId())) {
                 if (!LinkedContacts.linkPickedContact(friendId, contactUri)) {
                     App.runOnUiThread(() -> Toast.makeText(context, R.string.contact_read_error, Toast.LENGTH_LONG).show());
+                } else {
+                    // Say what happened, so a link is never silent (name and, if the contact has one, photo).
+                    String name = LinkedContacts.name(friendId);
+                    App.runOnUiThread(() -> Toast.makeText(context, context.getString(R.string.linked_contact_toast, name),
+                            Toast.LENGTH_SHORT).show());
                 }
             }
         });

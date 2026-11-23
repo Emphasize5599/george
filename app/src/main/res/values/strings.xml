@@ -259,6 +259,9 @@
     <string name="unnamed_contact">Unnamed Contact</string>
     <string name="no_contacts_app">No contacts app is available.</string>
     <string name="on_demand_refresh_unsupported">On-demand refresh unsupported</string>
+    <string name="linked_contact_toast">Linked to %s</string>
+    <string name="bar_add">Add</string>
+    <string name="bar_requests">Requests</string>
     <string name="signed_in_elsewhere">Signed out because your account was signed in on another device.</string>
     <string name="no_maps_app">No maps app is available.</string>
     <plurals name="friend_requests_count">

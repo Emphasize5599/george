@@ -188,20 +188,36 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         title.setOnClickListener(view -> folderMenu(view, item));
         body.addView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
 
+        // Same sizing rules as iOS: the card is only as wide as the people in it (at most the columns set in
+        // Settings), with room for its header, and as many rows as it needs up to the set number; more scroll.
         int columns = gridSize(context, 0);
-        int width = Math.min(dp(24 + columns * 64), list.getWidth() - dp(16));
-        int cell = (width - dp(24)) / columns;
+        int usedColumns = Math.max(1, Math.min(columns, item.members.size()));
+        int visibleRows = Math.max(1, Math.min(gridSize(context, 1), (item.members.size() + columns - 1) / columns));
+        int cellWidth = dp(64), cellHeight = dp(64), gap = dp(16);
+        int gridWidth = usedColumns * cellWidth + (usedColumns - 1) * gap;
+        int gridHeight = visibleRows * cellHeight + (visibleRows - 1) * gap + dp(8);
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int margin = dp(12);
+        body.setPadding(dp(16), dp(8), dp(16), dp(16));
+        int width = Math.min(Math.max(gridWidth, dp(140)) + dp(32), screenWidth - 2 * margin);  // grid sets the width
         var scroll = new ScrollView(context);
         var grid = new GridLayout(context);
-        grid.setColumnCount(columns);
-        scroll.addView(grid);
-        int visibleRows = Math.min(gridSize(context, 1), (item.members.size() + columns - 1) / columns);
-        body.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, visibleRows * cell));
+        grid.setColumnCount(usedColumns);
+        grid.setPadding(0, dp(4), 0, dp(4));
+        scroll.addView(grid, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, gridHeight);
+        scrollParams.gravity = Gravity.CENTER_HORIZONTAL;
+        body.addView(scroll, scrollParams);
+        int index = 0;
         for (FriendRecord member : item.members) {
             View tile = LayoutInflater.from(context).inflate(R.layout.friends_bar_friend, grid, false);
-            grid.addView(tile, new GridLayout.LayoutParams());
-            tile.getLayoutParams().width = cell;
-            tile.getLayoutParams().height = cell;
+            GridLayout.LayoutParams cellParams = new GridLayout.LayoutParams();
+            cellParams.width = cellWidth;
+            cellParams.height = cellHeight;
+            boolean lastColumn = index % usedColumns == usedColumns - 1;
+            cellParams.setMargins(0, 0, lastColumn ? 0 : gap, gap);
+            grid.addView(tile, cellParams);
+            index++;
             FriendsBarAdapter.bindAvatar(tile.findViewById(R.id.avatar_image), member, R.dimen.forty);
             FriendsBarAdapter.setTileLabel(tile, Nicknames.displayName(member.user));
             tile.setOnClickListener(view -> {
@@ -210,14 +226,15 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             });
             makeMemberDraggable(tile, anchor, item, member);
         }
-        int height = dp(66) + visibleRows * cell;
+        int height = dp(8) + dp(48) + gridHeight + dp(16);
         int[] barPosition = new int[2];
         int[] anchorPosition = new int[2];
         list.getLocationOnScreen(barPosition);
         anchor.getLocationOnScreen(anchorPosition);
-        int left = Math.max(barPosition[0] + dp(8), Math.min(
-                anchorPosition[0] + (anchor.getWidth() - width) / 2,
-                barPosition[0] + list.getWidth() - width - dp(8)));
+        // Centered over the folder's tile, or pinned to the screen margin when the tile is near an edge,
+        // floating just above the bar (over the map and any open friend card) without moving anything.
+        int left = Math.max(margin, Math.min(anchorPosition[0] + (anchor.getWidth() - width) / 2, screenWidth - margin - width));
+        int top = barPosition[1] - margin - height;
         folderPopup = new PopupWindow(card, width, height, true);
         folderPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         folderPopup.setOutsideTouchable(true);
@@ -225,7 +242,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         folderPopup.setElevation(dp(12));
         folderPopup.setOverlapAnchor(true);
         folderPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
-        folderPopup.showAsDropDown(anchor, left - anchorPosition[0], anchor.getHeight() - height, Gravity.LEFT);
+        folderPopup.showAtLocation(anchor.getRootView(), Gravity.TOP | Gravity.START, left, top);
     }
 
     private void closeFolder() {

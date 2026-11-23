@@ -254,7 +254,7 @@ public class InfoPanel {
 
     @UiThread
     private void updateRefreshButton() {
-        refreshButton.setVisibility(View.VISIBLE);
+        setRefreshShown(View.VISIBLE);
         if (applyRequestCapability()) {
             return;
         }
@@ -475,8 +475,8 @@ public class InfoPanel {
             boolean expanded = copyRow.getVisibility() != View.VISIBLE;
             copyRow.setVisibility(expanded ? View.VISIBLE : View.GONE);
             setUsernameExpansion(usernameRow, expanded);
-            list.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
-            popup.update(width, Math.min(list.getMeasuredHeight(), dp(420)));
+            // Re-place right away, so the longer menu never runs under the navigation bar.
+            placeOverflowMenu(popup, list, width, true);
         });
         copyRow.setOnClickListener(view -> {
             android.content.ClipboardManager clipboard = context.getSystemService(android.content.ClipboardManager.class);
@@ -487,7 +487,43 @@ public class InfoPanel {
         boolean linked = LinkedContacts.name(friend.user.userId) != null;
         addOverflowAction(list, linked ? R.string.linked_contact : R.string.link_contact, R.drawable.ic_menu_contact,
                 () -> { popup.dismiss(); listener.onInfoPanelLinkContact(friend); });
-        popup.showAsDropDown(overflowButton, 0, 0, android.view.Gravity.END);
+        placeOverflowMenu(popup, list, width, false);
+    }
+
+    /**
+     * Opens the menu above the ⋮ button (so it never covers the friend's details below it), or below when
+     * there isn't room above. Space is measured inside the system bars, so no option sits under the status
+     * bar or the navigation buttons; a menu taller than the room scrolls.
+     */
+    private void placeOverflowMenu(PopupWindow popup, LinearLayout list, int width, boolean update) {
+        list.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
+        int wanted = list.getMeasuredHeight();
+        View root = panel.getRootView();
+        androidx.core.view.WindowInsetsCompat insets = androidx.core.view.ViewCompat.getRootWindowInsets(root);
+        androidx.core.graphics.Insets bars = insets == null ? androidx.core.graphics.Insets.NONE
+                : insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()
+                        | androidx.core.view.WindowInsetsCompat.Type.displayCutout());
+        int[] rootOnScreen = new int[2];
+        root.getLocationOnScreen(rootOnScreen);
+        int[] anchor = new int[2];
+        overflowButton.getLocationOnScreen(anchor);
+        int gap = dp(4);
+        int top = rootOnScreen[1] + bars.top + gap;
+        int bottom = rootOnScreen[1] + root.getHeight() - bars.bottom - gap;
+        int roomAbove = anchor[1] - gap - top;
+        int roomBelow = bottom - (anchor[1] + overflowButton.getHeight() + gap);
+        boolean above = wanted <= roomAbove || roomAbove >= roomBelow;
+        int height = Math.min(wanted, Math.max(dp(96), above ? roomAbove : roomBelow));
+        int y = above ? anchor[1] - gap - height : anchor[1] + overflowButton.getHeight() + gap;
+        int right = anchor[0] + overflowButton.getWidth();
+        int x = Math.max(rootOnScreen[0] + bars.left + gap,
+                Math.min(right - width, rootOnScreen[0] + root.getWidth() - bars.right - gap - width));
+        if (update) {
+            popup.update(x, y, width, height);
+        } else {
+            popup.setHeight(height);
+            popup.showAtLocation(root, android.view.Gravity.TOP | android.view.Gravity.START, x, y);
+        }
     }
 
     private void setUsernameExpansion(TextView row, boolean expanded) {
@@ -521,6 +557,31 @@ public class InfoPanel {
         return row;
     }
 
+    /**
+     * Shows, hides (keeping its space) or removes Refresh. When it's removed because on-demand refresh is
+     * unsupported, the card condenses: the sharing switch moves up under the status line instead of
+     * staying centered on an empty gap.
+     */
+    @UiThread
+    private void setRefreshShown(int visibility) {
+        if (refreshButton.getVisibility() == visibility) return;
+        refreshButton.setVisibility(visibility);
+        androidx.constraintlayout.widget.ConstraintSet set = new androidx.constraintlayout.widget.ConstraintSet();
+        set.clone(panel);
+        set.clear(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.TOP);
+        set.clear(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.BOTTOM);
+        if (visibility == View.GONE) {
+            set.connect(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.TOP,
+                    R.id.status_row, androidx.constraintlayout.widget.ConstraintSet.BOTTOM, dp(4));
+        } else {
+            set.connect(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.TOP,
+                    R.id.refresh_button, androidx.constraintlayout.widget.ConstraintSet.TOP);
+            set.connect(R.id.share_switch, androidx.constraintlayout.widget.ConstraintSet.BOTTOM,
+                    R.id.refresh_button, androidx.constraintlayout.widget.ConstraintSet.BOTTOM);
+        }
+        set.applyTo(panel);
+    }
+
     private int dp(float value) {
         return Math.round(value * context.getResources().getDisplayMetrics().density);
     }
@@ -543,14 +604,17 @@ public class InfoPanel {
                 && device != null && device.cannotAnswerRequests();
         if (reportedUnavailable) DeviceStatusProbe.probeIfNeeded(context, friend);
         checkingSupport = reportedUnavailable && DeviceStatusProbe.isProbing(friend.user.userId);
+        // Unsupported when their phone recently said Live Requests is off, or a check just confirmed it.
+        // An old "off" report is re-checked first, since they may have turned it back on.
         requestsUnsupported = reportedUnavailable
-                && (checkingSupport || DeviceStatusProbe.isConfirmedUnavailable(friend.user.userId));
+                && (device.recentlyReportedOff() || checkingSupport || DeviceStatusProbe.isConfirmedUnavailable(friend.user.userId));
+        if (requestsUnsupported && device.recentlyReportedOff()) checkingSupport = false;
         if (!requestsUnsupported) {
             dismissRefreshHelp();
             return false;
         }
         refreshButton.setEnabled(false);
-        refreshButton.setVisibility(View.INVISIBLE);
+        setRefreshShown(View.GONE);  // condensed: no room kept for a button that can't be used
         if (checkingSupport) dismissRefreshHelp();
         @StringRes int body = device.isIPhone() ? R.string.unsupported_iphone_body : R.string.unsupported_android_body;
         refreshHelpBody = context.getString(body, xyz.zood.george.Nicknames.displayName(friend.user));
@@ -569,7 +633,7 @@ public class InfoPanel {
                 updateRefreshButton();
             } else if (!applyRequestCapability()) {
                 refreshButton.setEnabled(friend.receivingBoxId != null);
-                refreshButton.setVisibility(friend.receivingBoxId != null ? View.VISIBLE : View.INVISIBLE);
+                setRefreshShown(friend.receivingBoxId != null ? View.VISIBLE : View.INVISIBLE);
             }
             updateStatusRow(System.currentTimeMillis());
         }
@@ -619,7 +683,7 @@ public class InfoPanel {
             // show the empty state and get out of here
             setAddressMessage(R.string.not_sharing_with_you);
             refreshProgressBar.setVisibility(View.INVISIBLE);
-            refreshButton.setVisibility(View.INVISIBLE);
+            setRefreshShown(View.INVISIBLE);
             dismissRefreshHelp();
             updateStatusRow(System.currentTimeMillis());
             bearing.setVisibility(View.GONE);
@@ -632,7 +696,7 @@ public class InfoPanel {
         // If we don't have location info yet (from a new friend)
         if (loc == null) {
             setAddressMessage(R.string.waiting_for_location_ellipsis);
-            refreshButton.setVisibility(View.VISIBLE);
+            setRefreshShown(View.VISIBLE);
             refreshButton.setEnabled(!applyRequestCapability());
             updateStatusRow(System.currentTimeMillis());
             bearing.setVisibility(View.GONE);

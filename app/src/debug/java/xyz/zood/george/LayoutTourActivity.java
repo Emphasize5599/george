@@ -36,6 +36,19 @@ import xyz.zood.george.widget.InfoPanel;
  */
 public class LayoutTourActivity extends AppCompatActivity {
 
+    @Nullable private byte[] tourLinkFriend;
+    private final androidx.activity.result.ActivityResultLauncher<Void> tourPicker = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.PickContact(), uri -> {
+                byte[] friend = tourLinkFriend;
+                android.util.Log.i("TourContactLink", "picker result uri=" + uri + " friend=" + (friend != null));
+                if (uri == null || friend == null) return;
+                new Thread(() -> {
+                    boolean linked = LinkedContacts.linkPickedContact(friend, uri);
+                    android.util.Log.i("TourContactLink", "picker uri=" + uri + " linked=" + linked
+                            + " name=" + LinkedContacts.name(friend) + " photo=" + LinkedContacts.photoFile(friend).exists());
+                }).start();
+            });
+
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -168,7 +181,28 @@ public class LayoutTourActivity extends AppCompatActivity {
         String username = scene.equals("friend-long-name") ? "alexander_golden_gate_family_demo" : "alexdemo";
         FriendRecord friend = TourFixtures.friend(username);
         FriendLocation location = TourFixtures.location();
-        if (scene.equals("friend-linked")) {
+        String realContact = getIntent().getStringExtra("contact");
+        String photoRawContact = getIntent().getStringExtra("add-photo-to-raw-contact");
+        if (photoRawContact != null) {
+            // Debug: give a test contact a photo (a plain colored square) so the link can be checked with one.
+            android.graphics.Bitmap square = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888);
+            square.eraseColor(android.graphics.Color.rgb(0x2E, 0x7D, 0x32));
+            java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+            square.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, bytes);
+            android.content.ContentValues values = new android.content.ContentValues();
+            values.put(android.provider.ContactsContract.Data.RAW_CONTACT_ID, Long.parseLong(photoRawContact));
+            values.put(android.provider.ContactsContract.Data.MIMETYPE, android.provider.ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE);
+            values.put(android.provider.ContactsContract.CommonDataKinds.Photo.PHOTO, bytes.toByteArray());
+            getContentResolver().insert(android.provider.ContactsContract.Data.CONTENT_URI, values);
+        }
+        if (realContact != null) {
+            // Debug check of the real linking code: `--es contact <contact lookup URI>` (the kind of URI the
+            // system contact picker returns) runs exactly what picking that contact does.
+            boolean linked = LinkedContacts.linkPickedContact(friend.user.userId, android.net.Uri.parse(realContact));
+            android.util.Log.i("TourContactLink", "linked=" + linked + " name=" + LinkedContacts.name(friend.user.userId)
+                    + " nickname=" + Nicknames.local(friend.user.userId)
+                    + " photo=" + LinkedContacts.photoFile(friend.user.userId).exists());
+        } else if (scene.equals("friend-linked")) {
             LinkedContacts.link(friend.user.userId, "Alex Rivera", "content://fixture/contact");
         } else {
             LinkedContacts.unlink(friend.user.userId);
@@ -190,7 +224,11 @@ public class LayoutTourActivity extends AppCompatActivity {
             }
             @Override public void onInfoPanelRemoveFriend(@NonNull FriendRecord f) {}
             @Override public void onInfoPanelOpenInMaps(@NonNull String displayName, @NonNull FriendLocation l) {}
-            @Override public void onInfoPanelLinkContact(@NonNull FriendRecord f) {}
+            @Override public void onInfoPanelLinkContact(@NonNull FriendRecord f) {
+                // Debug: the real system contact picker, then the real linking code.
+                tourLinkFriend = f.user.userId;
+                tourPicker.launch(null);
+            }
             @Override public void onInfoPanelShareToggled(@NonNull FriendRecord f, boolean share) {}
             @Override public void onInfoPanelViewSafetyNumber(@NonNull FriendRecord f) {
                 SafetyNumberFragment.newInstance("familydemo", new byte[32], f.user.username, f.user.publicKey,
