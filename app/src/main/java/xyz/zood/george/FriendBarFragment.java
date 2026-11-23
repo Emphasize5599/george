@@ -343,7 +343,9 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         int width = dp(240);
         list.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
         int height = list.getMeasuredHeight();
-        View root = anchor.getRootView();
+        // Attach to the activity's window: the anchor lives in the folder card's own popup window, which can't
+        // host another popup. Positions are screen coordinates either way.
+        View root = requireActivity().getWindow().getDecorView();
         androidx.core.view.WindowInsetsCompat insets = androidx.core.view.ViewCompat.getRootWindowInsets(root);
         int topInset = insets == null ? 0 : insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()).top;
         int[] at = new int[2];
