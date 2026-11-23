@@ -114,6 +114,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     public ActivityResultLauncher<String[]> bgLocationPermLauncher;
     public ActivityResultLauncher<String[]> bgLocationPermToAddFriendLauncher;
     private ActivityResultLauncher<Void> pickContactLauncher;
+    private ActivityResultLauncher<String> activityPermLauncher;
     private ActivityResultLauncher<String> contactsPermissionLauncher;
     // The friend being linked while the system contact picker is open (kept across process death).
     @Nullable private byte[] contactLinkFriendId;
@@ -189,6 +190,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                 }
             }
         });
+        activityPermLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {});
         bgLocationPermLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), new ActivityResultCallback<>() {
             @Override
             public void onActivityResult(Map<String, Boolean> o) {
@@ -680,6 +682,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                 }
 
                 if (Permissions.checkBackgroundLocationPermission(ctx)) {
+                    App.runOnUiThread(() -> askForActivityOnce());
                     return;
                 }
 
@@ -691,6 +694,20 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                 });
             }
         });
+    }
+
+    /**
+     * Once location sharing is fully set up, ask (one time only) for Physical activity, so friends can see
+     * whether you're walking or running. Declining just leaves that out.
+     */
+    @UiThread
+    private void askForActivityOnce() {
+        Context ctx = getContext();
+        if (ctx == null || !isAdded() || Permissions.checkActivityRecognitionPermission(ctx)) return;
+        var prefs = ctx.getSharedPreferences("movement_detector", Context.MODE_PRIVATE);
+        if (prefs.getBoolean("asked_permission", false)) return;
+        prefs.edit().putBoolean("asked_permission", true).apply();
+        activityPermLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION);
     }
 
     private void verifyLocationServicesEnabled() {

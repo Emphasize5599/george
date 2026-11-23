@@ -119,7 +119,7 @@ public class LocationUtils {
             }
 
             Battery.State batteryState = Battery.getState(ctx);
-            UserComm locMsg = UserComm.newLocationInfo(loc, prefs.getCurrentMovement(), batteryState.level, batteryState.isCharging);
+            UserComm locMsg = UserComm.newLocationInfo(loc, xyz.zood.george.MovementDetector.detect(ctx, loc), batteryState.level, batteryState.isCharging);
             byte[] msgBytes = locMsg.toJSON();
             // share to our friends
             ArrayList<FriendRecord> friends = DB.get().getFriendsToShareWith();
