@@ -192,7 +192,10 @@ public class LayoutTourActivity extends AppCompatActivity {
             @Override public void onInfoPanelOpenInMaps(@NonNull String displayName, @NonNull FriendLocation l) {}
             @Override public void onInfoPanelLinkContact(@NonNull FriendRecord f) {}
             @Override public void onInfoPanelShareToggled(@NonNull FriendRecord f, boolean share) {}
-            @Override public void onInfoPanelViewSafetyNumber(@NonNull FriendRecord f) {}
+            @Override public void onInfoPanelViewSafetyNumber(@NonNull FriendRecord f) {
+                SafetyNumberFragment.newInstance("familydemo", new byte[32], f.user.username, f.user.publicKey,
+                        Nicknames.displayName(f.user)).show(getSupportFragmentManager(), "tour-safety-number");
+            }
         });
         UpdateStatusTracker.addListener(infoPanel::updateRefreshProgressBarState);
         // The real screen hides the timed-share button while a friend's card is open.
