@@ -97,16 +97,18 @@ public final class LinkedContacts {
         changed();
     }
 
-    static void linkPickedContact(byte[] friendId, Uri contactUri) {
+    static boolean linkPickedContact(byte[] friendId, Uri contactUri) {
         var context = App.getApp();
         var resolver = context.getContentResolver();
         String name = null;
+        boolean readContact = false;
         String given = ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME;
         String family = ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME;
         try (Cursor cursor = resolver.query(Uri.withAppendedPath(contactUri, ContactsContract.Contacts.Entity.CONTENT_DIRECTORY),
                 new String[]{given, family}, ContactsContract.Data.MIMETYPE + "=?",
                 new String[]{ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE}, null)) {
             if (cursor != null && cursor.moveToFirst()) {
+                readContact = true;
                 String first = cursor.getString(0);
                 String last = cursor.getString(1);
                 name = ((first == null ? "" : first) + " " + (last == null ? "" : last)).trim();
@@ -117,11 +119,15 @@ public final class LinkedContacts {
         if (name == null || name.isEmpty()) {
             try (Cursor cursor = resolver.query(contactUri,
                     new String[]{ContactsContract.Contacts.DISPLAY_NAME_PRIMARY}, null, null, null)) {
-                if (cursor != null && cursor.moveToFirst()) name = cursor.getString(0);
+                if (cursor != null && cursor.moveToFirst()) {
+                    readContact = true;
+                    name = cursor.getString(0);
+                }
             } catch (IllegalArgumentException | SecurityException error) {
                 L.w("Unable to read the selected contact", error);
             }
         }
+        if (!readContact) return false;
         if (name == null || name.trim().isEmpty()) name = context.getString(R.string.unnamed_contact);
 
         AtomicFile photo = new AtomicFile(photoFile(friendId));
@@ -145,6 +151,7 @@ public final class LinkedContacts {
             L.w("Unable to save selected contact photo", error);
         }
         link(friendId, name.trim(), contactUri.toString());
+        return true;
     }
 
     public static File photoFile(byte[] friendId) {

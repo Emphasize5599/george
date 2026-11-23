@@ -214,7 +214,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="16dp"
                 android:gravity="center_vertical"
-                android:minHeight="32dp"
                 android:orientation="vertical"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="@id/username"
@@ -242,6 +241,7 @@
                         style="@style/Zood.Caption"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
                         android:textColor="@color/text_tertiary"
                         tools:text="Updated 25 min. ago" />
                 </LinearLayout>
@@ -258,6 +258,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/on_demand_refresh_unsupported"
+                        android:includeFontPadding="false"
                         android:textColor="@color/text_secondary"
                         app:layout_constrainedWidth="true"
                         app:layout_constraintBottom_toBottomOf="@id/unsupported_info"
@@ -270,7 +271,7 @@
                     <ImageButton
                         android:id="@+id/unsupported_info"
                         android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_height="32dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/why_unsupported"
                         android:src="@drawable/ic_help_outline_20dp"

@@ -372,9 +372,6 @@ public class MessageProcessor {
 
     private static Result handleLocationUpdateRequest(@NonNull Context context, @NonNull UserRecord userRecord, @NonNull String accessToken, @NonNull KeyPair keyPair) {
         L.i("handleLocationUpdateRequest from " + userRecord.username);
-        Prefs prefs = Prefs.get(context);
-        long updateTime = prefs.getLastLocationUpdateTime();
-
         // make sure this is actually a friend
         FriendRecord f = DB.get().getFriendByUserId(userRecord.id);
         if (f == null || f.sendingBoxId == null) {
@@ -387,19 +384,6 @@ public class MessageProcessor {
             // we don't, so just inform the requester that we're done providing updates
             UserComm done = UserComm.newLocationUpdateRequestReceived(UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED);
             String errMsg = OscarClient.immediatelySendMessage(userRecord, accessToken, keyPair, done, true, true);
-            if (errMsg != null) {
-                L.w(errMsg);
-            }
-            return Result.Success;
-        }
-
-        // Only perform the update if it's been more than 3 minutes since the last one
-        // and the app isn't in the foreground
-        long timeSinceUpdate = System.currentTimeMillis() - updateTime;
-        if (!App.isInForeground && timeSinceUpdate < 2 * DateUtils.MINUTE_IN_MILLIS) {
-            L.i("\talready provided an update at " + updateTime);
-            UserComm tooSoon = UserComm.newLocationUpdateRequestReceived(UserComm.LOCATION_UPDATE_REQUEST_ACTION_TOO_SOON);
-            String errMsg = OscarClient.immediatelySendMessage(userRecord, accessToken, keyPair, tooSoon, true, true);
             if (errMsg != null) {
                 L.w(errMsg);
             }

@@ -247,15 +247,12 @@ public class InfoPanel {
     }
 
     @UiThread
-    private void calculateAndUpdateRefreshButton(long currTime) {
+    private void updateRefreshButton() {
         refreshButton.setVisibility(View.VISIBLE);
         if (applyRequestCapability()) {
             return;
         }
-        // Zood's original rule: a location from the last 2 minutes is fresh enough, so Refresh rests.
-        // The button is icon-only now; the status row already shows how recent the location is.
-        boolean recent = (currTime - currLoc.time) < 2 * DateUtils.MINUTE_IN_MILLIS;
-        refreshButton.setEnabled(!recent);
+        refreshButton.setEnabled(true);
     }
 
     // region Status row
@@ -506,7 +503,7 @@ public class InfoPanel {
                 return;
             }
             if (currLoc != null) {
-                calculateAndUpdateRefreshButton(System.currentTimeMillis());
+                updateRefreshButton();
             } else if (!applyRequestCapability()) {
                 refreshButton.setEnabled(friend.receivingBoxId != null);
                 refreshButton.setVisibility(friend.receivingBoxId != null ? View.VISIBLE : View.INVISIBLE);
@@ -584,7 +581,7 @@ public class InfoPanel {
 
         // == They are sharing with us ==
         long now = System.currentTimeMillis();
-        calculateAndUpdateRefreshButton(now);
+        updateRefreshButton();
         updateStatusRow(now);
 
         // refresh status
@@ -842,7 +839,7 @@ public class InfoPanel {
 
             // update the relative time, and refresh button
             long now = System.currentTimeMillis();
-            calculateAndUpdateRefreshButton(now);
+            updateRefreshButton();
             updateStatusRow(now);
 
             App.runOnUiThread(this, REFRESH_INTERVAL);

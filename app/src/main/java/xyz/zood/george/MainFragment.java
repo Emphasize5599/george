@@ -114,6 +114,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     public ActivityResultLauncher<String[]> bgLocationPermLauncher;
     public ActivityResultLauncher<String[]> bgLocationPermToAddFriendLauncher;
     private ActivityResultLauncher<Void> pickContactLauncher;
+    private ActivityResultLauncher<String> contactsPermissionLauncher;
     // The friend being linked while the system contact picker is open (kept across process death).
     @Nullable private byte[] contactLinkFriendId;
     private LocationManager locationManager;
@@ -209,9 +210,10 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             }
         });
 
-        // The system contact picker returns only the contact the person chooses and grants us one-time
-        // access to it, so the app never needs the READ_CONTACTS permission or sees the rest of the address book.
         pickContactLauncher = registerForActivityResult(new ActivityResultContracts.PickContact(), this::onContactPicked);
+        // Even without the permission, some providers grant access to the individual selected contact.
+        contactsPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                granted -> launchContactPicker());
 
         viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
         locationManager = requireContext().getApplicationContext().getSystemService(LocationManager.class);
@@ -922,6 +924,16 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
     private void pickContactFor(@NonNull FriendRecord friend) {
         contactLinkFriendId = friend.user.userId;
+        if (androidx.core.content.ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_CONTACTS)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            launchContactPicker();
+        } else {
+            contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS);
+        }
+    }
+
+    private void launchContactPicker() {
+        if (contactLinkFriendId == null) return;
         try {
             pickContactLauncher.launch(null);
         } catch (android.content.ActivityNotFoundException e) {
@@ -940,7 +952,9 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         byte[] account = Prefs.get(context).getUserId();
         App.runInBackground(() -> {
             if (java.util.Arrays.equals(account, Prefs.get(context).getUserId())) {
-                LinkedContacts.linkPickedContact(friendId, contactUri);
+                if (!LinkedContacts.linkPickedContact(friendId, contactUri)) {
+                    App.runOnUiThread(() -> Toast.makeText(context, R.string.contact_read_error, Toast.LENGTH_LONG).show());
+                }
             }
         });
     }
