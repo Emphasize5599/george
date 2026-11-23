@@ -19,6 +19,7 @@ import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.util.TypedValue;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -182,11 +183,27 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         body.setPadding(dp(12), dp(8), dp(12), dp(10));
         card.addView(body);
 
-        MaterialButton title = new MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle);
-        title.setText(getString(R.string.folder_menu_title, folderTitle(item)));
-        title.setContentDescription(getString(R.string.folder_menu, folderTitle(item)));
-        title.setOnClickListener(view -> folderMenu(view, item));
-        body.addView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+        // Header: the folder's name (wrapping onto more lines when it's long) and its ⋮ menu.
+        LinearLayout header = new LinearLayout(context);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setMinimumHeight(dp(48));
+        TextView title = new TextView(context);
+        title.setText(folderTitle(item));
+        title.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+        title.setTextColor(context.getColor(R.color.text_primary));
+        title.setPadding(0, dp(8), dp(8), dp(8));
+        header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        android.widget.ImageButton more = new android.widget.ImageButton(context);
+        more.setImageResource(R.drawable.ic_sharp_more_vert_24dp);
+        more.setColorFilter(context.getColor(R.color.text_secondary));
+        TypedValue ripple = new TypedValue();
+        context.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true);
+        more.setBackgroundResource(ripple.resourceId);
+        more.setContentDescription(getString(R.string.folder_menu, folderTitle(item)));
+        more.setOnClickListener(view -> folderMenu(view, item));
+        header.addView(more, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        body.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // Same sizing rules as iOS: the card is only as wide as the people in it (at most the columns set in
         // Settings), with room for its header, and as many rows as it needs up to the set number; more scroll.
@@ -199,7 +216,10 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         int margin = dp(12);
         body.setPadding(dp(16), dp(8), dp(16), dp(16));
-        int width = Math.min(Math.max(gridWidth, dp(140)) + dp(32), screenWidth - 2 * margin);  // grid sets the width
+        // By default the grid sets the width; a longer name widens the card to fit on one line, up to the
+        // screen margins, and only then wraps (same rule as iOS).
+        int titleWidth = (int) Math.ceil(title.getPaint().measureText(folderTitle(item))) + dp(8) + dp(48);
+        int width = Math.min(Math.max(Math.max(gridWidth, titleWidth), dp(140)) + dp(32), screenWidth - 2 * margin);
         var scroll = new ScrollView(context);
         var grid = new GridLayout(context);
         grid.setColumnCount(usedColumns);
@@ -215,7 +235,9 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             cellParams.width = cellWidth;
             cellParams.height = cellHeight;
             boolean lastColumn = index % usedColumns == usedColumns - 1;
-            cellParams.setMargins(0, 0, lastColumn ? 0 : gap, gap);
+            boolean lastRow = index / usedColumns == (item.members.size() - 1) / usedColumns;
+            // Gaps only between cells, so a folder that fits never has extra height to scroll.
+            cellParams.setMargins(0, 0, lastColumn ? 0 : gap, lastRow ? 0 : gap);
             grid.addView(tile, cellParams);
             index++;
             FriendsBarAdapter.bindAvatar(tile.findViewById(R.id.avatar_image), member, R.dimen.forty);
@@ -226,7 +248,9 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             });
             makeMemberDraggable(tile, anchor, item, member);
         }
-        int height = dp(8) + dp(48) + gridHeight + dp(16);
+        // Measure the real height (the title may wrap onto several lines).
+        card.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
+        int height = card.getMeasuredHeight();
         int[] barPosition = new int[2];
         int[] anchorPosition = new int[2];
         list.getLocationOnScreen(barPosition);
@@ -252,18 +276,28 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         }
     }
 
+    /** The folder's ⋮ menu, opening above the button like the friend card's (below only if there's no room). */
     private void folderMenu(View anchor, FriendBarArrangement.Item item) {
-        var menu = new PopupMenu(anchor.getContext(), anchor);
-        menu.getMenu().add(R.string.ungroup_folder).setOnMenuItemClickListener(selection -> {
+        Context context = anchor.getContext();
+        LinearLayout list = new LinearLayout(context);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(0, dp(6), 0, dp(6));
+        PopupWindow popup = new PopupWindow(list, dp(240), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setOutsideTouchable(true);
+        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+        background.setCornerRadius(dp(16));
+        background.setColor(context.getColor(R.color.surface_high));
+        popup.setBackgroundDrawable(background);
+        popup.setElevation(dp(8));
+        addMenuRow(list, popup, R.string.ungroup_folder, R.drawable.ic_menu_folder_off, true, () -> {
             closeFolder();
             new MaterialAlertDialogBuilder(requireContext())
                     .setTitle(getString(R.string.confirm_ungroup_folder, folderTitle(item)))
                     .setNegativeButton(android.R.string.cancel, null)
                     .setPositiveButton(R.string.ungroup_folder, (dialog, which) -> adapter.ungroup(item))
                     .show();
-            return true;
         });
-        menu.getMenu().add(R.string.rename_folder).setOnMenuItemClickListener(selection -> {
+        addMenuRow(list, popup, R.string.rename_folder, R.drawable.ic_menu_edit, false, () -> {
             closeFolder();
             EditText input = new EditText(requireContext());
             input.setSingleLine();
@@ -277,9 +311,49 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
                     .setNegativeButton(android.R.string.cancel, null)
                     .setPositiveButton(R.string.save, (dialog, which) -> adapter.rename(item, input.getText().toString().trim()))
                     .show();
-            return true;
         });
-        menu.show();
+        showMenuAbove(popup, list, anchor);
+    }
+
+    private void addMenuRow(LinearLayout list, PopupWindow popup, int label, int icon, boolean destructive, Runnable action) {
+        Context context = list.getContext();
+        TextView row = new TextView(context);
+        row.setText(label);
+        row.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
+        int color = context.getColor(destructive ? R.color.zood_red : R.color.text_primary);
+        row.setTextColor(color);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinHeight(dp(48));
+        row.setPaddingRelative(dp(16), dp(7), dp(16), dp(7));
+        row.setCompoundDrawablePadding(dp(12));
+        row.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
+        row.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(
+                destructive ? color : context.getColor(R.color.text_secondary)));
+        TypedValue selectable = new TypedValue();
+        context.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, selectable, true);
+        row.setBackgroundResource(selectable.resourceId);
+        row.setOnClickListener(view -> {
+            popup.dismiss();
+            action.run();
+        });
+        list.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    }
+
+    private void showMenuAbove(PopupWindow popup, LinearLayout list, View anchor) {
+        int width = dp(240);
+        list.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
+        int height = list.getMeasuredHeight();
+        View root = anchor.getRootView();
+        androidx.core.view.WindowInsetsCompat insets = androidx.core.view.ViewCompat.getRootWindowInsets(root);
+        int topInset = insets == null ? 0 : insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()).top;
+        int[] at = new int[2];
+        anchor.getLocationOnScreen(at);
+        int y = at[1] - dp(4) - height;
+        if (y < topInset + dp(4)) y = at[1] + anchor.getHeight() + dp(4);
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int x = Math.max(dp(8), Math.min(at[0] + anchor.getWidth() - width, screenWidth - dp(8) - width));
+        popup.setHeight(height);
+        popup.showAtLocation(root, Gravity.TOP | Gravity.START, x, y);
     }
 
     private void makeMemberDraggable(View tile, View anchor, FriendBarArrangement.Item item, FriendRecord member) {
