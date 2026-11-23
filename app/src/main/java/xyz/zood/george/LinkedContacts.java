@@ -215,6 +215,38 @@ public final class LinkedContacts {
         Nicknames.notifyListeners();
     }
 
+    /**
+     * Everything this phone remembers about a friend who was removed (or blocked): their folder membership
+     * (a folder left with one person is dissolved), their place in the bar, the linked contact and nicknames.
+     * Adding them again later starts fresh.
+     */
+    static synchronized void forgetFriend(@NonNull byte[] friendUserId) {
+        ArrayList<Snapshot.Folder> folders = folders();
+        ArrayList<String> order = barOrder();
+        if (folders != null || order != null) {
+            ArrayList<Snapshot.Folder> keptFolders = new ArrayList<>();
+            if (folders != null) {
+                for (Snapshot.Folder folder : folders) {
+                    if (folder.members == null) continue;
+                    folder.members.removeIf(member -> Arrays.equals(member, friendUserId));
+                    if (folder.members.size() >= 2) keptFolders.add(folder);
+                    else if (order != null && folder.id != null) order.remove(FriendBarArrangement.folderKey(folder));
+                }
+            }
+            if (order != null) order.remove(FriendBarArrangement.friendKey(friendUserId));
+            saveBar(keptFolders, order == null ? new ArrayList<>() : order);
+        }
+        new AtomicFile(photoFile(friendUserId)).delete();
+        prefs().edit()
+                .remove(key(friendUserId, "name"))
+                .remove(key(friendUserId, "uri"))
+                .remove(key(friendUserId, "platform"))
+                .apply();
+        Nicknames.setLocal(friendUserId, null);
+        Nicknames.recordShared(friendUserId, null);
+        changed();
+    }
+
     static synchronized void saveBar(ArrayList<Snapshot.Folder> folders, ArrayList<String> order) {
         prefs().edit()
                 .putString(accountKey("folders"), OscarClient.sGson.toJson(folders))

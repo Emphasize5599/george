@@ -114,10 +114,9 @@ public final class FriendRequests {
         ArrayList<Request> requests = storedRequests();
         if (requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId))) save(requests);
         FriendRecord friend = DB.get().getFriendByUserId(user.id);
-        if (friend != null) {
-            DB.get().removeFriend(friend);
-            BackupDatabaseWorker.scheduleBackup(App.getApp());
-        }
+        if (friend != null) DB.get().removeFriend(friend);  // also deletes their last location
+        LinkedContacts.forgetFriend(user.userId);
+        BackupDatabaseWorker.scheduleBackup(App.getApp());
     }
 
     static synchronized void deny(Request request) throws IOException {
@@ -192,21 +191,25 @@ public final class FriendRequests {
         for (Snapshot.User user : blocked()) removeSharing(user.userId);
     }
 
+    /**
+     * Drops a blocked account completely, like Remove Friend: forgets them here and tells their phone to drop
+     * us too (not just to stop expecting our location), so nothing of the friendship is left on either side.
+     */
     private static void removeSharing(byte[] userId) throws DB.DBException {
         UserRecord user = DB.get().getUser(userId);
         if (user == null) return;
         FriendRecord friend = DB.get().getFriendByUserId(user.id);
         if (friend == null) return;
         DB.get().removeFriend(friend);
-        if (friend.sendingBoxId == null) return;
+        LinkedContacts.forgetFriend(userId);
         Context context = App.getApp();
         Prefs prefs = Prefs.get(context);
         String token = prefs.getAccessToken();
         var key = prefs.getKeyPair();
         if (token == null || key == null) return;
         String error = OscarClient.queueSendMessage(OscarClient.getQueue(context), user, key, token,
-                UserComm.newLocationSharingRevocation().toJSON(), false, false);
-        if (error != null) L.w("Unable to queue sharing revocation for blocked account");
+                UserComm.newFriendRemoval().toJSON(), false, false);
+        if (error != null) L.w("Unable to queue friend removal for blocked account");
     }
 
     private static boolean matches(Request first, Request second) {

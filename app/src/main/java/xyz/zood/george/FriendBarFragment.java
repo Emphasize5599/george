@@ -282,7 +282,8 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         stage.setPadding(shadow, shadow, shadow, 0);
         stage.addView(card, new FrameLayout.LayoutParams(width, height, Gravity.TOP));
         int travel = height + margin;
-        folderPopup = new PopupWindow(stage, width + 2 * shadow, height + margin + shadow, true);
+        PopupWindow popup = new PopupWindow(stage, width + 2 * shadow, height + margin + shadow, true);
+        folderPopup = popup;
         folderPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         folderPopup.setOutsideTouchable(true);
         folderPopup.setTouchModal(false);
@@ -291,6 +292,8 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         String key = item.key;
         // A tap outside slides the folder away. Tapping the folder's own tile closes it rather than reopening it.
         folderPopup.setTouchInterceptor((view, event) -> {
+            // A folder that's already sliding away ignores touches (they reach the bar instead).
+            if (popup != folderPopup) return false;
             if (event.getAction() == android.view.MotionEvent.ACTION_OUTSIDE) {
                 folderClosedByTapAt = android.os.SystemClock.uptimeMillis();
                 folderClosedKey = key;
@@ -313,7 +316,11 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             closeFolder();
             return true;
         }
-        return key.equals(folderClosedKey) && android.os.SystemClock.uptimeMillis() - folderClosedByTapAt < 1000;
+        // The tap that just closed this folder (by landing on its tile) is used up here, once, so the very next
+        // tap reopens it however quickly it comes.
+        boolean justClosed = key.equals(folderClosedKey) && android.os.SystemClock.uptimeMillis() - folderClosedByTapAt < 500;
+        folderClosedKey = null;
+        return justClosed;
     }
 
     private void closeFolder() {
@@ -327,9 +334,15 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             popup.dismiss();
             return;
         }
+        // Let taps pass straight through to the bar while it slides away, so a quick reopen always works.
+        popup.setTouchable(false);
+        popup.setFocusable(false);
+        popup.update();
         card.animate().cancel();
-        card.animate().translationY(card.getHeight() + dp(12)).setDuration(200)
-                .setInterpolator(new android.view.animation.AccelerateInterpolator(2f))
+        // Done the moment the card's top edge is behind the bar (the window ends at the bar's top edge).
+        float hidden = ((View) card.getParent()).getHeight() - card.getTop();
+        card.animate().translationY(hidden).setDuration(150)
+                .setInterpolator(new androidx.interpolator.view.animation.FastOutLinearInInterpolator())
                 .withEndAction(popup::dismiss).start();
     }
 
