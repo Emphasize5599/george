@@ -90,9 +90,32 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     }
 
     @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle state) {
+        super.onViewCreated(view, state);
+        mainViewModel.getNicknameDraft().observe(getViewLifecycleOwner(), draft -> {
+            var previous = adapter.getNicknameDraft();
+            adapter.setNicknameDraft(draft);
+            if (draft != null && (previous == null || previous.friendId != draft.friendId)) {
+                revealFriend(draft.friendId);
+            }
+        });
+    }
+
+    private void revealFriend(long id) {
+        int position = adapter.positionOfFriend(id);
+        if (list == null || position == RecyclerView.NO_POSITION) return;
+        LinearLayoutManager layout = (LinearLayoutManager) list.getLayoutManager();
+        if (position < layout.findFirstCompletelyVisibleItemPosition()
+                || position > layout.findLastCompletelyVisibleItemPosition()) {
+            list.smoothScrollToPosition(position);
+        }
+    }
+
+    @Override
     public void onDestroyView() {
         closeFolder();
         list = null;
+        adapter.setNicknameDraft(null);
         super.onDestroyView();
     }
 
@@ -108,7 +131,11 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         App.runInBackground(() -> {
             var friends = DB.get().getFriends();
             App.runOnUiThread(() -> {
-                if (list != null && generation == friendRefreshGeneration.get()) adapter.setFriends(friends);
+                if (list == null || generation != friendRefreshGeneration.get()) return;
+                var draft = adapter.getNicknameDraft();
+                boolean revealPending = draft != null && adapter.positionOfFriend(draft.friendId) == RecyclerView.NO_POSITION;
+                adapter.setFriends(friends);
+                if (revealPending) list.post(() -> revealFriend(draft.friendId));
             });
         });
     }
@@ -124,7 +151,8 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     }
 
     void onFriendSelected(@NonNull FriendRecord friend) {
-        mainViewModel.selectFriend(friend);
+        closeFolder();
+        mainViewModel.clickFriendTile(friend);
     }
 
     @Override public void onFriendRemoved(long friendId) { reloadFriends(); }

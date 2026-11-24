@@ -140,15 +140,13 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     }
 
     // applySystemUIInsets applies the system view insets. It should only be called once after the fragment's view is created.
-    private void applySystemUIInsets(FragmentMainBinding binding) {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root, (v, insets) -> {
-            int statusBarHeight;
-            int navigationBarHeight;
-            statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
-            navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+    static void applySystemUIInsets(View root, View banners) {
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            int bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars() | WindowInsetsCompat.Type.ime()).bottom;
 
-            binding.root.setPadding(0, 0, 0, navigationBarHeight);
-            binding.banners.setPadding(0, statusBarHeight, 0, 0);
+            root.setPadding(0, 0, 0, bottom);
+            banners.setPadding(0, statusBarHeight, 0, 0);
 
             return WindowInsetsCompat.CONSUMED;
         });
@@ -235,12 +233,11 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         binding.map.getMapAsync(this);
         binding.map.onCreate(savedInstanceState);
 
-        viewModel.getSelectedFriend().observe(getViewLifecycleOwner(), new Observer<>() {
-            @Override
-            public void onChanged(FriendRecord friend) {
-                viewModel.onCloseTimedSheetAction();
-                onFriendSelected(friend);
-            }
+        viewModel.getFriendTileClick().observe(getViewLifecycleOwner(), event -> {
+            FriendRecord friend = event.getEventIfNotHandled();
+            if (friend == null) return;
+            viewModel.onCloseTimedSheetAction();
+            onFriendSelected(friend);
         });
         viewModel.getOnAddFriendClicked().observe(getViewLifecycleOwner(), new Observer<>() {
             @Override
@@ -306,7 +303,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         getLifecycle().addObserver(fgLocationPermissionNotifier);
         notConnectedNotifier = new ClientNotConnectedNotifier(requireActivity(), binding.banners);
 
-        applySystemUIInsets(binding);
+        applySystemUIInsets(binding.root, binding.banners);
         Utils.applySystemBarAppearance(requireActivity().getWindow(), binding.root);
 
         return binding.getRoot();
@@ -323,6 +320,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     public void onDestroyView() {
         DB.get().removeListener(this);
         AvatarManager.removeListener(avatarListener);
+        viewModel.setNicknameDraft(-1, null);
         symbolTracker = null;
         mlMap = null;
         myLocationSymbol = null;
@@ -454,22 +452,19 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     }
 
     private void onFriendSelected(@NonNull FriendRecord fr) {
-        if (symbolTracker == null) {
-            return;
-        }
-
-        var fs = symbolTracker.get(fr.id);
-        if (fs == null) {
-            showInfoPanel(fr, null);
-            return;
-        }
-
-        // Is the info panel already showing for this user? If so, just center the camera and follow
         if (infoPanel.getFriendId() == fr.id) {
-            friendForCameraToTrack = fr.id;
-            if (symbolTracker != null) symbolTracker.setSelected(friendForCameraToTrack);
-            var update = CameraUpdateFactory.newLatLng(fs.getLatLng());
-            mlMap.animateCamera(update);
+            infoPanelListener.onInfoPanelCloseRequested();
+            return;
+        }
+
+        var fs = symbolTracker == null ? null : symbolTracker.get(fr.id);
+        if (fs == null) {
+            friendForCameraToTrack = -1;
+            if (symbolTracker != null) {
+                symbolTracker.setSelected(friendForCameraToTrack);
+                symbolTracker.hideErrorCircle();
+            }
+            showInfoPanel(fr, null);
             return;
         }
 
@@ -1009,7 +1004,12 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             binding.myLocationFab.setSelected(false);
             infoPanel.hide();
             binding.timedShareFab.setVisibility(View.VISIBLE);
-            symbolTracker.hideErrorCircle();
+            if (symbolTracker != null) symbolTracker.hideErrorCircle();
+        }
+
+        @Override
+        public void onInfoPanelNicknameDraftChanged(long friendId, @Nullable String draft) {
+            viewModel.setNicknameDraft(friendId, draft);
         }
 
         @Override

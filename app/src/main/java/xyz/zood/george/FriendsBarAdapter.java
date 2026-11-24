@@ -15,19 +15,23 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import io.pijun.george.App;
 import io.pijun.george.database.FriendRecord;
 import io.pijun.george.view.AvatarRenderer;
 import io.pijun.george.view.AvatarView;
+import xyz.zood.george.viewmodels.MainViewModel.NicknameDraft;
 
 final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int APP_ITEMS = 3;
+    private static final Object NICKNAME_PAYLOAD = new Object();
     private final FriendBarArrangement arrangement = new FriendBarArrangement();
     private final FriendBarFragment listener;
     private ArrayList<FriendRecord> friends = new ArrayList<>();
     private ArrayList<FriendBarArrangement.Item> people = new ArrayList<>();
     private boolean dragging;
+    @Nullable private NicknameDraft draft;
 
     FriendsBarAdapter(FriendBarFragment listener) {
         this.listener = listener;
@@ -110,6 +114,28 @@ final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         return position > 0 && position <= people.size() ? people.get(position - 1) : null;
     }
 
+    int positionOfFriend(long id) {
+        for (int index = 0; index < people.size(); index++) {
+            var item = people.get(index);
+            if (item.folder == null && item.friend().id == id) return index + 1;
+        }
+        return RecyclerView.NO_POSITION;
+    }
+
+    @Nullable NicknameDraft getNicknameDraft() {
+        return draft;
+    }
+
+    void setNicknameDraft(@Nullable NicknameDraft next) {
+        int previousPosition = draft == null ? RecyclerView.NO_POSITION : positionOfFriend(draft.friendId);
+        int nextPosition = next == null ? RecyclerView.NO_POSITION : positionOfFriend(next.friendId);
+        draft = next;
+        if (previousPosition != RecyclerView.NO_POSITION && previousPosition != nextPosition) {
+            notifyItemChanged(previousPosition, NICKNAME_PAYLOAD);
+        }
+        if (nextPosition != RecyclerView.NO_POSITION) notifyItemChanged(nextPosition, NICKNAME_PAYLOAD);
+    }
+
     @Override public int getItemCount() {
         return 1 + people.size() + APP_ITEMS;
     }
@@ -129,7 +155,7 @@ final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         View tile = holder.itemView;
         if (item != null && item.folder == null) {
             bindAvatar(tile.findViewById(R.id.avatar_image), item.friend(), R.dimen.forty);
-            setTileLabel(tile, Nicknames.displayName(item.friend().user));
+            bindFriendName(tile, item.friend());
         } else if (item != null) {
             GridLayout grid = tile.findViewById(R.id.folder_preview);
             grid.removeAllViews();
@@ -152,6 +178,29 @@ final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
             tile.setContentDescription(count == 0 ? tile.getContext().getString(R.string.friend_requests)
                     : tile.getResources().getQuantityString(R.plurals.friend_requests_count, count, count));
         }
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position, @NonNull List<Object> payloads) {
+        FriendBarArrangement.Item item = itemAt(position);
+        if (payloads.contains(NICKNAME_PAYLOAD) && item != null && item.folder == null) {
+            bindFriendName(holder.itemView, item.friend());
+        } else {
+            super.onBindViewHolder(holder, position, payloads);
+        }
+    }
+
+    private void bindFriendName(View tile, FriendRecord friend) {
+        String displayName = Nicknames.displayName(friend.user);
+        String avatarName = Nicknames.avatarName(friend.user);
+        if (draft != null && draft.friendId == friend.id && !draft.text.equals(displayName)) {
+            String nickname = Nicknames.normalized(draft.text);
+            displayName = Nicknames.displayName(friend.user, nickname);
+            avatarName = Nicknames.avatarName(friend.user, nickname);
+        }
+        AvatarView avatar = tile.findViewById(R.id.avatar_image);
+        avatar.setDisplayName(avatarName);
+        setTileLabel(tile, displayName);
     }
 
     static void setTileLabel(View tile, String name) {

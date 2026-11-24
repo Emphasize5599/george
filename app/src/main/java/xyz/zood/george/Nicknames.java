@@ -66,19 +66,25 @@ public final class Nicknames {
 
     /** The name to show for a friend: private nickname, linked contact, shared nickname, then @username. */
     public static String displayName(UserRecord user) {
-        String name = chosenName(user);
+        return displayName(user, local(user.userId));
+    }
+
+    static String displayName(UserRecord user, String privateNickname) {
+        String name = chosenName(user, privateNickname);
         return name == null ? Usernames.display(user.username) : name;
     }
 
     /** Same order as {@link #displayName}, without the "@" so avatar initials use the first letter. */
     public static String avatarName(UserRecord user) {
-        String name = chosenName(user);
+        return avatarName(user, local(user.userId));
+    }
+
+    static String avatarName(UserRecord user, String privateNickname) {
+        String name = chosenName(user, privateNickname);
         return name == null ? user.username : name;
     }
 
-    private static String chosenName(UserRecord user) {
-        // A name you picked yourself always wins over one the friend shared with you.
-        String name = local(user.userId);
+    private static String chosenName(UserRecord user, String name) {
         if (name == null) {
             name = LinkedContacts.name(user.userId);
         }

@@ -69,6 +69,12 @@ public class AvatarView extends View implements Target {
         invalidate();
     }
 
+    /** Updates the fallback initial without clearing a profile photo already loaded for this tile. */
+    public void setDisplayName(@NonNull String name) {
+        renderer.setDisplayName(name);
+        invalidate();
+    }
+
     //region Picasso target
 
     @Override

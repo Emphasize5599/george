@@ -1,6 +1,7 @@
 package xyz.zood.george.viewmodels;
 
 import androidx.annotation.AnyThread;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 import androidx.lifecycle.LiveData;
@@ -19,7 +20,8 @@ public class MainViewModel extends ViewModel implements TimedShareService.Listen
     private final MutableLiveData<Event<Boolean>> liveOnAddFriendClicked = new MutableLiveData<>();
     private final MutableLiveData<Event<Boolean>> liveOnCloseTimedSheet = new MutableLiveData<>();
     private final MutableLiveData<Event<Boolean>> liveOnTimedShareClicked = new MutableLiveData<>();
-    private final MutableLiveData<FriendRecord> liveSelectedFriend = new MutableLiveData<>();
+    private final MutableLiveData<Event<FriendRecord>> friendTileClick = new MutableLiveData<>();
+    private final MutableLiveData<NicknameDraft> nicknameDraft = new MutableLiveData<>();
     private MutableLiveData<Boolean> liveTimedShareIsRunning;
     private MutableLiveData<Long> liveTimedShareTimeRemaining;
     private MutableLiveData<String> liveTimedShareUrl;
@@ -53,8 +55,27 @@ public class MainViewModel extends ViewModel implements TimedShareService.Listen
     }
 
     @UiThread
-    public LiveData<FriendRecord> getSelectedFriend() {
-        return liveSelectedFriend;
+    public LiveData<Event<FriendRecord>> getFriendTileClick() {
+        return friendTileClick;
+    }
+
+    public LiveData<NicknameDraft> getNicknameDraft() {
+        return nicknameDraft;
+    }
+
+    @UiThread
+    public void setNicknameDraft(long friendId, @Nullable String text) {
+        nicknameDraft.setValue(text == null ? null : new NicknameDraft(friendId, text));
+    }
+
+    public static final class NicknameDraft {
+        public final long friendId;
+        public final String text;
+
+        NicknameDraft(long friendId, String text) {
+            this.friendId = friendId;
+            this.text = text;
+        }
     }
 
     public long getTimedShareDuration() {
@@ -170,8 +191,8 @@ public class MainViewModel extends ViewModel implements TimedShareService.Listen
     }
 
     @UiThread
-    public void selectFriend(@Nullable FriendRecord friend) {
-        liveSelectedFriend.setValue(friend);
+    public void clickFriendTile(@NonNull FriendRecord friend) {
+        friendTileClick.setValue(new Event<>(friend));
     }
 
     @UiThread

@@ -70,17 +70,23 @@ public class InfoPanel {
     }
 
     private final InlineNameEditor nicknameEditor;
+    @Nullable private String initialNickname;
     private final android.widget.FrameLayout nicknameEditorHost;
 
     private void editNickname() {
         FriendRecord friend = getFriend();
         if (friend == null || nicknameEditorHost.getVisibility() == View.VISIBLE) return;
+        initialNickname = xyz.zood.george.Nicknames.displayName(friend.user);
         username.setVisibility(View.GONE);
         nicknameEditorHost.setVisibility(View.VISIBLE);
-        nicknameEditor.open(xyz.zood.george.Nicknames.local(friend.user.userId));
+        nicknameEditor.open(initialNickname);
     }
 
     private void closeNicknameEditor() {
+        if (initialNickname != null) {
+            initialNickname = null;
+            listener.onInfoPanelNicknameDraftChanged(getFriendId(), null);
+        }
         nicknameEditor.close();
         nicknameEditorHost.setVisibility(View.GONE);
         username.setVisibility(View.VISIBLE);
@@ -102,6 +108,7 @@ public class InfoPanel {
     @NonNull private final ImageView motion;
     @NonNull private final ImageButton overflowButton;
     @NonNull private final ConstraintLayout panel;
+    @Nullable private SpringAnimation panelSlide;
     @NonNull private final Button refreshButton;
     @NonNull private final ProgressBar refreshProgressBar;
     @NonNull private final SwitchCompat shareSwitch;
@@ -246,10 +253,17 @@ public class InfoPanel {
         nicknameEditorHost = root.findViewById(R.id.nickname_editor);
         nicknameEditor = new InlineNameEditor(context, R.style.Zood_Headline6, R.string.nickname_optional, value -> {
             FriendRecord friend = getFriend();
-            if (friend != null) xyz.zood.george.Nicknames.setLocal(friend.user.userId, value);
+            if (friend != null && !value.equals(initialNickname)) {
+                xyz.zood.george.Nicknames.setLocal(friend.user.userId, value);
+            }
             closeNicknameEditor();
             updateDisplayName();
         }, this::closeNicknameEditor);
+        nicknameEditor.onDraftChanged(() -> {
+            if (initialNickname != null) {
+                listener.onInfoPanelNicknameDraftChanged(getFriendId(), nicknameEditor.draft());
+            }
+        });
         nicknameEditorHost.addView(nicknameEditor, new android.widget.FrameLayout.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
         username.setOnClickListener(view -> editNickname());
@@ -422,14 +436,18 @@ public class InfoPanel {
         currFriend = null;
         currLoc = null;
 
-        float xOffset = -panel.getRight();
-        SpringForce xSpring = new SpringForce(xOffset)
+        slidePanel(-panel.getRight(), -1000);
+    }
+
+    private void slidePanel(float x, float velocity) {
+        if (panelSlide != null) panelSlide.cancel();
+        if (panel.getTranslationX() == x) return;
+        SpringForce spring = new SpringForce(x)
                 .setDampingRatio(SpringForce.DAMPING_RATIO_LOW_BOUNCY)
                 .setStiffness(SpringForce.STIFFNESS_MEDIUM);
-        new SpringAnimation(panel, DynamicAnimation.TRANSLATION_X)
-                .setSpring(xSpring)
-                .setStartVelocity(-1000)
-                .start();
+        panelSlide = new SpringAnimation(panel, DynamicAnimation.TRANSLATION_X)
+                .setSpring(spring).setStartVelocity(velocity);
+        panelSlide.start();
     }
 
     @UiThread
@@ -671,16 +689,7 @@ public class InfoPanel {
 
     @UiThread
     public void show(@NonNull FriendRecord friend, @Nullable FriendLocation loc) {
-        // If the panel is not already visible, then slide it into view
-        if (isHidden()) {
-            SpringForce xSpring = new SpringForce(0)
-                    .setDampingRatio(SpringForce.DAMPING_RATIO_LOW_BOUNCY)
-                    .setStiffness(SpringForce.STIFFNESS_MEDIUM);
-            new SpringAnimation(panel, DynamicAnimation.TRANSLATION_X)
-                    .setSpring(xSpring)
-                    .setStartVelocity(1000)
-                    .start();
-        }
+        if (currFriend == null) slidePanel(0, 1000);
 
         if (currFriend == null || currFriend.id != friend.id) {
             closeNicknameEditor();
@@ -959,6 +968,7 @@ public class InfoPanel {
     }
 
     public interface Listener {
+        default void onInfoPanelNicknameDraftChanged(long friendId, @Nullable String draft) {}
         default void onInfoPanelBlockFriend(@NonNull FriendRecord friend) {}
         @UiThread
         void onInfoPanelCloseRequested();

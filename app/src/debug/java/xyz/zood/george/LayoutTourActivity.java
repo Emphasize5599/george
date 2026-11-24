@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.view.WindowCompat;
+import androidx.lifecycle.ViewModelProvider;
 
 import io.pijun.george.App;
 import io.pijun.george.Constants;
@@ -27,12 +28,13 @@ import io.pijun.george.database.FriendRecord;
 import io.pijun.george.database.TourFixtures;
 import io.pijun.george.database.UserRecord;
 import xyz.zood.george.widget.InfoPanel;
+import xyz.zood.george.viewmodels.MainViewModel;
 
 /**
  * Debug-only fixture host for a dedicated tour emulator. No keys or access token are created.
  *
  * Scenes (adb shell am start -n <package>/xyz.zood.george.LayoutTourActivity --es scene <name>):
- * settings (default), friend, friend-long-name, friend-linked, friend-requesting, friend-unsupported, bar, avatar-crop.
+ * settings (default), friend, friend-long-name, friend-linked, friend-requesting, friend-unsupported, friend-keyboard, bar, avatar-crop.
  */
 public class LayoutTourActivity extends AppCompatActivity {
 
@@ -112,6 +114,11 @@ public class LayoutTourActivity extends AppCompatActivity {
         int height = getResources().getDimensionPixelSize(R.dimen.sixtyFour);
         host.addView(bar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height, android.view.Gravity.CENTER));
         if (state != null) return;
+        seedFriendBar(() -> getSupportFragmentManager().beginTransaction()
+                .add(R.id.friends_bar_fragment, new FriendBarFragment()).commit());
+    }
+
+    private void seedFriendBar(Runnable onReady) {
         App.runInBackground(() -> {
             try {
                 String[] names = {"alex", "blair", "casey", "devon", "eli", "frankie", "gray", "harper", "jamie"};
@@ -135,10 +142,7 @@ public class LayoutTourActivity extends AppCompatActivity {
                 throw new IllegalStateException("Unable to seed synthetic friend bar", error);
             }
             runOnUiThread(() -> {
-                if (!isFinishing()) {
-                    getSupportFragmentManager().beginTransaction()
-                            .add(R.id.friends_bar_fragment, new FriendBarFragment()).commit();
-                }
+                if (!isFinishing()) onReady.run();
             });
         });
     }
@@ -177,9 +181,23 @@ public class LayoutTourActivity extends AppCompatActivity {
         });
         View root = inflater.inflate(R.layout.fragment_main, (ViewGroup) null, false);
         setContentView(root);
+        if ("friend-keyboard".equals(scene)) {
+            MainFragment.applySystemUIInsets(root, root.findViewById(R.id.banners));
+            seedFriendBar(() -> {
+                FriendRecord last = DB.get().getFriends().stream()
+                        .filter(friend -> "jamie".equals(friend.user.username)).findFirst().orElseThrow();
+                getSupportFragmentManager().beginTransaction()
+                        .add(R.id.friends_bar_fragment, new FriendBarFragment()).commit();
+                populateFriendCard(scene, root, last);
+            });
+            return;
+        }
 
         String username = scene.equals("friend-long-name") ? "alexander_golden_gate_family_demo" : "alexdemo";
-        FriendRecord friend = TourFixtures.friend(username);
+        populateFriendCard(scene, root, TourFixtures.friend(username));
+    }
+
+    private void populateFriendCard(String scene, View root, FriendRecord friend) {
         FriendLocation location = TourFixtures.location();
         String realContact = getIntent().getStringExtra("contact");
         String photoRawContact = getIntent().getStringExtra("add-photo-to-raw-contact");
@@ -217,8 +235,12 @@ public class LayoutTourActivity extends AppCompatActivity {
         }
 
         ConstraintLayout panel = root.findViewById(R.id.info_panel);
+        var viewModel = new ViewModelProvider(this).get(MainViewModel.class);
         InfoPanel infoPanel = new InfoPanel(panel, this, new InfoPanel.Listener() {
             @Override public void onInfoPanelCloseRequested() {}
+            @Override public void onInfoPanelNicknameDraftChanged(long friendId, @Nullable String draft) {
+                viewModel.setNicknameDraft(friendId, draft);
+            }
             @Override public void onInfoPanelLocationRequested(@NonNull FriendRecord f) {
                 UpdateStatusTracker.setLastRequestTime(f.id, System.currentTimeMillis());
             }
@@ -251,5 +273,13 @@ public class LayoutTourActivity extends AppCompatActivity {
         root.findViewById(R.id.timed_share_fab).setVisibility(View.GONE);
         panel.setTranslationX(0);
         infoPanel.show(friend, location);
+        if ("friend-keyboard".equals(scene)) {
+            viewModel.getFriendTileClick().observe(this, event -> {
+                FriendRecord tapped = event.getEventIfNotHandled();
+                if (tapped == null) return;
+                if (tapped.id == infoPanel.getFriendId()) infoPanel.hide();
+                else infoPanel.show(tapped, location);
+            });
+        }
     }
 }

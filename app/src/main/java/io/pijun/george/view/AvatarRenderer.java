@@ -236,13 +236,17 @@ public class AvatarRenderer {
 
     @AnyThread
     public void setUsername(@NonNull String username) {
+        image = null;
+        imagePaint.setShader(null);
+        setDisplayName(username);
+    }
+
+    @AnyThread
+    void setDisplayName(@NonNull String username) {
         this.username = username;
         ColorPair colors = getColorPair(getMD5Hash(username)[15]);
         textPaint.setColor(colors.foreground);
         bgPaint.setColor(colors.background);
-        image = null;
-        imagePaint.setShader(null);
-
         recalculateDrawVariables();
     }
 
