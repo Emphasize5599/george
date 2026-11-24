@@ -129,7 +129,7 @@ public class PersistentQueue<E> {
     }
 
     @WorkerThread
-    public void offer(@NonNull E e) {
+    public boolean offer(@NonNull E e) {
         byte[] bytes = mConverter.serialize(e);
         ContentValues cv = new ContentValues();
         cv.put(TASKS_COL_DATA, bytes);
@@ -137,9 +137,10 @@ public class PersistentQueue<E> {
             mHelper.getWritableDatabase().insertOrThrow(TASKS_TABLE, null, cv);
         } catch (SQLException ex) {
             L.w("PersistentQueue.offer", ex);
-            return;
+            return false;
         }
         mSemaphore.release();
+        return true;
     }
 
     @Nullable

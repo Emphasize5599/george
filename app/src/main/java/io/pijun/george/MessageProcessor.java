@@ -58,7 +58,8 @@ public class MessageProcessor {
         ErrorNotLoggedIn,
         ErrorRemoteInternal,
         ErrorUnknown,
-        ErrorUnknownSender
+        ErrorUnknownSender,
+        RetryFriendRemoval
     }
 
     private static final String QUEUE_FILENAME = "message_processor";
@@ -360,13 +361,14 @@ public class MessageProcessor {
 
     private static Result handleLocationSharingRevocation(@NonNull UserRecord user, @NonNull UserComm comm) {
         L.i("LocationSharingRevocation");
+        boolean removingFriend = Boolean.TRUE.equals(comm.friendRemoved);
         try {
-            if (Boolean.TRUE.equals(comm.friendRemoved)) FriendRequests.forget(user);
+            if (removingFriend) FriendRequests.forget(user);
             else FriendRequests.revoke(user);
             return Result.Success;
         } catch (IOException | DB.DBException ex) {
             L.w("handleLocationSharingRevocation", ex);
-            return Result.ErrorDatabaseException;
+            return removingFriend ? Result.RetryFriendRemoval : Result.ErrorDatabaseException;
         }
     }
 
@@ -541,6 +543,7 @@ public class MessageProcessor {
                         break;
                     case ErrorNoNetwork:
                     case ErrorRemoteInternal:
+                    case RetryFriendRemoval:
                         L.w("reschedulable action processing error");
                         // sleep for 60 seconds, then try again
                         //noinspection BusyWait

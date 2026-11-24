@@ -106,8 +106,9 @@ public final class TaskSender {
                     OscarError err = OscarError.fromResponse(response);
                     L.i("problem executing task: " + call.request().method() + " " + call.request().url());
                     if (err != null) {
-                        if (err.code == OscarError.ERROR_INVALID_ACCESS_TOKEN) {
-                            // toss the message
+                        if (err.code == OscarError.ERROR_INVALID_ACCESS_TOKEN
+                                || (task instanceof SendMessageTask && err.code == OscarError.ERROR_USER_NOT_FOUND)) {
+                            // These tasks cannot succeed on retry.
                             queue.poll();
                         }
                         L.i("  " + err);

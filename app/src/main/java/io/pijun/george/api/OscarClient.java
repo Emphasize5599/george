@@ -193,9 +193,7 @@ public class OscarClient {
         smt.message = encMsg;
         smt.urgent = urgent;
         smt.isTransient = isTransient;
-        queue.offer(smt);
-
-        return null;
+        return queue.offer(smt) ? null : "Unable to save the outgoing message.";
     }
 
     //endregion

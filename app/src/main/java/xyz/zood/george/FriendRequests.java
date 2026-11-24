@@ -111,11 +111,17 @@ public final class FriendRequests {
     }
 
     public static synchronized void forget(UserRecord user) throws IOException, DB.DBException {
+        forget(user.userId, user);
+    }
+
+    private static void forget(byte[] userId, @Nullable UserRecord user) throws IOException, DB.DBException {
         ArrayList<Request> requests = storedRequests();
-        if (requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId))) save(requests);
-        FriendRecord friend = DB.get().getFriendByUserId(user.id);
-        if (friend != null) DB.get().removeFriend(friend);  // also deletes their last location
-        LinkedContacts.forgetFriend(user.userId);
+        if (requests.removeIf(request -> Arrays.equals(request.user.userId, userId))) save(requests);
+        if (user != null) {
+            FriendRecord friend = DB.get().getFriendByUserId(user.id);
+            if (friend != null) DB.get().removeFriend(friend);  // also deletes their last location
+        }
+        LinkedContacts.forgetFriend(userId);
         BackupDatabaseWorker.scheduleBackup(App.getApp());
     }
 
@@ -167,49 +173,45 @@ public final class FriendRequests {
     }
 
     static synchronized void block(Snapshot.User user) throws IOException, DB.DBException {
-        ArrayList<Request> requests = storedRequests();
         ArrayList<Snapshot.User> users = blocked();
         if (!contains(users, user.userId)) users.add(user);
         LinkedContacts.saveBlockedUsers(users);
         BackupDatabaseWorker.scheduleBackup(App.getApp());
-        removeSharing(user.userId);
-        if (requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId))) save(requests);
+        forget(user.userId, DB.get().getUser(user.userId));
+        queueRemoval(user);
     }
 
     static synchronized void unblock(Snapshot.User user) throws IOException, DB.DBException {
-        // Retry cleanup if an earlier block persisted but its database write failed.
-        removeSharing(user.userId);
-        ArrayList<Request> requests = storedRequests();
-        if (requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId))) save(requests);
         ArrayList<Snapshot.User> users = blocked();
+        if (!contains(users, user.userId)) return;
+        forget(user.userId, DB.get().getUser(user.userId));
+        // Repair older blocks even when their local friend row is already gone.
+        queueRemoval(user);
         users.removeIf(blockedUser -> Arrays.equals(blockedUser.userId, user.userId));
         LinkedContacts.saveBlockedUsers(users);
         BackupDatabaseWorker.scheduleBackup(App.getApp());
     }
 
-    public static synchronized void enforceBlocks() throws DB.DBException {
-        for (Snapshot.User user : blocked()) removeSharing(user.userId);
+    public static synchronized void enforceBlocks() throws IOException, DB.DBException {
+        for (Snapshot.User user : blocked()) forget(user.userId, DB.get().getUser(user.userId));
     }
 
-    /**
-     * Drops a blocked account completely, like Remove Friend: forgets them here and tells their phone to drop
-     * us too (not just to stop expecting our location), so nothing of the friendship is left on either side.
-     */
-    private static void removeSharing(byte[] userId) throws DB.DBException {
-        UserRecord user = DB.get().getUser(userId);
-        if (user == null) return;
-        FriendRecord friend = DB.get().getFriendByUserId(user.id);
-        if (friend == null) return;
-        DB.get().removeFriend(friend);
-        LinkedContacts.forgetFriend(userId);
+    private static void queueRemoval(Snapshot.User user) throws IOException {
         Context context = App.getApp();
         Prefs prefs = Prefs.get(context);
         String token = prefs.getAccessToken();
         var key = prefs.getKeyPair();
-        if (token == null || key == null) return;
-        String error = OscarClient.queueSendMessage(OscarClient.getQueue(context), user, key, token,
+        if (token == null || key == null) {
+            if (BuildConfig.DEBUG && token == null && key == null) return;
+            throw new IOException("Unable to send friendship removal while signed out");
+        }
+        UserRecord recipient = new UserRecord();
+        recipient.userId = user.userId;
+        recipient.username = user.username;
+        recipient.publicKey = user.publicKey;
+        String error = OscarClient.queueSendMessage(OscarClient.getQueue(context), recipient, key, token,
                 UserComm.newFriendRemoval().toJSON(), false, false);
-        if (error != null) L.w("Unable to queue friend removal for blocked account");
+        if (error != null) throw new IOException(error);
     }
 
     private static boolean matches(Request first, Request second) {

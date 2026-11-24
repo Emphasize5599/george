@@ -279,7 +279,7 @@ public class AuthenticationManager {
         }
         try {
             xyz.zood.george.FriendRequests.enforceBlocks();
-        } catch (DB.DBException ex) {
+        } catch (IOException | DB.DBException ex) {
             L.w("Unable to clean up restored blocked friends", ex);
         }
         // This is now the account's active device; any other signed-in device signs itself out.
