@@ -26,6 +26,7 @@ import xyz.zood.george.viewmodels.MainViewModel.NicknameDraft;
 final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int APP_ITEMS = 3;
     private static final Object NICKNAME_PAYLOAD = new Object();
+    private static final Object FOLDER_TITLE_PAYLOAD = new Object();
     private final FriendBarArrangement arrangement = new FriendBarArrangement();
     private final FriendBarFragment listener;
     private ArrayList<FriendRecord> friends = new ArrayList<>();
@@ -136,6 +137,15 @@ final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         if (nextPosition != RecyclerView.NO_POSITION) notifyItemChanged(nextPosition, NICKNAME_PAYLOAD);
     }
 
+    void updateFolderTitle(@Nullable String key) {
+        for (int index = 0; index < people.size(); index++) {
+            if (people.get(index).key.equals(key)) {
+                notifyItemChanged(index + 1, FOLDER_TITLE_PAYLOAD);
+                return;
+            }
+        }
+    }
+
     @Override public int getItemCount() {
         return 1 + people.size() + APP_ITEMS;
     }
@@ -169,7 +179,7 @@ final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
                 grid.addView(avatar, params);
                 bindAvatar(avatar, member, R.dimen.folder_mini_avatar);
             }
-            setTileLabel(tile, listener.folderTitle(item));
+            setTileLabel(tile, listener.folderTileTitle(item));
         } else if (holder.getItemViewType() == R.layout.friends_bar_requests) {
             TextView badge = tile.findViewById(R.id.requests_badge);
             int count = FriendRequests.pending().size();
@@ -185,6 +195,8 @@ final class FriendsBarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         FriendBarArrangement.Item item = itemAt(position);
         if (payloads.contains(NICKNAME_PAYLOAD) && item != null && item.folder == null) {
             bindFriendName(holder.itemView, item.friend());
+        } else if (payloads.contains(FOLDER_TITLE_PAYLOAD) && item != null && item.folder != null) {
+            setTileLabel(holder.itemView, listener.folderTileTitle(item));
         } else {
             super.onBindViewHolder(holder, position, payloads);
         }

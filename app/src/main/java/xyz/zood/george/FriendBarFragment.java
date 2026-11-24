@@ -59,6 +59,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     @Nullable private String openFolderKey;
     @Nullable private String folderClosedKey;
     private long folderClosedByTapAt;
+    private boolean revealingFolder;
     private final Runnable namesChanged = () -> {
         if (list != null) adapter.refresh();
     };
@@ -82,7 +83,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         new ItemTouchHelper(new BarDrag()).attachToRecyclerView(list);
         list.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override public void onScrolled(@NonNull RecyclerView view, int dx, int dy) {
-                if (dx != 0) closeFolder();
+                if (dx != 0 && !revealingFolder) closeFolder();
             }
         });
         reloadFriends();
@@ -177,6 +178,14 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         return item.folder.name == null ? getString(R.string.friend_folder) : item.folder.name;
     }
 
+    String folderTileTitle(FriendBarArrangement.Item item) {
+        if (item.key.equals(openFolderKey) && folderEditor != null && folderEditor.getVisibility() == View.VISIBLE) {
+            String draft = folderEditor.draft().trim();
+            return draft.isEmpty() ? getString(R.string.friend_folder) : draft;
+        }
+        return folderTitle(item);
+    }
+
     static int gridSize(Context context, int axis) {
         return context.getSharedPreferences("folder_grid", Context.MODE_PRIVATE).getInt(GRID_KEYS[axis], 3);
     }
@@ -226,13 +235,15 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         // Header: the folder's name (wrapping onto more lines when it's long) and its ⋮ menu.
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.TOP);
+        header.setGravity(Gravity.CENTER_VERTICAL);
         header.setMinimumHeight(dp(48));
         TextView title = new TextView(context);
         title.setText(folderTitle(item));
         title.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
         title.setTextColor(context.getColor(R.color.text_primary));
-        title.setPadding(0, dp(8), dp(8), dp(8));
+        title.setGravity(Gravity.CENTER_VERTICAL);
+        title.setMinHeight(dp(48));
+        title.setPadding(0, dp(4), dp(8), dp(4));
         header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         android.widget.ImageButton more = new android.widget.ImageButton(context);
         more.setImageResource(R.drawable.ic_sharp_more_vert_24dp);
@@ -297,7 +308,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         popup.setOutsideTouchable(true);
         popup.setTouchModal(false);
         popup.setAnimationStyle(0);
-        popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
+        popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
         popup.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
         var editor = new InlineNameEditor(context, com.google.android.material.R.style.TextAppearance_Material3_TitleMedium,
@@ -309,6 +320,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
                 }, () -> finishFolderEdit(title));
         folderEditor = editor;
         header.addView(editor, 1, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        editor.moveActionsTo(body, 1);
 
         android.graphics.Rect lastBounds = new android.graphics.Rect();
         Runnable resize = () -> {
@@ -355,13 +367,23 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         resizeFolder = resize;
         Runnable edit = () -> {
             if (folderPopup != popup || editor.getVisibility() == View.VISIBLE) return;
-            popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
-            popup.update();
+            if (list != null && anchor.getParent() == list) {
+                revealingFolder = true;
+                try {
+                    list.requestChildRectangleOnScreen(anchor,
+                            new android.graphics.Rect(0, 0, anchor.getWidth(), anchor.getHeight()), true);
+                } finally {
+                    revealingFolder = false;
+                }
+            }
             title.setVisibility(View.GONE);
             editor.open(item.folder.name);
             resize.run();
         };
-        editor.onDraftChanged(resize);
+        editor.onDraftChanged(() -> {
+            if (editor.getVisibility() == View.VISIBLE) adapter.updateFolderTitle(item.key);
+            resize.run();
+        });
         title.setOnClickListener(view -> edit.run());
         more.setOnClickListener(view -> folderMenu(view, item, edit));
         header.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
@@ -377,6 +399,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
                 resizeFolder = null;
                 folderCard = null;
                 openFolderKey = null;
+                adapter.updateFolderTitle(item.key);
             }
         });
         String key = item.key;
@@ -403,9 +426,8 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     private void finishFolderEdit(TextView title) {
         if (folderEditor == null || folderPopup == null) return;
         folderEditor.close();
-        folderPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
-        folderPopup.update();
         title.setVisibility(View.VISIBLE);
+        adapter.updateFolderTitle(openFolderKey);
         if (resizeFolder != null) resizeFolder.run();
     }
 
@@ -425,12 +447,14 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     private void closeFolder() {
         PopupWindow popup = folderPopup;
         View card = folderCard;
+        String closedKey = openFolderKey;
         if (folderEditor != null) folderEditor.close();
         folderEditor = null;
         resizeFolder = null;
         folderPopup = null;
         folderCard = null;
         openFolderKey = null;
+        if (closedKey != null && list != null) list.post(() -> adapter.updateFolderTitle(closedKey));
         if (popup == null) return;
         if (card == null || !card.isAttachedToWindow()) {
             popup.dismiss();
