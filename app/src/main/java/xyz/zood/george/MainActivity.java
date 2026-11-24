@@ -25,6 +25,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         WindowCompat.enableEdgeToEdge(getWindow());
+        // Remember a friend link before anything else: if nobody is signed in yet, it waits until they are.
+        if (savedInstanceState == null) FriendLink.receive(getIntent());
 
         // Is there a user account here? If not, send them to the login/sign up screen
         if (!AuthenticationManager.isLoggedIn(this)) {
@@ -61,5 +63,15 @@ public class MainActivity extends AppCompatActivity {
                 ft.commit();
             }
         }
+    }
+
+    /** A friend link opened while the app was already running (this activity is single-instance). */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        FriendLink.receive(intent);
+        androidx.fragment.app.Fragment main = getSupportFragmentManager().findFragmentByTag(MainFragment.TAG);
+        if (main instanceof MainFragment && main.isResumed()) ((MainFragment) main).showPendingFriendLink();
     }
 }

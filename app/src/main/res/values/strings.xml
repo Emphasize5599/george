@@ -167,7 +167,11 @@
     <string name="share_your_location_with_a_new_friend">Share your location with a new friend</string>
     <string name="invite_a_friend">Invite a friend</string>
     <string name="error">Error</string>
-    <string name="invite_friend_msg">Install Amidst (Android or iPhone) or Zood Location so we can securely share our location with each other. https://www.zood.xyz</string>
+    <string name="invite_friend_msg">Let\'s share our locations privately with Amidst (Android or iPhone, works with Zood Location): https://emphasize5599.github.io/amidst/</string>
+    <string name="invite_friend_link_msg">Add me on Amidst, private location sharing for family and friends: %1$s</string>
+    <string name="share_an_invite">Share an invite</string>
+    <string name="invite_with_link">Include my username link</string>
+    <string name="invite_without_link">Without my username</string>
     <string name="notifications">Notifications</string>
     <string name="next">Next</string>
     <string name="onboarding_title_1">Add friends</string>

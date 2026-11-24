@@ -44,6 +44,19 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Friend links (see FriendLink): the app's own scheme, and the web link when Android offers this app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="amidst" android:host="add" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="emphasize5599.github.io" android:pathPrefix="/amidst/add" />
+            </intent-filter>
         </activity>
         <activity
             android:name="io.pijun.george.WelcomeActivity"

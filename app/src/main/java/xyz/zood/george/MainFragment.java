@@ -327,6 +327,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     @Override
     public void onStart() {
         super.onStart();
+        showPendingFriendLink();
 
         Context ctx = requireContext();
         checkPermissions();
@@ -471,13 +472,37 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
     @UiThread
     private void onAddFriendClicked() {
+        openAddFriend(null);
+    }
+
+    private void openAddFriend(@Nullable String prefill) {
         if (!isAdded()) return;
         getParentFragmentManager().beginTransaction()
                 .setCustomAnimations(R.animator.new_enter_from_right, R.animator.new_exit_to_left,
                         R.animator.new_enter_from_left, R.animator.new_exit_to_right)
-                .replace(R.id.fragment_host, AddFriendFragment.newInstance(accessToken, keyPair))
+                .replace(R.id.fragment_host, AddFriendFragment.newInstance(accessToken, keyPair, prefill))
                 .addToBackStack(null)
                 .commit();
+    }
+
+    /**
+     * Shows the person a friend link points to: their card if they're already a friend, otherwise Add Friend with
+     * their username filled in (the user still confirms before anything is sent). A link to yourself is ignored.
+     */
+    @UiThread
+    void showPendingFriendLink() {
+        String username = FriendLink.takePending();
+        if (username == null || !isAdded()) return;
+        if (username.equals(Prefs.get(requireContext()).getUsername())) return;
+        App.runInBackground(() -> {
+            UserRecord user = DB.get().getUser(username);
+            FriendRecord friend = user == null ? null : DB.get().getFriendByUserId(user.id);
+            App.runOnUiThread(() -> {
+                if (!isAdded()) return;
+                if (friend != null) onFriendSelected(friend);
+                else openAddFriend(username);
+            });
+        });
     }
 
     @UiThread

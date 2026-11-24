@@ -43,6 +43,7 @@ import xyz.zood.george.databinding.FragmentAddFriendBinding;
 public class AddFriendFragment extends Fragment {
 
     private static final String ARG_ACCESS_TOKEN = "access_token";
+    private static final String ARG_PREFILL = "prefill";
     private static final String ARG_KEY_PAIR = "key_pair";
 
     private String accessToken;
@@ -54,8 +55,14 @@ public class AddFriendFragment extends Fragment {
     private androidx.activity.OnBackPressedCallback sharingBack;
 
     static AddFriendFragment newInstance(@NonNull String accessToken, @NonNull KeyPair keyPair) {
+        return newInstance(accessToken, keyPair, null);
+    }
+
+    /** {@code prefill} fills in a username from a friend link; nothing is sent until the user taps Continue. */
+    static AddFriendFragment newInstance(@NonNull String accessToken, @NonNull KeyPair keyPair, @Nullable String prefill) {
         AddFriendFragment fragment = new AddFriendFragment();
         Bundle args = new Bundle();
+        if (prefill != null) args.putString(ARG_PREFILL, prefill);
         args.putString(ARG_ACCESS_TOKEN, accessToken);
         args.putParcelable(ARG_KEY_PAIR, keyPair);
 
@@ -112,6 +119,8 @@ public class AddFriendFragment extends Fragment {
                 new UsernameWatcher(
                         binding.usernameContainer, binding.username));
         binding.usernameContainer.setEndIconVisible(true);
+        String prefill = requireArguments().getString(ARG_PREFILL);
+        if (savedInstanceState == null && prefill != null) binding.username.setText(prefill);
         binding.back.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -124,7 +133,7 @@ public class AddFriendFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 if (sharingCandidate != null) addFriend(sharingCandidate, FriendshipManager.AddChoice.WITHOUT_LOCATION);
-                else FriendshipManager.inviteFriend(requireContext());
+                else FriendLink.shareInvite(requireContext());
             }
         });
         binding.addFriend.setOnClickListener(new View.OnClickListener() {

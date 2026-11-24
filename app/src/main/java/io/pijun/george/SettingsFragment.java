@@ -118,7 +118,7 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
     }
 
     public void onInviteFriendAction() {
-        FriendshipManager.inviteFriend(requireContext());
+        xyz.zood.george.FriendLink.shareInvite(requireContext());
     }
 
     @Override
