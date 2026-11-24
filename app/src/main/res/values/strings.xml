@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Family Locator</string>
+    <string name="app_name">Amidst</string>
     <string name="init">Init</string>
     <string name="sign_up">Sign up</string>
     <string name="username">Username</string>
@@ -125,7 +125,7 @@
     <string name="system_settings">System settings</string>
     <string name="unable_to_connect_to_zood_servers">Unable to connect to Zood servers</string>
     <string name="info">Info</string>
-    <string name="unable_to_connect_msg">Zood\u00A0Location is unable to connect to the Zood servers. Make sure your phone\'s internet connection is working then come back to the app. Zood will automatically try to reconnect.</string>
+    <string name="unable_to_connect_msg">Amidst is unable to connect to the Zood servers. Make sure your phone\'s internet connection is working then come back to the app. Amidst will automatically try to reconnect.</string>
     <string name="screamer_channel_description_msg">Used to play a sound when you\'re looking for your phone.</string>
     <string name="find_my_phone">Find my phone</string>
     <string name="screamer_notification_msg">Of course! This is where you left your phone. ;-)</string>
@@ -158,7 +158,7 @@
     <string name="send_to">Send to</string>
     <string name="register_subtitle_msg">Your account information is encrypted on your phone and backed up to our servers. Your information won\'t (and can\'t) be sold to anybody.</string>
     <string name="built_with_heartemoji_in_thousand_oaks">Built with ❤️ in Thousand Oaks</string>
-    <string name="welcome_to_zood_location">Welcome to Zood Location</string>
+    <string name="welcome_to_zood_location">Welcome to Amidst</string>
     <string name="sign_in_or_register_a_new_account_to_get_started">Sign in or register a new account to get started.</string>
     <string name="sign_in_welcome_back_msg">Welcome back! We missed you.</string>
     <string name="info_panel_last_update_msg">\u00A0\u00A0•\u00A0\u00A0%s</string>
@@ -166,7 +166,7 @@
     <string name="share_your_location_with_a_new_friend">Share your location with a new friend</string>
     <string name="invite_a_friend">Invite a friend</string>
     <string name="error">Error</string>
-    <string name="invite_friend_msg">Install Zood Location so we can securely share our location with each other. https://www.zood.xyz</string>
+    <string name="invite_friend_msg">Install Amidst (Android or iPhone) or Zood Location so we can securely share our location with each other. https://www.zood.xyz</string>
     <string name="notifications">Notifications</string>
     <string name="next">Next</string>
     <string name="onboarding_title_1">Add friends</string>
@@ -175,8 +175,8 @@
     <string name="onboarding_title_4">One more thing!</string>
     <string name="onboarding_body_1">Invite your family and friends to Zood, and build a list of the people you trust the most.</string>
     <string name="onboarding_body_2">Keep track of each other by sharing and requesting location with one another.</string>
-    <string name="onboarding_body_3">Using end-to-end encryption your location is always protected, and we at Zood can\'t even seen where you are.</string>
-    <string name="onboarding_body_4">We need you to give Zood Location permission to access your location in the background. Only people you choose to share with can see where you are.</string>
+    <string name="onboarding_body_3">Using end-to-end encryption your location is always protected, and not even the servers can see where you are.</string>
+    <string name="onboarding_body_4">We need you to give Amidst permission to access your location in the background. Only people you choose to share with can see where you are.</string>
     <string name="start">Start</string>
     <string name="safety_number">Safety number</string>
     <string name="need_background_location_permission">Need background location permission</string>
@@ -188,14 +188,14 @@
     <string name="theme_system_default">System default</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
-    <string name="grant_pre_q_location_permission_via_settings_msg">Zood Location needs permission to access your location in order to display your position on the map and share it with your friends (only). Go to Permissions in the app settings screen to grant it.</string>
-    <string name="background_location_permission_reason_msg">In order to periodically share your location with your friends (only), Zood needs permission to access your location while in the background.</string>
+    <string name="grant_pre_q_location_permission_via_settings_msg">Amidst needs permission to access your location in order to display your position on the map and share it with your friends (only). Go to Permissions in the app settings screen to grant it.</string>
+    <string name="background_location_permission_reason_msg">In order to periodically share your location with your friends (only), Amidst needs permission to access your location while in the background.</string>
     <string name="location_permission_needed">Location permission needed</string>
     <string name="background_permission">Background permission</string>
     <string name="location_permission">Location permission</string>
     <string name="grant_foreground_location_permission_msg">Zood needs permission to access your location while you\'re using the app to show your current location on the map.</string>
     <string name="grant_foreground_location_permission_via_settings_msg">Zood needs permission to access your location while you\'re using the app to show your current location on the map. Go to Permissions in the app settings screen to grant it.</string>
-    <string name="grant_pre_q_location_permission_msg">Zood Location needs permission to access your location in order to display your position on the map and share it with your friends (only).</string>
+    <string name="grant_pre_q_location_permission_msg">Amidst needs permission to access your location in order to display your position on the map and share it with your friends (only).</string>
     <string name="no_thanks">No, thanks</string>
     <string name="activity_recognition_permission_needed">Activity recognition permission needed</string>
     <string name="my_location">My location</string>
@@ -204,7 +204,7 @@
     <string name="location_service_not_available_on_device">Location service not available on device</string>
     <string name="no_location_provider_available">No location provider available</string>
 
-    <!-- Family Locator fork -->
+    <!-- Amidst fork -->
     <string name="live_requests_channel_name">Live location requests</string>
     <string name="live_requests_channel_description">Keeps a connection open so family can request your current location.</string>
     <string name="live_requests_notification_title">Listening for location requests</string>
@@ -220,10 +220,10 @@
     <string name="why_unsupported">Why is on-demand refresh unsupported?</string>
     <string name="unsupported_title">Why is on-demand refresh unsupported?</string>
     <string name="unsupported_iphone_body">%1$s\'s iPhone isn\'t listening for requests right now. Zood\'s servers can\'t wake an iPhone, so the app has to stay running in the background to hear one. That stops if Live Requests is off, or if the app was swiped closed.\n\nTheir location still updates on its own whenever they move. To enable Refresh, %1$s can open the app (and turn on Live Requests with location access \"Always\" if it\'s off).</string>
-    <string name="unsupported_android_body">%1$s’s phone reported that it can’t answer on-demand requests right now. They can open Family Locator and check Live Requests and location access. The map can still show their last published location.</string>
+    <string name="unsupported_android_body">%1$s’s phone reported that it can’t answer on-demand requests right now. They can open Amidst and check Live Requests and location access. The map can still show their last published location.</string>
     <string name="unrestricted_battery_title">Allow unrestricted battery usage</string>
     <string name="unrestricted_battery_needed">Allow unrestricted battery usage for reliable location sharing.</string>
-    <string name="unrestricted_battery_message">Family Locator needs unrestricted battery usage to keep sharing your location and receive refresh requests while your phone is idle. This may use more battery.\n\nTap System settings, then Allow if Android asks to stop optimizing battery usage. If app settings open, choose Battery (or App battery usage) and select Unrestricted or Allow background usage. Labels vary by phone.</string>
+    <string name="unrestricted_battery_message">Amidst needs unrestricted battery usage to keep sharing your location and receive refresh requests while your phone is idle. This may use more battery.\n\nTap System settings, then Allow if Android asks to stop optimizing battery usage. If app settings open, choose Battery (or App battery usage) and select Unrestricted or Allow background usage. Labels vary by phone.</string>
 
     <string name="account">Account</string>
     <string name="nickname_optional">Nickname (optional)</string>
@@ -305,14 +305,14 @@
     <string name="save">Save</string>
     <string name="notices_and_trademarks">Notices &amp; Trademarks</string>
     <string name="open_source_licenses">Open-Source Licenses</string>
-    <string name="notice_family_locator">Family Locator is free software under the GNU Affero General Public License, version 3. Family Locator independently uses the Zood Location protocol and servers. Zood is a trademark of Tangled Wires, LLC.</string>
+    <string name="notice_family_locator">Amidst is free software under the GNU Affero General Public License, version 3. Amidst independently uses the Zood Location protocol and servers. Zood is a trademark of Tangled Wires, LLC.</string>
     <string name="notice_apple">Apple</string>
     <string name="notice_apple_body">Apple, the Apple logo and iPhone are trademarks of Apple Inc., registered in the U.S. and other countries and regions. The Apple logo identifies a friend’s Apple device.</string>
     <string name="notice_google">Google</string>
     <string name="notice_google_body">Android is a trademark of Google LLC. The Android robot is reproduced or modified from work created and shared by Google and used according to terms described in the Creative Commons 3.0 Attribution License.</string>
     <string name="notice_libsodium">Encryption uses libsodium by Frank Denis and contributors under the ISC License.</string>
     <string name="delete_account">Delete Account</string>
-    <string name="delete_account_explanation">Permanently delete your Zood account and its encrypted backup from the server. This affects your account in Family Locator and other Zood apps.</string>
+    <string name="delete_account_explanation">Permanently delete your Zood account and its encrypted backup from the server. This affects your account in Amidst and other Zood apps.</string>
     <string name="delete_account_type_username">Type your username to confirm</string>
     <string name="delete_account_confirm">Permanently delete your account?</string>
     <string name="delete_account_warning">Your account and encrypted backup will be deleted. You cannot undo this.</string>
@@ -326,7 +326,7 @@
     <string name="confirm_share_with">Allow %s to see your location.</string>
     <string name="share_my_location_action">Share My Location</string>
     <string name="cant_add_yourself">You can’t add yourself.</string>
-    <string name="contact_read_error">Couldn’t read that contact. Allow Contacts access for Family Locator and try again.</string>
+    <string name="contact_read_error">Couldn’t read that contact. Allow Contacts access for Amidst and try again.</string>
     <string name="username_copied">Username copied</string>
     <string name="menu_expanded">Expanded</string>
     <string name="menu_collapsed">Collapsed</string>

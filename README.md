@@ -1,6 +1,6 @@
-# Family Locator Android fork
+# Amidst for Android
 
-This branch is the independent Android companion to [Family Locator for iPhone](https://github.com/Emphasize5599/family-locator-ios). Its application ID is `com.bensanzone.zood`; the upstream store links below describe the original Zood app.
+This branch is the independent Android companion to [Amidst for iPhone](https://github.com/Emphasize5599/family-locator-ios). Its application ID is `com.bensanzone.zood`; the upstream store links below describe the original Zood app.
 
 Names follow this priority: your private nickname for a friend, their shared nickname, then `@username`. The immutable username remains available in View Username and is always used for account lookup and safety numbers. Shared profile names travel inside encrypted communications; private overrides only enter your encrypted backup. Optional Snapshot fields preserve schema version1 for compatibility; older clients may omit these fields when saving a backup.
 
