@@ -158,7 +158,7 @@ public class TimedShareFragment extends Fragment {
                 String url = viewModel.getTimedShareUrl().getValue();
                 ClipboardManager cm = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
                 if (cm != null) {
-                    ClipData clipData = ClipData.newRawUri("Zood Location URL", Uri.parse(url));
+                    ClipData clipData = ClipData.newRawUri("Amidst link", Uri.parse(url));
                     cm.setPrimaryClip(clipData);
                     // create a toast to let the user know it's done
                     Toast.makeText(requireContext(), "Link copied to clipboard", Toast.LENGTH_SHORT).show();

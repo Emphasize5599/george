@@ -27,11 +27,11 @@ JNIEXPORT jint Java_io_pijun_george_Sodium_init(JNIEnv *env, jclass cls) {
 JNIEXPORT jbyteArray  JNICALL Java_io_pijun_george_Sodium_stretchPassword(
         JNIEnv *env, jclass cls, jint hashSizeBytes, jbyteArray password, jbyteArray salt, jint algId, jlong opsLimit, jlong memLimit) {
     if (password == NULL) {
-        __android_log_print(ANDROID_LOG_INFO, "ZoodLoc", "stretchPassword: password is NULL. returning");
+        __android_log_print(ANDROID_LOG_INFO, "Amidst", "stretchPassword: password is NULL. returning");
         return NULL;
     }
     if (salt == NULL) {
-        __android_log_print(ANDROID_LOG_INFO, "ZoodLoc", "stretchPassword: salt is NULL. returning");
+        __android_log_print(ANDROID_LOG_INFO, "Amidst", "stretchPassword: salt is NULL. returning");
         return NULL;
     }
 
@@ -49,8 +49,8 @@ JNIEXPORT jbyteArray  JNICALL Java_io_pijun_george_Sodium_stretchPassword(
     free(passwordUChar);
     free(saltUChar);
     if (result != 0) {
-        __android_log_print(ANDROID_LOG_INFO, "ZoodLoc", "createHashFromPassword returned non-zero value: %d", result);
-        __android_log_print(ANDROID_LOG_INFO, "ZoodLoc", "errno is: %d", errno);
+        __android_log_print(ANDROID_LOG_INFO, "Amidst", "createHashFromPassword returned non-zero value: %d", result);
+        __android_log_print(ANDROID_LOG_INFO, "Amidst", "errno is: %d", errno);
         return NULL;
     }
 
@@ -98,7 +98,7 @@ JNIEXPORT jobject JNICALL Java_io_pijun_george_Sodium_symmetricKeyEncrypt(
     unsigned long long cipherTextLen = msgLen + crypto_secretbox_MACBYTES;
     unsigned char* cipherText = malloc(cipherTextLen);
     if (cipherText == NULL) {
-        __android_log_print(ANDROID_LOG_ERROR, "ZoodLoc", "symmetricKeyEncrypt: failed to allocate cipherText");
+        __android_log_print(ANDROID_LOG_ERROR, "Amidst", "symmetricKeyEncrypt: failed to allocate cipherText");
         return NULL;
     }
     unsigned char* msgUChar = ucharArray(env, msg);
@@ -138,13 +138,13 @@ JNIEXPORT jbyteArray JNICALL Java_io_pijun_george_Sodium_symmetricKeyDecrypt(
     JNIEnv *env, jclass cls, jbyteArray cipherText, jbyteArray nonce, jbyteArray key) {
     int msgLen = (*env)->GetArrayLength(env, cipherText) - crypto_secretbox_MACBYTES;
     if (msgLen < 1) {
-        __android_log_print(ANDROID_LOG_INFO, "ZoodLoc", "symmetricKeyDecrypt: message is too short");
+        __android_log_print(ANDROID_LOG_INFO, "Amidst", "symmetricKeyDecrypt: message is too short");
         return NULL;
     }
 
     unsigned char* msgUChar = malloc(msgLen);
     if (msgUChar == NULL) {
-        __android_log_print(ANDROID_LOG_ERROR, "ZoodLoc", "symmetricKeyDecrypt: failed to allocate msgUChar");
+        __android_log_print(ANDROID_LOG_ERROR, "Amidst", "symmetricKeyDecrypt: failed to allocate msgUChar");
         return NULL;
     }
     unsigned char* cipherTextUChar = ucharArray(env, cipherText);
@@ -159,7 +159,7 @@ JNIEXPORT jbyteArray JNICALL Java_io_pijun_george_Sodium_symmetricKeyDecrypt(
     free(nonceUChar);
     free(keyUChar);
     if (result != 0) {
-        __android_log_print(ANDROID_LOG_INFO, "ZoodLoc", "symmetricKeyDecrypt: non-zero result (%d)", result);
+        __android_log_print(ANDROID_LOG_INFO, "Amidst", "symmetricKeyDecrypt: non-zero result (%d)", result);
         free(msgUChar);
         return NULL;
     }
@@ -176,7 +176,7 @@ JNIEXPORT jobject JNICALL Java_io_pijun_george_Sodium_publicKeyEncrypt(
     int cipherTextLen = crypto_box_MACBYTES + msgLen;
     unsigned char* cipherText = malloc(cipherTextLen);
     if (cipherText == NULL) {
-        __android_log_print(ANDROID_LOG_ERROR, "ZoodLoc", "publicKeyEncrypt: failed to allocate cipherText");
+        __android_log_print(ANDROID_LOG_ERROR, "Amidst", "publicKeyEncrypt: failed to allocate cipherText");
         return NULL;
     }
     unsigned char nonce[crypto_box_NONCEBYTES];
@@ -194,7 +194,7 @@ JNIEXPORT jobject JNICALL Java_io_pijun_george_Sodium_publicKeyEncrypt(
     free(rcvrKeyUChar);
     free(sndrKeyUChar);
     if (result != 0) {
-        __android_log_print(ANDROID_LOG_INFO, "ZoodLoc", "publicKeyEncrypt: non-zero result (%d)", result);
+        __android_log_print(ANDROID_LOG_INFO, "Amidst", "publicKeyEncrypt: non-zero result (%d)", result);
         free(cipherText);
         return NULL;
     }
@@ -221,12 +221,12 @@ JNIEXPORT jbyteArray JNICALL Java_io_pijun_george_Sodium_publicKeyDecrypt(
     int cipherTextLen = (*env)->GetArrayLength(env, cipherText);
     int msgLen = cipherTextLen - crypto_box_MACBYTES;
     if (msgLen < 1) {
-        __android_log_print(ANDROID_LOG_INFO, "ZoodLoc", "publicKeyDecrypt: message is too short");
+        __android_log_print(ANDROID_LOG_INFO, "Amidst", "publicKeyDecrypt: message is too short");
         return NULL;
     }
     unsigned char* msg = malloc(msgLen);
     if (msg == NULL) {
-        __android_log_print(ANDROID_LOG_ERROR, "ZoodLoc", "publicKeyDecrypt: failed to allocate msg");
+        __android_log_print(ANDROID_LOG_ERROR, "Amidst", "publicKeyDecrypt: failed to allocate msg");
         return NULL;
     }
     unsigned char* cipherTextUChar = ucharArray(env, cipherText);
@@ -244,7 +244,7 @@ JNIEXPORT jbyteArray JNICALL Java_io_pijun_george_Sodium_publicKeyDecrypt(
     free(pubKeyUChar);
     free(secKeyUChar);
     if (result != 0) {
-        __android_log_print(ANDROID_LOG_INFO, "ZoodLoc", "publicKeyDecrypt: non-zero result (%d)", result);
+        __android_log_print(ANDROID_LOG_INFO, "Amidst", "publicKeyDecrypt: non-zero result (%d)", result);
         free(msg);
         return NULL;
     }

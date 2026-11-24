@@ -89,7 +89,7 @@
     <ImageView
         android:id="@+id/wordmark"
         android:src="@drawable/ic_zood_logo"
-        android:contentDescription="@string/zood"
+        android:contentDescription="@string/app_name"
         tools:visibility="invisible"
         android:visibility="invisible"
         android:layout_marginTop="24dp"

@@ -8,12 +8,12 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.bensanzone.zood"
+        applicationId "com.bensanzone.amidst"
         compileSdk = 36
         minSdkVersion 29
         targetSdkVersion 36
-        versionCode 100
-        versionName "1.1.30-family"
+        versionCode 101
+        versionName "1.1.31-family"
         multiDexEnabled = true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += ['en', 'tr', 'ru']
@@ -79,7 +79,7 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "zood-${variant.flavorName}-${variant.versionName}.apk"
+            outputFileName = "amidst-${variant.flavorName}-${variant.versionName}.apk"
         }
     }
 

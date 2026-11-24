@@ -308,7 +308,7 @@ public class UserComm {
             case DeviceStatus:
                 return true;
             default:
-                L.i("encountered unknown commtype. probably from a different version of Zood");
+                L.i("encountered unknown commtype. probably from a different client version");
                 return false;
         }
     }

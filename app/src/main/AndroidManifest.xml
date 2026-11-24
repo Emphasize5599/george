@@ -90,7 +90,7 @@
 
         <!-- BEGIN PROVIDERS -->
         <provider
-            android:authorities="xyz.zood.george.fileprovider"
+            android:authorities="com.bensanzone.amidst.fileprovider"
             android:name="androidx.core.content.FileProvider"
             android:exported="false"
             android:grantUriPermissions="true">

@@ -1,6 +1,6 @@
 # Amidst for Android
 
-This branch is the independent Android companion to [Amidst for iPhone](https://github.com/Emphasize5599/family-locator-ios). Its application ID is `com.bensanzone.zood`; the upstream store links below describe the original Zood app.
+This branch is the independent Android companion to [Amidst for iPhone](https://github.com/Emphasize5599/family-locator-ios). Its application ID is `com.bensanzone.amidst`; the upstream store links below describe the original Zood app.
 
 See the [shared privacy policy](https://github.com/Emphasize5599/family-locator-ios/blob/main/Docs/PRIVACY.md?view=policy) and [Google Play review notes](Docs/PLAY_REVIEW.md).
 

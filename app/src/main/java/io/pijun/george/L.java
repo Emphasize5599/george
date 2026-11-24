@@ -8,7 +8,7 @@ import java.io.IOException;
 import androidx.annotation.NonNull;
 
 public final class L {
-    private static final String TAG = "ZoodLoc";
+    private static final String TAG = "Amidst";
     static final String LOG_FILENAME = "logs.txt";
 
     private L() {}

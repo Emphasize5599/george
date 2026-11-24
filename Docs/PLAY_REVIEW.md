@@ -2,7 +2,7 @@
 
 Not ready to submit. This file is the script for Play Console. It is not a Play approval.
 
-The package is `com.bensanzone.zood`. Reviewer usernames and passwords stay in the iOS repo's `.review-private/APP_REVIEW_CREDENTIALS.md`. That file is Git-ignored. Do not paste it here.
+The package is `com.bensanzone.amidst`. Reviewer usernames and passwords stay in the iOS repo's `.review-private/APP_REVIEW_CREDENTIALS.md`. That file is Git-ignored. Do not paste it here.
 
 The store name is Amidst: Where Everyone Is. The home-screen name is Amidst.
 
@@ -109,7 +109,7 @@ Screenshots, the icon, and the feature graphic still need to be exported from th
 
 Humans can submit from the sections above. This section is the engineering record.
 
-Reviewed November 24, 2026 for the independent Android application `com.bensanzone.zood`.
+Reviewed November 24, 2026 for the independent Android application. 1.1.31 uses package `com.bensanzone.amidst`. It installs beside `com.bensanzone.zood`.
 
 - Target SDK 36 matches the current Play target API requirement. The Play flavor omits `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` and opens system Settings for battery controls.
 - Add Friend opens with location denied. Viewing friends and sending a request do not require location. The location banner explains sharing, Live Requests, and active timed shares while the app is closed. The user can decline.

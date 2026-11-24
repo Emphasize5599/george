@@ -75,7 +75,7 @@ public class AvatarRenderer {
         textPaint.setAntiAlias(true);
 
         if (isInEditMode) {
-            setUsername("zood");
+            setUsername("amidst");
         }
     }
 

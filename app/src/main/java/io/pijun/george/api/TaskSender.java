@@ -96,7 +96,7 @@ public final class TaskSender {
                 default:
                     throw new RuntimeException("Unknown task type");
             }
-            PowerManager.WakeLock wakeLock = pwrMgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "zoodlocation:tasksenderlock");
+            PowerManager.WakeLock wakeLock = pwrMgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "amidst:tasksenderlock");
             try {
                 wakeLock.acquire(30 * DateUtils.SECOND_IN_MILLIS);
                 Response<?> response = call.execute();

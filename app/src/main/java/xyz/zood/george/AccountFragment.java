@@ -138,7 +138,7 @@ public class AccountFragment extends Fragment implements AvatarManager.Listener 
             File storageDir = ctx.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
             File imgFile = File.createTempFile(timeStamp, ".jpg", storageDir);
             imgCapturePath = imgFile.getAbsolutePath();
-            Uri photoUri  = FileProvider.getUriForFile(ctx, "xyz.zood.george.fileprovider", imgFile);
+            Uri photoUri  = FileProvider.getUriForFile(ctx, ctx.getPackageName() + ".fileprovider", imgFile);
             takePicture.launch(photoUri);
         } catch (Throwable t) {
             L.w("startCamera", t);
