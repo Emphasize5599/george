@@ -2,8 +2,6 @@ package io.pijun.george;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -116,21 +114,7 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
 
     @Override
     public void onAboutAction() {
-        Context ctx = requireContext();
-        PackageManager pkgMgr = ctx.getPackageManager();
-        try {
-            // Forks have their own application ID; querying upstream Zood's ID crashes on About.
-            PackageInfo pi = pkgMgr.getPackageInfo(ctx.getPackageName(), 0);
-            long versionCode = pi.getLongVersionCode();
-            String msg = getString(R.string.app_version_msg, pi.versionName, versionCode);
-            ZoodDialog dialog = ZoodDialog.newInstance(msg);
-            dialog.setTitle(ctx.getString(R.string.app_name));
-            dialog.setButton1(ctx.getString(R.string.ok), null);
-            dialog.setButton2(ctx.getString(R.string.notices_and_trademarks), v -> showSettingsPage(new NoticesFragment()));
-            dialog.show(getParentFragmentManager(), null);
-        } catch (PackageManager.NameNotFoundException ignore) {
-            L.w("Unable to read installed app version", ignore);
-        }
+        showSettingsPage(new NoticesFragment());
     }
 
     public void onInviteFriendAction() {

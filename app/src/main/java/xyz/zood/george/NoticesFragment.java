@@ -36,6 +36,12 @@ public class NoticesFragment extends Fragment {
         back.setOnClickListener(view -> getParentFragmentManager().popBackStack());
         page.addView(back);
 
+        var version = new TextView(context);
+        version.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
+        version.setText(getString(R.string.app_version_msg, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE));
+        version.setPadding(0, padding / 2, 0, 0);
+        page.addView(version);
+
         section(page, R.string.app_name, R.string.notice_family_locator, padding);
         section(page, R.string.notice_apple, R.string.notice_apple_body, padding);
         section(page, R.string.notice_google, R.string.notice_google_body, padding);
