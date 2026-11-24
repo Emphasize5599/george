@@ -631,7 +631,7 @@ public class InfoPanel {
         FriendDevices.Device device = friend == null ? null : FriendDevices.get(context, friend.user.userId);
         platformIcon.setVisibility(device == null || device.platform == null ? View.GONE : View.VISIBLE);
         if (device != null && device.platform != null) {
-            platformIcon.setImageResource(device.isIPhone() ? R.drawable.ic_platform_apple : R.drawable.ic_platform_android);
+            platformIcon.setImageResource(device.isIPhone() ? R.drawable.ic_platform_iphone : R.drawable.ic_platform_android);
             platformIcon.setContentDescription(context.getString(device.isIPhone() ? R.string.apple_device : R.string.android_device));
         }
         boolean reportedUnavailable = friend != null && friend.receivingBoxId != null

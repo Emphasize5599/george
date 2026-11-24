@@ -22,7 +22,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 import androidx.annotation.WorkerThread;
-import androidx.core.app.ActivityCompat;
 import androidx.core.location.LocationListenerCompat;
 import androidx.core.location.LocationManagerCompat;
 import androidx.core.location.LocationRequestCompat;
@@ -30,7 +29,6 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.databinding.DataBindingUtil;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
@@ -111,8 +109,6 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     private BackgroundLocationPermissionNotifier bgLocationPermissionNotifier;
     private ForegroundLocationPermissionNotifier fgLocationPermissionNotifier;
     public ActivityResultLauncher<String[]> fgLocationPermLauncher;
-    public ActivityResultLauncher<String[]> bgLocationPermLauncher;
-    public ActivityResultLauncher<String[]> bgLocationPermToAddFriendLauncher;
     private ActivityResultLauncher<Void> pickContactLauncher;
     private ActivityResultLauncher<String> activityPermLauncher;
     private ActivityResultLauncher<String> contactsPermissionLauncher;
@@ -189,27 +185,6 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             }
         });
         activityPermLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {});
-        bgLocationPermLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), new ActivityResultCallback<>() {
-            @Override
-            public void onActivityResult(Map<String, Boolean> o) {
-                if (Permissions.checkBackgroundLocationPermission(ctx)) {
-                    backgroundLocationPermissionGranted();
-                } else {
-                    bgLocationPermissionNotifier.show();
-                }
-            }
-        });
-        bgLocationPermToAddFriendLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), new ActivityResultCallback<>() {
-            @Override
-            public void onActivityResult(Map<String, Boolean> o) {
-                if (Permissions.checkBackgroundLocationPermission(ctx)) {
-                    // Just show the add friend dialog - the other permission requests can
-                    // happen when they come back to the screen, after they have added their friend
-                    onAddFriendClicked();
-                }
-            }
-        });
-
         pickContactLauncher = registerForActivityResult(new ActivityResultContracts.PickContact(), this::onContactPicked);
         // Even without the permission, some providers grant access to the individual selected contact.
         contactsPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(),
@@ -496,41 +471,13 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
     @UiThread
     private void onAddFriendClicked() {
-        Context ctx = getContext();
-        if (ctx == null) {
-            return;
-        }
-
-        // If the user hasn't granted background location permission, we need
-        if (!Permissions.checkBackgroundLocationPermission(ctx)) {
-            obtainBackgroundLocationPermission(true);
-            return;
-        }
-
-        // We have to delay the presentation of the add friend screen because if we do it right
-        // away it sometimes shows up as a black screen on some devices when the user is returning
-        // granting background permission.
-        App.runOnUiThread(new UiRunnable() {
-            @Override
-            public void run() {
-                Context ctx = getContext();
-                if (ctx == null) {
-                    return;
-                }
-
-                AddFriendFragment fragment = AddFriendFragment.newInstance(accessToken, keyPair);
-                FragmentManager mgr = getParentFragmentManager();
-                mgr.beginTransaction()
-                        .setCustomAnimations(R.animator.new_enter_from_right,
-                                R.animator.new_exit_to_left,
-                                R.animator.new_enter_from_left,
-                                R.animator.new_exit_to_right)
-                        .replace(R.id.fragment_host, fragment)
-                        .addToBackStack(null)
-                        .commit();
-            }
-        });
-
+        if (!isAdded()) return;
+        getParentFragmentManager().beginTransaction()
+                .setCustomAnimations(R.animator.new_enter_from_right, R.animator.new_exit_to_left,
+                        R.animator.new_enter_from_left, R.animator.new_exit_to_right)
+                .replace(R.id.fragment_host, AddFriendFragment.newInstance(accessToken, keyPair))
+                .addToBackStack(null)
+                .commit();
     }
 
     @UiThread
@@ -561,94 +508,13 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
     //region Permissions
 
-    @UiThread
-    private void backgroundLocationPermissionGranted() {
-        verifyLocationServicesEnabled();
-    }
-
-    @UiThread
-    private void obtainBackgroundLocationPermission(boolean fromAddFriendClick) {
-        Context ctx = getContext();
-        if (ctx == null) {
-            return;
-        }
-
-        if (viewModel.isBackgroundLocationRationaleVisible()) {
-            return;
-        }
-
-        FragmentActivity activity = getActivity();
-        if (activity == null) {
-            return;
-        }
-        // Do we need to show the rationale for background location?
-        if (fromAddFriendClick || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-            ZoodDialog dialog = ZoodDialog.newInstance(getString(R.string.background_location_permission_reason_msg));
-            dialog.setTitle(getString(R.string.permission_request));
-            dialog.setButton1(getString(R.string.ok), new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    viewModel.setBackgroundLocationRationaleVisible(false);
-                    if (fromAddFriendClick) {
-                        bgLocationPermToAddFriendLauncher.launch(Permissions.getBackgroundLocationPermissions());
-                    } else {
-                        bgLocationPermLauncher.launch(Permissions.getBackgroundLocationPermissions());
-                    }
-                }
-            });
-            if (fromAddFriendClick) {
-                dialog.setButton2(getString(R.string.no_thanks), new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        viewModel.setBackgroundLocationRationaleVisible(false);
-                    }
-                });
-            }
-            // In order to track when the dialog was dismissed, don't allow cancelling
-            dialog.setCancelable(false);
-            dialog.show(getParentFragmentManager(), null);
-            viewModel.setBackgroundLocationRationaleVisible(true);
-        } else {
-            bgLocationPermLauncher.launch(Permissions.getBackgroundLocationPermissions());
-        }
-    }
-
     private void checkPermissions() {
-        Context ctx = getContext();
-        if (ctx == null) {
-            return;
-        }
-        if (Permissions.checkForegroundLocationPermission(ctx)) {
+        Context context = getContext();
+        if (context == null) return;
+        if (Permissions.checkForegroundLocationPermission(context)) {
             foregroundLocationPermissionGranted();
-            return;
-        }
-
-        if (viewModel.isForegroundLocationRationaleVisible()) {
-            return;
-        }
-
-        FragmentActivity activity = getActivity();
-        if (activity == null) {
-            return;
-        }
-        // Do we need to show the rationale for foreground location?
-        String[] perms = new String[]{Manifest.permission.ACCESS_FINE_LOCATION};
-        if (ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.ACCESS_FINE_LOCATION)) {
-            ZoodDialog dialog = ZoodDialog.newInstance(getString(R.string.foreground_location_permission_reason_msg));
-            dialog.setTitle(getString(R.string.permission_request));
-            dialog.setButton1(getString(R.string.ok), new View.OnClickListener(){
-                @Override
-                public void onClick(View view) {
-                    viewModel.setForegroundLocationRationaleVisible(false);
-                    fgLocationPermLauncher.launch(perms);
-                }
-            });
-            // In order to track when the dialog is dismissed, don't allow cancelling
-            dialog.setCancelable(false);
-            dialog.show(getParentFragmentManager(), null);
-            viewModel.setForegroundLocationRationaleVisible(true);
         } else {
-            fgLocationPermLauncher.launch(perms);
+            fgLocationPermissionNotifier.show();
         }
     }
 
@@ -667,27 +533,24 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             }
         }
 
-        // If we have at least 1 friend, then we need permission for background location
-        App.runInBackground(new WorkerRunnable() {
-            @Override
-            public void run() {
-                ArrayList<FriendRecord> friends = DB.get().getFriends();
-                if (friends.isEmpty()) {
-                    return;
-                }
+        verifyLocationServicesEnabled();
+        refreshBackgroundLocationNotice();
+    }
 
-                if (Permissions.checkBackgroundLocationPermission(ctx)) {
-                    App.runOnUiThread(() -> askForActivityOnce());
-                    return;
+    private void refreshBackgroundLocationNotice() {
+        App.runInBackground(() -> {
+            boolean sharing = !DB.get().getFriendsToShareWith().isEmpty();
+            App.runOnUiThread(() -> {
+                Context context = getContext();
+                if (binding == null || context == null) return;
+                if (sharing && Permissions.checkForegroundLocationPermission(context)
+                        && !Permissions.checkBackgroundLocationPermission(context)) {
+                    bgLocationPermissionNotifier.show();
+                } else {
+                    bgLocationPermissionNotifier.hide();
+                    if (sharing && Permissions.checkBackgroundLocationPermission(context)) askForActivityOnce();
                 }
-
-                App.runOnUiThread(new UiRunnable() {
-                    @Override
-                    public void run() {
-                        obtainBackgroundLocationPermission(false);
-                    }
-                });
-            }
+            });
         });
     }
 
@@ -795,6 +658,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     @WorkerThread
     private void onStartShareFinished(boolean success) {
         if (success) {
+            refreshBackgroundLocationNotice();
             return;
         }
 
@@ -809,6 +673,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     @WorkerThread
     private void onStopShareFinished(boolean success) {
         if (success) {
+            refreshBackgroundLocationNotice();
             return;
         }
 
@@ -1018,10 +883,10 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                 @Override
                 public void run() {
                     if (friend.receivingBoxId == null) {
-                        L.w(friend.user.username + " doesn't share their location with us");
+                        L.w("Location request skipped because incoming sharing is off");
                         return;
                     }
-                    L.i("requesting location from " + friend.user.username);
+                    L.i("Requesting a friend location update");
                     UserComm comm = UserComm.newLocationUpdateRequest();
                     UpdateStatusTracker.setLastRequestTime(friend.id, System.currentTimeMillis());
                     String errMsg = OscarClient.queueSendMessage(OscarClient.getQueue(requireContext()), friend.user, keyPair, accessToken, comm.toJSON(), true, true);
@@ -1303,7 +1168,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                 public void run() {
                     UserRecord user = DB.get().getUser(username);
                     if (user == null) {
-                        L.w("MapActivity.onAvatarUpdated for a user we don't know about: " + username);
+                        L.w("Ignored an avatar update for an unknown user");
                         return;
                     }
                     FriendRecord friend = DB.get().getFriendByUserId(user.id);

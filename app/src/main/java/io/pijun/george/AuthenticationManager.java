@@ -301,7 +301,7 @@ public class AuthenticationManager {
         for (FriendRecord f : friends) {
             String err = OscarClient.queueSendMessage(OscarClient.getQueue(ctx), f.user, kp, loginResponse.accessToken, reqJson, true, false);
             if (err != null) {
-                L.w("Error queue avatar request to friend " + f.user.username + ": " + err);
+                L.w("Unable to queue a friend avatar request");
             }
         }
 

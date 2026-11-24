@@ -145,7 +145,7 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
     }
 
     public void onPrivacyPolicyClicked() {
-        String url = "https://www.zood.xyz/privacy/mobile-apps";
+        String url = "https://github.com/Emphasize5599/family-locator-ios/blob/main/Docs/PRIVACY.md?view=policy";
         Intent i = new Intent(Intent.ACTION_VIEW);
         i.setData(Uri.parse(url));
         startActivity(i);

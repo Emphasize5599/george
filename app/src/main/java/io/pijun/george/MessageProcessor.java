@@ -140,7 +140,7 @@ public class MessageProcessor {
                 }
                 var lui = luiu.toLimitedUserInfo();
                 if (lui == null) {
-                    L.w("Decoded user " + Hex.toHexString(senderId) + " had a null username or public key");
+                    L.w("Decoded user was missing a username or public key");
                     return Result.ErrorUnknown;
                 }
                 // now that we've encountered a new user, add them to the database (because of TOFU)
@@ -161,7 +161,7 @@ public class MessageProcessor {
         }
         UserComm comm = UserComm.fromJSON(unwrappedBytes);
         if (!comm.isValid()) {
-            L.i("usercomm from " + user.username + " was invalid. here it is: " + comm);
+            L.w("Rejected an invalid friend message");
             return Result.ErrorInvalidCommunication;
         }
 //        L.i("  comm type: " + comm.type);
@@ -181,7 +181,7 @@ public class MessageProcessor {
                 L.i("We shouldn't be receiving browse_devices from other users");
                 return Result.ErrorInvalidCommunication;
             case Debug:
-                L.i("debug from " + user.username + ": " + comm.debugData);
+                L.d("Received a friend debug message");
                 return Result.Success;
             case DeviceInfo:
                 L.i("We shouldn't be receiving device_info from other users");
@@ -238,7 +238,7 @@ public class MessageProcessor {
     }
 
     private static Result handleAvatarRequest(@NonNull Context ctx, @NonNull UserRecord user) {
-        L.i("handleAvatarRequest: " + user.username);
+        L.d("Handling an avatar request");
         try {
             // make sure this is somebody that we're sharing our location with
             FriendRecord friend = DB.get().getFriendByUserId(user.id);
@@ -262,7 +262,7 @@ public class MessageProcessor {
     }
 
     private static Result handleAvatarUpdate(@NonNull Context context, @NonNull UserRecord user, @NonNull UserComm comm) {
-        L.i("handleAvatarUpdate for " + user.username);
+        L.d("Handling an avatar update");
         try {
             // make sure this person is at least a friend
             if (DB.get().getFriendByUserId(user.id) == null) {
@@ -272,7 +272,7 @@ public class MessageProcessor {
 
             boolean success = AvatarManager.saveAvatar(context, user.username, comm.avatar);
             if (!success) {
-                L.w("Failed to save avatar from " + user.username);
+                L.w("Failed to save a friend avatar");
             }
         } catch (IOException ex) {
             L.w("handleAvatarUpdate", ex);
@@ -377,7 +377,7 @@ public class MessageProcessor {
     }
 
     private static Result handleLocationUpdateRequest(@NonNull Context context, @NonNull UserRecord userRecord, @NonNull String accessToken, @NonNull KeyPair keyPair) {
-        L.i("handleLocationUpdateRequest from " + userRecord.username);
+        L.d("Handling a location request");
         // make sure this is actually a friend
         FriendRecord f = DB.get().getFriendByUserId(userRecord.id);
         if (f == null || f.sendingBoxId == null) {
@@ -462,7 +462,7 @@ public class MessageProcessor {
         }
         UserComm comm = UserComm.fromJSON(userCommBytes);
         if (!comm.isValid()) {
-            L.i("usercomm from myself was invalid. here it is: " + comm);
+            L.w("Rejected an invalid account message");
             return Result.ErrorInvalidCommunication;
         }
 
@@ -577,7 +577,6 @@ public class MessageProcessor {
                         L.w("error processing action: " + result);
                         UserRecord user = DB.get().getUser(msg.senderId);
                         if (user != null) {
-                            L.w("\tfrom " + user.username);
                         } else {
                             L.w("\tfrom an unknown user");
                         }

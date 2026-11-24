@@ -1,5 +1,7 @@
 package xyz.zood.george;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -51,6 +53,11 @@ public class NoticesFragment extends Fragment {
         licenses.setOnClickListener(view -> getParentFragmentManager().beginTransaction()
                 .replace(R.id.fragment_host, LicensesFragment.newInstance()).addToBackStack(null).commit());
         page.addView(licenses);
+        var report = new MaterialButton(context, null, androidx.appcompat.R.attr.borderlessButtonStyle);
+        report.setText(R.string.report_a_problem);
+        report.setOnClickListener(view -> startActivity(new Intent(Intent.ACTION_VIEW,
+                Uri.parse("https://github.com/Emphasize5599/family-locator-ios/issues"))));
+        page.addView(report);
         return scroll;
     }
 

@@ -210,7 +210,7 @@ public class AddFriendFragment extends Fragment {
         seems like a good idea.
          */
         if (!username.equals(result.username)) {
-            L.w("Received a SearchUserResult with a mismatched username. Have '"+username+"', but got '"+result.username+"'");
+            L.w("Username lookup returned an unexpected account");
             return;
         }
         try {

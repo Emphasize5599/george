@@ -127,7 +127,7 @@ public class LocationUtils {
             for (FriendRecord f : friends) {
                 EncryptedData encMsg = Sodium.publicKeyEncrypt(msgBytes, f.user.publicKey, keyPair.secretKey);
                 if (encMsg == null) {
-                    L.w("LUtils.run encryption failed for " + f.user.username);
+                    L.w("Unable to encrypt a friend location update");
                     continue;
                 }
                 pkgs.put(Hex.toHexString(f.sendingBoxId), encMsg);

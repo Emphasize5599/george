@@ -118,7 +118,7 @@ public class AvatarManager {
 
     @WorkerThread @CheckResult
     public static boolean saveAvatar(@NonNull Context ctx, @NonNull String username, @NonNull byte[] imgData) throws IOException {
-        L.i("AvatarManager.saveAvatar for " + username);
+        L.d("Saving a friend avatar");
         username = username.toLowerCase(Locale.US);
         File filesDir = ctx.getFilesDir();
         File avatarsDir = new File(filesDir, AVATAR_DIR);
@@ -131,7 +131,7 @@ public class AvatarManager {
         }
         // make sure this avatar can be decoded
         if (BitmapFactory.decodeByteArray(imgData, 0, imgData.length) == null) {
-            L.w("Unable to decode bitmap from " + username);
+            L.w("Unable to decode a friend avatar");
             return false;
         }
 

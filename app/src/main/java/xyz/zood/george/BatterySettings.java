@@ -29,7 +29,8 @@ public final class BatterySettings {
         }
         Uri packageUri = Uri.fromParts("package", context.getPackageName(), null);
         PowerManager power = context.getSystemService(PowerManager.class);
-        if (power != null && !power.isIgnoringBatteryOptimizations(context.getPackageName())) {
+        if ("github".equals(BuildConfig.FLAVOR) && power != null
+                && !power.isIgnoringBatteryOptimizations(context.getPackageName())) {
             if (open(context, new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri))) {
                 return;
             }

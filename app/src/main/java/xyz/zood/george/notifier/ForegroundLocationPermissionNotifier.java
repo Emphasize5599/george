@@ -2,9 +2,9 @@ package xyz.zood.george.notifier;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.Context;
 import android.net.Uri;
 import android.provider.Settings;
-import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
@@ -25,6 +25,8 @@ public class ForegroundLocationPermissionNotifier implements DefaultLifecycleObs
     @NonNull private final FragmentActivity activity;
     @NonNull private final MainFragment fragment;
     private static final int bannerItemId = 5811;
+    private static final String LOCATION_PERMISSION_PREFS = "location_permission";
+    private static final String FOREGROUND_REQUESTED = "foreground_requested";
 
     public ForegroundLocationPermissionNotifier(@NonNull FragmentActivity activity, @NonNull MainFragment fragment, @NonNull BannerView banner) {
         this.banner = banner;
@@ -47,36 +49,25 @@ public class ForegroundLocationPermissionNotifier implements DefaultLifecycleObs
     }
 
     private void onBannerItemClicked() {
-        // Select the message based on the screen to which we'll be sending the user
-        @StringRes int msgId;
-        if (ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.ACCESS_FINE_LOCATION)) {
-            msgId = R.string.grant_foreground_location_permission_msg;
-        } else {
-            msgId = R.string.grant_foreground_location_permission_via_settings_msg;
-        }
-        ZoodDialog dialog = ZoodDialog.newInstance(activity.getString(msgId));
+        var prefs = activity.getSharedPreferences(LOCATION_PERMISSION_PREFS, Context.MODE_PRIVATE);
+        boolean openSettings = prefs.getBoolean(FOREGROUND_REQUESTED, false)
+                && !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.ACCESS_FINE_LOCATION);
+        @StringRes int message = openSettings ? R.string.grant_foreground_location_permission_via_settings_msg
+                : R.string.grant_foreground_location_permission_msg;
+        ZoodDialog dialog = ZoodDialog.newInstance(activity.getString(message));
         dialog.setTitle(activity.getString(R.string.location_permission));
-        dialog.setButton1(activity.getString(R.string.fix), new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showPermissionRequest();
+        dialog.setButton1(activity.getString(openSettings ? R.string.settings : R.string.continue_label), view -> {
+            if (openSettings) {
+                Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.fromParts("package", activity.getPackageName(), null));
+                activity.startActivity(intent);
+            } else {
+                prefs.edit().putBoolean(FOREGROUND_REQUESTED, true).apply();
+                fragment.fgLocationPermLauncher.launch(Permissions.getForegroundLocationPermissions());
             }
         });
-        dialog.setButton2(activity.getString(R.string.ignore), null);
+        dialog.setButton2(activity.getString(R.string.no_thanks), null);
         dialog.show(activity.getSupportFragmentManager(), null);
-    }
-
-    private void showPermissionRequest() {
-        // If Android says we should show a rationale, that means we can still bring up the
-        // normal request dialog. Otherwise, we have to redirect the user to settings.
-        if (ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.ACCESS_FINE_LOCATION)) {
-            fragment.fgLocationPermLauncher.launch(Permissions.getForegroundLocationPermissions());
-        } else {
-            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-            Uri uri = Uri.fromParts("package", activity.getPackageName(), null);
-            i.setData(uri);
-            activity.startActivity(i);
-        }
     }
 
     public void show() {

@@ -37,7 +37,7 @@ public class BackgroundLocationPermissionNotifier implements DefaultLifecycleObs
         // call show() if the user rejects the permission.
     }
 
-    private void hide() {
+    public void hide() {
         banner.removeItem(bannerItemId);
     }
 

@@ -28,8 +28,6 @@ public class MainViewModel extends ViewModel implements TimedShareService.Listen
     private long shareStartTime;
     private long shareDuration;
     private TimedShareListener timedShareListener;
-    private boolean isBackgroundLocationRationaleVisible;
-    private boolean isForegroundLocationRationaleVisible;
     private boolean isPreQLocationRationaleVisible;
     private boolean isTimedShareSheetDismissable;
     private boolean isActivityRecognitionRationaleVisible;
@@ -144,16 +142,6 @@ public class MainViewModel extends ViewModel implements TimedShareService.Listen
     }
 
     @UiThread
-    public boolean isBackgroundLocationRationaleVisible() {
-        return isBackgroundLocationRationaleVisible;
-    }
-
-    @UiThread
-    public boolean isForegroundLocationRationaleVisible() {
-        return isForegroundLocationRationaleVisible;
-    }
-
-    @UiThread
     public boolean isPreQLocationRationaleVisible() {
         return isPreQLocationRationaleVisible;
     }
@@ -198,16 +186,6 @@ public class MainViewModel extends ViewModel implements TimedShareService.Listen
     @UiThread
     public void setActivityRecognitionRationaleVisible(boolean visible) {
         this.isActivityRecognitionRationaleVisible = visible;
-    }
-
-    @UiThread
-    public void setBackgroundLocationRationaleVisible(boolean visible) {
-        this.isBackgroundLocationRationaleVisible = visible;
-    }
-
-    @UiThread
-    public void setForegroundLocationRationaleVisible(boolean visible) {
-        this.isForegroundLocationRationaleVisible = visible;
     }
 
     @UiThread
