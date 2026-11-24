@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">@color/zood_blue</color>
+    <!-- Light and dark action colors shared with Amidst for iOS. -->
+    <color name="action_blue">#17679C</color>
+    <color name="action_positive">#27682B</color>
+    <color name="action_draft">#795604</color>
+    <color name="action_destructive">#B42D30</color>
+    <color name="action_on_fill">#FFFFFF</color>
+    <color name="colorPrimary">@color/action_blue</color>
     <color name="colorPrimaryDark">@color/zood_navy</color>
-    <color name="colorAccent">@color/zood_blue</color>
+    <color name="colorAccent">@color/action_blue</color>
 
     <color name="cloud_outline">#4d34cc54</color>
     <color name="shade">#A0000000</color>
@@ -52,7 +58,7 @@
     <color name="divider">@color/black_10</color>
     <color name="inactive">@color/zood_grey</color>
     <color name="inactive_50">@color/zood_grey_50</color>
-    <color name="switch_track_on">@color/zood_blue_50</color>
+    <color name="switch_track_on">#8027682B</color>
     <color name="status_bar_scrim">#9999</color>
     <!-- Shown until the map style loads. The light value is MapLibre's default. -->
     <color name="map_placeholder">#f0e9e1</color>

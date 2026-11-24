@@ -50,6 +50,7 @@ public class AddFriendFragment extends Fragment {
     private FriendshipManager friendshipManager;
     private String sharingCandidate;
     private boolean submitting;
+    private ColorStateList continueBackground;
     private androidx.activity.OnBackPressedCallback sharingBack;
 
     static AddFriendFragment newInstance(@NonNull String accessToken, @NonNull KeyPair keyPair) {
@@ -106,6 +107,7 @@ public class AddFriendFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         binding = DataBindingUtil.inflate(inflater, R.layout.fragment_add_friend, container, false);
+        continueBackground = binding.addFriend.getBackgroundTintList();
         binding.username.addTextChangedListener(
                 new UsernameWatcher(
                         binding.usernameContainer, binding.username));
@@ -283,6 +285,9 @@ public class AddFriendFragment extends Fragment {
                 ? getString(R.string.friend_request_sharing_choice, Usernames.display(username))
                 : getString(R.string.check_friend_request_or_share));
         binding.addFriend.setText(choosing ? R.string.share_my_location_action : R.string.continue_friend_request);
+        binding.addFriend.setBackgroundTintList(choosing
+                ? androidx.core.content.ContextCompat.getColorStateList(requireContext(), R.color.action_positive_fill)
+                : continueBackground);
         binding.inviteFriend.setText(choosing ? R.string.friend_request_not_now : R.string.invite_a_friend);
         binding.addFriend.setEnabled(choosing || (binding.username.getText() != null
                 && DB.get().getUser(Usernames.forLookup(binding.username.getText().toString())) != null));
@@ -338,7 +343,7 @@ public class AddFriendFragment extends Fragment {
     private void showUserValidityIcon(boolean valid) {
         // The layout tints its end icon with its own tint list, which replaces any tint on the
         // drawable, so the color has to be set on the layout.
-        int color = getResources().getColor(valid ? R.color.zood_green : R.color.zood_red_light, null);
+        int color = getResources().getColor(valid ? R.color.action_positive : R.color.action_destructive, null);
         binding.usernameContainer.setEndIconTintList(ColorStateList.valueOf(color));
         binding.usernameContainer.setEndIconDrawable(valid ? R.drawable.ic_check_black_24dp : R.drawable.ic_close_black_24dp);
     }

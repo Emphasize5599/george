@@ -55,12 +55,14 @@ public class TimedShareFragment extends Fragment {
 
     private void confirmStopTimedShare() {
         Context context = requireContext();
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+        var dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.confirm_stop_timed_sharing)
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.stop_timed_sharing,
-                        (dialog, which) -> context.stopService(new Intent(context, TimedShareService.class)))
+                        (confirmation, which) -> context.stopService(new Intent(context, TimedShareService.class)))
                 .show();
+        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE)
+                .setTextColor(context.getColor(R.color.action_destructive));
     }
     private boolean isDown = false;
     private boolean isRunning = false;

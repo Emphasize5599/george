@@ -417,6 +417,7 @@
     <com.google.android.material.button.MaterialButton
         android:id="@+id/register_button"
         android:text="@string/register"
+        app:backgroundTint="@color/action_positive_fill"
         style="@style/Widget.MaterialComponents.Button"
         tools:visibility="invisible"
         android:visibility="invisible"

@@ -159,6 +159,7 @@ public class FriendRequestsFragment extends Fragment {
 
     private void addAction(LinearLayout parent, int label, Runnable action) {
         MaterialButton button = button(label);
+        if (label == R.string.unblock) button.setTextColor(requireContext().getColor(R.color.action_positive));
         button.setOnClickListener(view -> action.run());
         parent.addView(button);
     }
@@ -169,9 +170,8 @@ public class FriendRequestsFragment extends Fragment {
         button.setMinWidth(0);
         button.setMinimumHeight(dp(48));
         button.setPadding(0, 0, 0, 0);
-        if (label != R.string.approve_request) {
-            button.setTextColor(com.google.android.material.color.MaterialColors.getColor(button, androidx.appcompat.R.attr.colorError));
-        }
+        button.setTextColor(requireContext().getColor(label == R.string.approve_request
+                ? R.color.action_positive : R.color.action_destructive));
         button.setOnClickListener(view -> action.run());
         parent.addView(button, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
     }
@@ -181,11 +181,13 @@ public class FriendRequestsFragment extends Fragment {
     }
 
     private void confirm(int action, String name, Decision decision) {
-        new MaterialAlertDialogBuilder(requireContext())
+        var dialog = new MaterialAlertDialogBuilder(requireContext())
                 .setTitle(getString(R.string.confirm_friend_action, getString(action), name))
                 .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton(action, (dialog, which) -> runAction(decision))
+                .setPositiveButton(action, (confirmation, which) -> runAction(decision))
                 .show();
+        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).setTextColor(
+                requireContext().getColor(action == R.string.unblock ? R.color.action_positive : R.color.action_destructive));
     }
 
     private void runAction(Decision decision) {

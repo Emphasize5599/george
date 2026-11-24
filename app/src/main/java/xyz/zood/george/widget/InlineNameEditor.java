@@ -42,8 +42,8 @@ public final class InlineNameEditor extends LinearLayout {
         actions = new LinearLayout(context);
         actions.setGravity(Gravity.END);
         addView(actions, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-        addAction(R.drawable.ic_check_black_24dp, R.string.save, () -> save.accept(draft()));
-        addAction(R.drawable.ic_close_black_24dp, android.R.string.cancel, cancel);
+        addAction(R.drawable.ic_check_black_24dp, R.string.save, R.color.action_draft, () -> save.accept(draft()));
+        addAction(R.drawable.ic_close_black_24dp, android.R.string.cancel, R.color.text_secondary, cancel);
         setVisibility(GONE);
     }
 
@@ -79,13 +79,13 @@ public final class InlineNameEditor extends LinearLayout {
         });
     }
 
-    private void addAction(int icon, int description, Runnable action) {
+    private void addAction(int icon, int description, int color, Runnable action) {
         ImageButton button = new ImageButton(getContext());
         android.util.TypedValue background = new android.util.TypedValue();
         getContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, background, true);
         button.setBackgroundResource(background.resourceId);
         button.setImageResource(icon);
-        button.setImageTintList(ColorStateList.valueOf(getContext().getColor(R.color.zood_blue)));
+        button.setImageTintList(ColorStateList.valueOf(getContext().getColor(color)));
         button.setContentDescription(getContext().getString(description));
         button.setOnClickListener(view -> action.run());
         actions.addView(button, new LayoutParams(dp(44), dp(44)));

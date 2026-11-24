@@ -14,7 +14,7 @@
         android:importantForAccessibility="no"
         android:scaleType="center"
         android:src="@drawable/ic_outlined_notifications_24dp"
-        android:tint="@color/zood_blue" />
+        android:tint="@color/action_blue" />
     <TextView
         android:id="@+id/requests_badge"
         android:layout_width="wrap_content"

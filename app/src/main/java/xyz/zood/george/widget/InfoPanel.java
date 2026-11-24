@@ -538,6 +538,11 @@ public class InfoPanel {
 
     private void addOverflowAction(LinearLayout list, int label, int icon, Runnable action) {
         TextView row = menuRow(context.getString(label), icon);
+        if (label == R.string.remove_and_block || label == R.string.remove_friend) {
+            int color = context.getColor(R.color.action_destructive);
+            row.setTextColor(color);
+            row.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(color));
+        }
         row.setOnClickListener(view -> action.run());
         list.addView(row);
     }

@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Light and dark action colors shared with Amidst for iOS. -->
+    <color name="action_blue">#70BCF3</color>
+    <color name="action_positive">#A0D477</color>
+    <color name="action_draft">#FFE091</color>
+    <color name="action_destructive">#FF8080</color>
+    <color name="action_on_fill">#14161F</color>
     <!-- Dark theme values of the theme colors in values/colors.xml. The surfaces are tinted
      with zood_navy. -->
     <color name="background">#14161f</color>
@@ -13,7 +19,7 @@
     <color name="divider">#2e3242</color>
     <color name="inactive">#a9aebd</color>
     <color name="inactive_50">#80a9aebd</color>
-    <color name="switch_track_on">#3e7997</color>
+    <color name="switch_track_on">#80A0D477</color>
     <color name="status_bar_scrim">#99000000</color>
     <!-- The land color of map-style-dark.json -->
     <color name="map_placeholder">#181b25</color>

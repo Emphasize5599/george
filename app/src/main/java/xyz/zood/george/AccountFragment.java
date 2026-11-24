@@ -208,7 +208,7 @@ public class AccountFragment extends Fragment implements AvatarManager.Listener 
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         android.widget.ImageButton editNickname = new android.widget.ImageButton(requireContext());
         editNickname.setImageResource(R.drawable.ic_edit_24dp);
-        editNickname.setImageTintList(android.content.res.ColorStateList.valueOf(requireContext().getColor(R.color.text_secondary)));
+        editNickname.setImageTintList(android.content.res.ColorStateList.valueOf(requireContext().getColor(R.color.action_blue)));
         editNickname.setContentDescription(getString(R.string.edit_nickname));
         android.util.TypedValue editBackground = new android.util.TypedValue();
         requireContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, editBackground, true);

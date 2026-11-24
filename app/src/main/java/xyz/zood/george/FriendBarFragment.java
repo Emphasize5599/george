@@ -208,7 +208,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         android.widget.ImageButton more = new android.widget.ImageButton(context);
         more.setImageResource(R.drawable.ic_sharp_more_vert_24dp);
-        more.setColorFilter(context.getColor(R.color.text_secondary));
+        more.setColorFilter(context.getColor(R.color.action_blue));
         TypedValue ripple = new TypedValue();
         context.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true);
         more.setBackgroundResource(ripple.resourceId);
@@ -450,7 +450,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         TextView row = new TextView(context);
         row.setText(label);
         row.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
-        int color = context.getColor(destructive ? R.color.zood_red : R.color.text_primary);
+        int color = context.getColor(destructive ? R.color.action_destructive : R.color.text_primary);
         row.setTextColor(color);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setMinHeight(dp(48));

@@ -39,3 +39,5 @@ Continue after the username check to choose **Share My Location** or **Not Now**
 ### Editing names
 
 Tap a nickname on a friend card or in Account, or tap an open folder’s title to edit it in place. The friend-card pencil and Rename Folder menu action do the same thing. Names wrap as you type, and the folder widens within the screen margins. Use the checkmark to save or the × to discard the draft.
+
+Amidst uses the same light and dark action colors on iOS and Android. Navigation and discovery use blue, permissions use green, and draft saves use gold. Destructive actions use red.
