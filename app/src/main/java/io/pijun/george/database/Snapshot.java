@@ -18,6 +18,7 @@ public class Snapshot {
         public byte[] userId;
         public byte[] sendingBoxId;
         public byte[] receivingBoxId;
+        public Boolean establishedWithoutLocation;
         public String nickname;
         public String sharedNickname;
         // Family Locator: the phone contact this friend is linked to (stock Zood ignores these keys).

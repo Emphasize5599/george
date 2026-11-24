@@ -40,16 +40,20 @@ import io.pijun.george.WorkerRunnable;
 
 public class DB {
 
+    private static final int BACKUP_SCHEMA_VERSION = 1;
+
     private static final String FRIENDS_TABLE = "friends";
     private static final String FRIENDS_COL_ID = "id";
     private static final String FRIENDS_COL_USER_ID = "user_id";
     private static final String FRIENDS_COL_SENDING_BOX_ID = "sending_box_id";
     private static final String FRIENDS_COL_RECEIVING_BOX_ID = "receiving_box_id";
+    private static final String FRIENDS_COL_ESTABLISHED_WITHOUT_LOCATION = "established_without_location";
     private static final String[] FRIENDS_COLUMNS = new String[]{
             FRIENDS_COL_ID,
             FRIENDS_COL_USER_ID,
             FRIENDS_COL_SENDING_BOX_ID,
-            FRIENDS_COL_RECEIVING_BOX_ID
+            FRIENDS_COL_RECEIVING_BOX_ID,
+            FRIENDS_COL_ESTABLISHED_WITHOUT_LOCATION
     };
 
     private static final String LIMITED_SHARES_TABLE = "limited_shares";
@@ -133,12 +137,14 @@ public class DB {
     @WorkerThread
     private void addFriend(long userId,
                           @Nullable @Size(Constants.DROP_BOX_ID_LENGTH) byte[] sendingBoxId,
-                          @Nullable @Size(Constants.DROP_BOX_ID_LENGTH) byte[] receivingBoxId) throws DBException {
+                          @Nullable @Size(Constants.DROP_BOX_ID_LENGTH) byte[] receivingBoxId,
+                          boolean establishedWithoutLocation) throws DBException {
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put(FRIENDS_COL_USER_ID, userId);
         cv.put(FRIENDS_COL_SENDING_BOX_ID, sendingBoxId);
         cv.put(FRIENDS_COL_RECEIVING_BOX_ID, receivingBoxId);
+        cv.put(FRIENDS_COL_ESTABLISHED_WITHOUT_LOCATION, establishedWithoutLocation);
         long result;
         try {
             result = db.insertOrThrow(FRIENDS_TABLE, null, cv);
@@ -387,10 +393,8 @@ public class DB {
         return null;
     }
 
-    @WorkerThread
-    @CheckResult
-    public int getSchemaVersion() {
-        return mDbHelper.getReadableDatabase().getVersion();
+    public int getBackupSchemaVersion() {
+        return BACKUP_SCHEMA_VERSION;
     }
 
     @WorkerThread
@@ -435,12 +439,13 @@ public class DB {
                     }
                     f.sendingBoxId = friendRecord.sendingBoxId;
                     f.receivingBoxId = friendRecord.receivingBoxId;
+                    f.establishedWithoutLocation = friendRecord.establishedWithoutLocation;
                     snapshot.friends.add(f);
                 }
             }
 
             LinkedContacts.copyBarTo(snapshot);
-            snapshot.schemaVersion = db.getVersion();
+            snapshot.schemaVersion = BACKUP_SCHEMA_VERSION;
             snapshot.timestamp = System.currentTimeMillis();
 
             db.setTransactionSuccessful();
@@ -538,6 +543,7 @@ public class DB {
         f.userId = c.getLong(c.getColumnIndexOrThrow(FRIENDS_COL_USER_ID));
         f.sendingBoxId = c.getBlob(c.getColumnIndexOrThrow(FRIENDS_COL_SENDING_BOX_ID));
         f.receivingBoxId = c.getBlob(c.getColumnIndexOrThrow(FRIENDS_COL_RECEIVING_BOX_ID));
+        f.establishedWithoutLocation = c.getInt(c.getColumnIndexOrThrow(FRIENDS_COL_ESTABLISHED_WITHOUT_LOCATION)) != 0;
 
         return f;
     }
@@ -596,7 +602,7 @@ public class DB {
     @WorkerThread
     public void restoreDatabase(@NonNull Context ctx, @NonNull Snapshot snapshot) throws DBException {
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
-        if (snapshot.schemaVersion > db.getVersion()) {
+        if (snapshot.schemaVersion > BACKUP_SCHEMA_VERSION) {
             throw new DBException("Snapshot is from a newer database format");
         }
 
@@ -613,7 +619,9 @@ public class DB {
                 if (user == null) {
                     throw new DBException("Found friend without corresponding user");
                 }
-                addFriend(user.id, f.sendingBoxId, f.receivingBoxId);
+                boolean established = f.establishedWithoutLocation != null ? f.establishedWithoutLocation
+                        : f.sendingBoxId == null && f.receivingBoxId == null;
+                addFriend(user.id, f.sendingBoxId, f.receivingBoxId, established);
             }
 
             db.setTransactionSuccessful();
@@ -670,7 +678,17 @@ public class DB {
 
     @WorkerThread
     public void addFriendWithoutSharing(@NonNull UserRecord user) throws DBException {
-        if (getFriendByUserId(user.id) == null) addFriend(user.id, null, null);
+        FriendRecord friend = getFriendByUserId(user.id);
+        if (friend == null) {
+            addFriend(user.id, null, null, true);
+        } else if (!friend.establishedWithoutLocation) {
+            ContentValues values = new ContentValues();
+            values.put(FRIENDS_COL_ESTABLISHED_WITHOUT_LOCATION, true);
+            if (mDbHelper.getWritableDatabase().update(FRIENDS_TABLE, values, FRIENDS_COL_USER_ID + "=?",
+                    new String[]{String.valueOf(user.id)}) != 1) {
+                throw new DBException("Unable to save the request-only friendship");
+            }
+        }
     }
 
     @WorkerThread
@@ -679,7 +697,7 @@ public class DB {
         FriendRecord friend = getFriendByUserId(user.id);
         if (friend == null) {
             // add a friend record including the drop box id
-            addFriend(user.id, null, boxId);
+            addFriend(user.id, null, boxId, false);
         } else {
             // add the drop box id to the existing friend record
             SQLiteDatabase db = mDbHelper.getWritableDatabase();
@@ -721,7 +739,7 @@ public class DB {
     public void startSharingWith(@NonNull UserRecord user, @NonNull byte[] sendingBoxId) throws DBException {
         FriendRecord fr = getFriendByUserId(user.id);
         if (fr == null) {
-            addFriend(user.id, sendingBoxId, null);
+            addFriend(user.id, sendingBoxId, null, false);
         } else {
             // if we already have a friend record, just add the sending box id
             SQLiteDatabase db = mDbHelper.getWritableDatabase();
@@ -756,7 +774,7 @@ public class DB {
     private static class DBHelper extends SQLiteOpenHelper {
 
         private DBHelper(@NonNull Context context, @Nullable String dbName) {
-            super(context, dbName, null, 1);
+            super(context, dbName, null, 2);
         }
 
         @Override
@@ -766,7 +784,8 @@ public class DB {
                     + FRIENDS_COL_ID + " INTEGER PRIMARY KEY, "
                     + FRIENDS_COL_USER_ID + " INTEGER UNIQUE NOT NULL, "
                     + FRIENDS_COL_SENDING_BOX_ID + " BLOB, "
-                    + FRIENDS_COL_RECEIVING_BOX_ID + " BLOB)";
+                    + FRIENDS_COL_RECEIVING_BOX_ID + " BLOB, "
+                    + FRIENDS_COL_ESTABLISHED_WITHOUT_LOCATION + " INTEGER NOT NULL DEFAULT 0)";
             db.execSQL(createFriends);
 
             String createLocations = "CREATE TABLE "
@@ -801,7 +820,14 @@ public class DB {
 
         @Override
         public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-            L.i("onUpgrade - old: " + oldVersion + ", new: " + newVersion);
+            if (oldVersion < 2) {
+                db.execSQL("ALTER TABLE " + FRIENDS_TABLE + " ADD COLUMN "
+                        + FRIENDS_COL_ESTABLISHED_WITHOUT_LOCATION + " INTEGER NOT NULL DEFAULT 0");
+                // Version 1 represented request-only friendships by leaving both boxes empty.
+                db.execSQL("UPDATE " + FRIENDS_TABLE + " SET " + FRIENDS_COL_ESTABLISHED_WITHOUT_LOCATION
+                        + " = 1 WHERE " + FRIENDS_COL_SENDING_BOX_ID + " IS NULL AND "
+                        + FRIENDS_COL_RECEIVING_BOX_ID + " IS NULL");
+            }
         }
     }
 

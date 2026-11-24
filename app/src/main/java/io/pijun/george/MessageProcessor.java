@@ -600,6 +600,13 @@ public class MessageProcessor {
     }
 
     public static void retrieveAndProcessNewMessages(@NonNull String accessToken) {
+        if (accessToken.equals(Prefs.get(App.getApp()).getAccessToken())) {
+            try {
+                FriendRequests.repairLocationGrants();
+            } catch (IOException | DB.DBException error) {
+                L.w("Could not repair a previously queued location grant", error);
+            }
+        }
         OscarAPI api = OscarClient.newInstance(accessToken);
         try {
             Response<Message[]> response = api.getMessages().execute();

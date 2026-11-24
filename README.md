@@ -34,4 +34,4 @@ Google Play and the Google Play logo are trademarks of Google Inc.
 
 ### Friend requests
 
-Continue after the username check to choose **Share My Location** or **Not Now**. Both send a friend request to a current Amidst client. **Not Now** sends your optional profile photo and display name without a location grant, and the recipient sees that you are not sharing. Older Zood clients only understand requests that include a grant. Approving a request never shares your location back automatically.
+Continue after the username check to choose **Share My Location** or **Not Now**. Both send a friend request to a current Amidst client. **Not Now** sends your optional profile photo and display name without a location grant, and the recipient sees that you are not sharing. Older Zood clients only understand requests that include a grant. Approving a request leaves your location sharing off. If either person chooses to share later, their location updates the existing friend card.

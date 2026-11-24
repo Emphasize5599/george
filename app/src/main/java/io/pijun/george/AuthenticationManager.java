@@ -248,7 +248,7 @@ public class AuthenticationManager {
                 return;
             }
 
-            if (snapshot.schemaVersion > DB.get().getSchemaVersion()) {
+            if (snapshot.schemaVersion > DB.get().getBackupSchemaVersion()) {
                 notifyLoginWatchers(Error.OutdatedClient, null, watcher);
                 return;
             }

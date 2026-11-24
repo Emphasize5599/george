@@ -11,6 +11,7 @@ public class FriendRecord {
     public long userId;
     public byte[] sendingBoxId;
     public byte[] receivingBoxId;
+    public boolean establishedWithoutLocation;
 
     @Override
     public boolean equals(Object o) {

@@ -99,7 +99,9 @@ public final class FriendRequests {
         // Older clients omit the offer timestamp. Their new box needs ordinary approval.
         boolean approved = previous != null && previous.requiresFreshOffer && previous.approved && comm.time > 0;
         boolean removedPending = requests.remove(previous);
-        if (!requestOnly && (approved || (friend != null && (friend.receivingBoxId != null || comm.repliesToSharingOffer(friend.sendingBoxId))))) {
+        boolean knownFriend = friend != null && (friend.establishedWithoutLocation || friend.receivingBoxId != null
+                || comm.repliesToSharingOffer(friend.sendingBoxId));
+        if (!requestOnly && (approved || knownFriend)) {
             DB.get().sharingGrantedBy(user, comm.dropBox);
             if (approved) Nicknames.recordShared(user.userId, comm.nickname);
             if (removedPending) save(requests);
@@ -197,6 +199,15 @@ public final class FriendRequests {
                     UserComm.newAvatarRequest().toJSON(), false, false);
         }
         if (current.includesLocation()) fetchLatestIfSignedIn(user, current.boxId);
+    }
+
+    public static synchronized void repairLocationGrants() throws IOException, DB.DBException {
+        for (Request request : pending()) {
+            if (!request.includesLocation()) continue;
+            UserRecord user = DB.get().getUser(request.user.userId);
+            FriendRecord friend = user == null ? null : DB.get().getFriendByUserId(user.id);
+            if (friend != null && friend.establishedWithoutLocation) approve(request);
+        }
     }
 
     private static void fetchLatestIfSignedIn(UserRecord user, byte[] boxId) {
