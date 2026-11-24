@@ -198,7 +198,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         // Header: the folder's name (wrapping onto more lines when it's long) and its ⋮ menu.
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setGravity(Gravity.TOP);
         header.setMinimumHeight(dp(48));
         TextView title = new TextView(context);
         title.setText(folderTitle(item));
@@ -277,10 +277,10 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
                     adapter.rename(item, value.trim());
                     title.setText(folderTitle(item));
                     more.setContentDescription(getString(R.string.folder_menu, folderTitle(item)));
-                    finishFolderEdit(title, more);
-                }, () -> finishFolderEdit(title, more));
+                    finishFolderEdit(title);
+                }, () -> finishFolderEdit(title));
         folderEditor = editor;
-        header.addView(editor, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        header.addView(editor, 1, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         android.graphics.Rect lastBounds = new android.graphics.Rect();
         Runnable resize = () -> {
@@ -292,7 +292,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             for (String line : name.split("\n", -1)) {
                 textWidth = Math.max(textWidth, (int) Math.ceil(title.getPaint().measureText(line)));
             }
-            int headerWidth = textWidth + (editing ? dp(104) : dp(56));
+            int headerWidth = textWidth + dp(56);
             var visible = new android.graphics.Rect();
             anchor.getWindowVisibleDisplayFrame(visible);
             int[] barPosition = new int[2];
@@ -330,7 +330,6 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
             popup.update();
             title.setVisibility(View.GONE);
-            more.setVisibility(View.GONE);
             editor.open(item.folder.name);
             resize.run();
         };
@@ -373,13 +372,12 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
     }
 
-    private void finishFolderEdit(TextView title, View more) {
+    private void finishFolderEdit(TextView title) {
         if (folderEditor == null || folderPopup == null) return;
         folderEditor.close();
         folderPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
         folderPopup.update();
         title.setVisibility(View.VISIBLE);
-        more.setVisibility(View.VISIBLE);
         if (resizeFolder != null) resizeFolder.run();
     }
 

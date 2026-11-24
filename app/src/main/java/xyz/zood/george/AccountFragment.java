@@ -200,28 +200,38 @@ public class AccountFragment extends Fragment implements AvatarManager.Listener 
         nickname.setText(Nicknames.own() == null ? getString(R.string.nickname_optional) : Nicknames.own());
         nickname.setMinHeight(padding * 2);
         nickname.setGravity(Gravity.CENTER_VERTICAL);
-        nickname.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.ic_edit_24dp, 0);
-        nickname.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(requireContext().getColor(R.color.text_secondary)));
-        form.addView(nickname);
-
+        LinearLayout nicknameRow = new LinearLayout(requireContext());
+        nicknameRow.setGravity(Gravity.TOP);
         android.widget.FrameLayout nicknameHost = new android.widget.FrameLayout(requireContext());
-        nicknameHost.setVisibility(View.GONE);
-        form.addView(nicknameHost);
+        nicknameRow.addView(nicknameHost, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        nicknameHost.addView(nickname, new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        android.widget.ImageButton editNickname = new android.widget.ImageButton(requireContext());
+        editNickname.setImageResource(R.drawable.ic_edit_24dp);
+        editNickname.setImageTintList(android.content.res.ColorStateList.valueOf(requireContext().getColor(R.color.text_secondary)));
+        editNickname.setContentDescription(getString(R.string.edit_nickname));
+        android.util.TypedValue editBackground = new android.util.TypedValue();
+        requireContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, editBackground, true);
+        editNickname.setBackgroundResource(editBackground.resourceId);
+        nicknameRow.addView(editNickname, new LinearLayout.LayoutParams(padding * 2, padding * 2));
+        form.addView(nicknameRow);
         Runnable endEdit = () -> {
-            ((xyz.zood.george.widget.InlineNameEditor) nicknameHost.getChildAt(0)).close();
-            nicknameHost.setVisibility(View.GONE);
+            ((xyz.zood.george.widget.InlineNameEditor) nicknameHost.getChildAt(1)).close();
             nickname.setVisibility(View.VISIBLE);
             nickname.setText(Nicknames.own() == null ? getString(R.string.nickname_optional) : Nicknames.own());
         };
         var editor = new xyz.zood.george.widget.InlineNameEditor(requireContext(),
                 com.google.android.material.R.style.TextAppearance_Material3_TitleMedium, R.string.nickname_optional,
                 value -> { Nicknames.setOwn(value); endEdit.run(); }, endEdit);
-        nicknameHost.addView(editor);
-        nickname.setOnClickListener(view -> {
+        nicknameHost.addView(editor, new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        View.OnClickListener beginEdit = view -> {
+            if (editor.getVisibility() == View.VISIBLE) return;
             nickname.setVisibility(View.GONE);
-            nicknameHost.setVisibility(View.VISIBLE);
             editor.open(Nicknames.own());
-        });
+        };
+        nickname.setOnClickListener(beginEdit);
+        editNickname.setOnClickListener(beginEdit);
 
         TextView explanation = new TextView(requireContext());
         explanation.setText(R.string.shared_nickname_explanation);

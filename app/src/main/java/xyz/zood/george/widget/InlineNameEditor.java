@@ -19,10 +19,11 @@ import xyz.zood.george.R;
 /** A wrapping draft field and its save/cancel actions, embedded in the surface being edited. */
 public final class InlineNameEditor extends LinearLayout {
     private final EditText input;
+    private final LinearLayout actions;
 
     public InlineNameEditor(Context context, int appearance, int label, Consumer<String> save, Runnable cancel) {
         super(context);
-        setGravity(Gravity.TOP);
+        setOrientation(VERTICAL);
         input = new EditText(context);
         input.setTextAppearance(appearance);
         input.setContentDescription(context.getString(label));
@@ -37,7 +38,10 @@ public final class InlineNameEditor extends LinearLayout {
             save.accept(draft());
             return true;
         });
-        addView(input, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        addView(input, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        actions = new LinearLayout(context);
+        actions.setGravity(Gravity.END);
+        addView(actions, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         addAction(R.drawable.ic_check_black_24dp, R.string.save, () -> save.accept(draft()));
         addAction(R.drawable.ic_close_black_24dp, android.R.string.cancel, cancel);
         setVisibility(GONE);
@@ -84,7 +88,7 @@ public final class InlineNameEditor extends LinearLayout {
         button.setImageTintList(ColorStateList.valueOf(getContext().getColor(R.color.zood_blue)));
         button.setContentDescription(getContext().getString(description));
         button.setOnClickListener(view -> action.run());
-        addView(button, new LayoutParams(dp(44), dp(44)));
+        actions.addView(button, new LayoutParams(dp(44), dp(44)));
     }
 
     private int dp(float value) {
