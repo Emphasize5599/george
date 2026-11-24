@@ -48,6 +48,9 @@ public class AddFriendFragment extends Fragment {
     private String accessToken;
     private FragmentAddFriendBinding binding;
     private FriendshipManager friendshipManager;
+    private String sharingCandidate;
+    private boolean submitting;
+    private androidx.activity.OnBackPressedCallback sharingBack;
 
     static AddFriendFragment newInstance(@NonNull String accessToken, @NonNull KeyPair keyPair) {
         AddFriendFragment fragment = new AddFriendFragment();
@@ -110,31 +113,53 @@ public class AddFriendFragment extends Fragment {
         binding.back.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                getParentFragmentManager().popBackStack();
+                if (submitting) return;
+                if (sharingCandidate != null) showSharingStep(null);
+                else getParentFragmentManager().popBackStack();
             }
         });
         binding.inviteFriend.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                FriendshipManager.inviteFriend(requireContext());
+                if (sharingCandidate != null) addFriend(sharingCandidate, FriendshipManager.AddChoice.WITHOUT_LOCATION);
+                else FriendshipManager.inviteFriend(requireContext());
             }
         });
         binding.addFriend.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                onAddFriendAction();
+                if (sharingCandidate != null) addFriend(sharingCandidate, FriendshipManager.AddChoice.SHARE);
+                else onAddFriendAction();
             }
         });
 
         applySystemUIInsets(binding);
+        if (savedInstanceState != null) showSharingStep(savedInstanceState.getString("sharing_candidate"));
 
         return binding.getRoot();
     }
 
     @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle state) {
+        super.onViewCreated(view, state);
+        sharingBack = new androidx.activity.OnBackPressedCallback(sharingCandidate != null) {
+            @Override public void handleOnBackPressed() {
+                if (!submitting) showSharingStep(null);
+            }
+        };
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), sharingBack);
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle state) {
+        state.putString("sharing_candidate", sharingCandidate);
+        super.onSaveInstanceState(state);
+    }
+
+    @Override
     public void onDestroyView() {
         binding = null;
-
+        sharingBack = null;
         super.onDestroyView();
     }
 
@@ -202,7 +227,7 @@ public class AddFriendFragment extends Fragment {
 
     @UiThread
     private void displayUserValidity(@NonNull String username, boolean valid) {
-        if (binding == null) {
+        if (binding == null || sharingCandidate != null || submitting) {
             return;
         }
 
@@ -231,11 +256,36 @@ public class AddFriendFragment extends Fragment {
         }
         String username = Usernames.forLookup(text.toString());
 
-        addFriend(username, false);
+        addFriend(username, FriendshipManager.AddChoice.REVIEW);
     }
 
-    private void addFriend(String username, boolean confirmedSharing) {
-        App.runInBackground(() -> friendshipManager.addFriend(username, confirmedSharing, this::onAddFriendFinished));
+    private void addFriend(String username, FriendshipManager.AddChoice choice) {
+        if (submitting) return;
+        submitting = true;
+        binding.usernameContainer.setEnabled(false);
+        binding.addFriend.setEnabled(false);
+        binding.inviteFriend.setEnabled(false);
+        App.runInBackground(() -> friendshipManager.addFriend(username, choice, this::onAddFriendFinished));
+    }
+
+    private void showSharingStep(@Nullable String username) {
+        sharingCandidate = username;
+        boolean choosing = username != null;
+        if (sharingBack != null) sharingBack.setEnabled(choosing);
+        if (choosing) {
+            var keyboard = requireContext().getSystemService(android.view.inputmethod.InputMethodManager.class);
+            if (keyboard != null) keyboard.hideSoftInputFromWindow(binding.username.getWindowToken(), 0);
+            binding.username.clearFocus();
+        }
+        binding.usernameContainer.setVisibility(choosing ? View.GONE : View.VISIBLE);
+        binding.screenTitle.setText(choosing ? R.string.confirm_share_own_location : R.string.add_friend);
+        binding.screenPurpose.setText(choosing
+                ? getString(R.string.friend_request_sharing_choice, Usernames.display(username))
+                : getString(R.string.check_friend_request_or_share));
+        binding.addFriend.setText(choosing ? R.string.share_my_location_action : R.string.continue_friend_request);
+        binding.inviteFriend.setText(choosing ? R.string.friend_request_not_now : R.string.invite_a_friend);
+        binding.addFriend.setEnabled(choosing || (binding.username.getText() != null
+                && DB.get().getUser(Usernames.forLookup(binding.username.getText().toString())) != null));
     }
 
     @WorkerThread
@@ -244,18 +294,17 @@ public class AddFriendFragment extends Fragment {
             @Override
             public void run() {
                 if (binding == null || !isAdded()) return;
+                submitting = false;
+                binding.usernameContainer.setEnabled(true);
+                binding.addFriend.setEnabled(true);
+                binding.inviteFriend.setEnabled(true);
                 String errMsg;
                 switch (result) {
                     case Success:
                         getParentFragmentManager().popBackStack();
                         return;
                     case ConfirmSharing:
-                        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                                .setTitle(R.string.confirm_share_own_location)
-                                .setMessage(getString(R.string.confirm_share_with, Usernames.display(extraInfo)))
-                                .setNegativeButton(android.R.string.cancel, null)
-                                .setPositiveButton(R.string.share_my_location_action, (dialog, which) -> addFriend(extraInfo, true))
-                                .show();
+                        showSharingStep(extraInfo);
                         return;
                     case CantAddSelf:
                         binding.usernameContainer.setError(getString(R.string.cant_add_yourself));

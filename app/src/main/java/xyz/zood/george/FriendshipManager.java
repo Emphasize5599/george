@@ -45,8 +45,10 @@ public class FriendshipManager {
         this.queue = queue;
     }
 
+    enum AddChoice { REVIEW, SHARE, WITHOUT_LOCATION }
+
     @WorkerThread
-    void addFriend(@NonNull String username, boolean confirmedSharing, @NonNull OnAddFriendFinishedListener listener) {
+    void addFriend(@NonNull String username, @NonNull AddChoice choice, @NonNull OnAddFriendFinishedListener listener) {
         Prefs prefs = Prefs.get(ctx);
         if (Usernames.isOwn(username, prefs.getUsername())) {
             listener.onAddFriendFinished(AddFriendResult.CantAddSelf, null);
@@ -83,11 +85,33 @@ public class FriendshipManager {
                 listener.onAddFriendFinished(AddFriendResult.Success, null);
                 return;
             }
-            if (!confirmedSharing) {
+            if (choice == AddChoice.REVIEW) {
                 listener.onAddFriendFinished(AddFriendResult.ConfirmSharing, user.username);
                 return;
             }
+            if (choice == AddChoice.WITHOUT_LOCATION) {
+                if (friend == null) sendRequestWithoutLocation(user, listener);
+                else listener.onAddFriendFinished(AddFriendResult.Success, null);
+                return;
+            }
             addFriend(user, listener);
+        }
+    }
+
+    private void sendRequestWithoutLocation(UserRecord user, OnAddFriendFinishedListener listener) {
+        UserComm request = UserComm.newFriendRequest(AvatarManager.requestAvatar(ctx));
+        String error = OscarClient.queueSendMessage(queue, user, keyPair, accessToken, request.toJSON(), false, false);
+        if (error != null) {
+            listener.onAddFriendFinished(AddFriendResult.SharingGrantFailed, error);
+            return;
+        }
+        try {
+            db.addFriendWithoutSharing(user);
+            Nicknames.notifyListeners();
+            BackupDatabaseWorker.scheduleBackup(ctx);
+            listener.onAddFriendFinished(AddFriendResult.Success, null);
+        } catch (DB.DBException failure) {
+            listener.onAddFriendFinished(AddFriendResult.DatabaseError, failure.getLocalizedMessage());
         }
     }
 

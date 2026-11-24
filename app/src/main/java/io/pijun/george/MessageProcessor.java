@@ -186,6 +186,7 @@ public class MessageProcessor {
             case DeviceInfo:
                 L.i("We shouldn't be receiving device_info from other users");
                 return Result.ErrorInvalidCommunication;
+            case FriendRequest:
             case LocationSharingGrant:
                 Result result = handleLocationSharingGrant(user, comm);
                 xyz.zood.george.Nicknames.record(user, comm);
@@ -265,7 +266,7 @@ public class MessageProcessor {
         try {
             // make sure this person is at least a friend
             if (DB.get().getFriendByUserId(user.id) == null) {
-                L.i(user.username + " is not a friend. We don't want their avatar.");
+                FriendRequests.recordPendingAvatar(user, comm.avatar);
                 return Result.Success;
             }
 

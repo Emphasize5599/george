@@ -669,6 +669,11 @@ public class DB {
     }
 
     @WorkerThread
+    public void addFriendWithoutSharing(@NonNull UserRecord user) throws DBException {
+        if (getFriendByUserId(user.id) == null) addFriend(user.id, null, null);
+    }
+
+    @WorkerThread
     public void sharingGrantedBy(@NonNull UserRecord user,
                                  @NonNull @Size(Constants.DROP_BOX_ID_LENGTH) byte[] boxId) throws DBException {
         FriendRecord friend = getFriendByUserId(user.id);

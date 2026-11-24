@@ -15,6 +15,7 @@ import io.pijun.george.Hex;
 import io.pijun.george.L;
 import io.pijun.george.MessageProcessor;
 import io.pijun.george.Prefs;
+import io.pijun.george.api.CommType;
 import io.pijun.george.api.OscarClient;
 import io.pijun.george.api.UserComm;
 import io.pijun.george.database.DB;
@@ -31,9 +32,12 @@ public final class FriendRequests {
         public Snapshot.User user;
         public byte[] boxId;
         public String nickname;
+        public byte[] avatar;
         public boolean requiresFreshOffer;
         public long freshOfferAfter;
         public boolean approved;
+
+        public boolean includesLocation() { return boxId != null && !requiresFreshOffer; }
 
         public String displayName() {
             return nickname == null ? Usernames.display(user.username) : nickname;
@@ -88,12 +92,14 @@ public final class FriendRequests {
         FriendRecord friend = DB.get().getFriendByUserId(user.id);
         ArrayList<Request> requests = storedRequests();
         Request previous = findRequest(requests, user.userId);
-        if (previous != null && previous.requiresFreshOffer && Arrays.equals(previous.boxId, comm.dropBox)) return;
+        boolean requestOnly = comm.type == CommType.FriendRequest;
+        if (requestOnly && (friend != null || (previous != null && previous.includesLocation()))) return;
+        if (!requestOnly && previous != null && previous.requiresFreshOffer && Arrays.equals(previous.boxId, comm.dropBox)) return;
         if (previous != null && previous.requiresFreshOffer && comm.time > 0 && comm.time <= previous.freshOfferAfter) return;
         // Older clients omit the offer timestamp. Their new box needs ordinary approval.
         boolean approved = previous != null && previous.requiresFreshOffer && previous.approved && comm.time > 0;
         boolean removedPending = requests.remove(previous);
-        if (approved || (friend != null && (friend.receivingBoxId != null || comm.repliesToSharingOffer(friend.sendingBoxId)))) {
+        if (!requestOnly && (approved || (friend != null && (friend.receivingBoxId != null || comm.repliesToSharingOffer(friend.sendingBoxId))))) {
             DB.get().sharingGrantedBy(user, comm.dropBox);
             if (approved) Nicknames.recordShared(user.userId, comm.nickname);
             if (removedPending) save(requests);
@@ -108,8 +114,27 @@ public final class FriendRequests {
         request.user.username = user.username;
         request.boxId = comm.dropBox;
         request.nickname = Nicknames.normalized(comm.nickname);
+        request.avatar = validAvatar(comm.avatar) ? comm.avatar : previous == null ? null : previous.avatar;
         requests.add(request);
         save(requests);
+    }
+
+    public static synchronized void recordPendingAvatar(UserRecord user, byte[] avatar) throws IOException {
+        if (isBlocked(user.userId) || !validAvatar(avatar)) return;
+        ArrayList<Request> requests = storedRequests();
+        Request request = findRequest(requests, user.userId);
+        if (request == null) return;
+        request.avatar = avatar;
+        save(requests);
+    }
+
+    private static boolean validAvatar(@Nullable byte[] avatar) {
+        if (avatar == null || avatar.length > 128 * 1024) return false;
+        var bounds = new android.graphics.BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        android.graphics.BitmapFactory.decodeByteArray(avatar, 0, avatar.length, bounds);
+        return bounds.outWidth > 0 && bounds.outWidth <= 1024
+                && bounds.outHeight > 0 && bounds.outHeight <= 1024;
     }
 
     public static synchronized void revoke(UserRecord user) throws IOException {
@@ -156,7 +181,11 @@ public final class FriendRequests {
         if (user == null) {
             user = DB.get().addUser(request.user.userId, request.user.username, request.user.publicKey);
         }
-        DB.get().sharingGrantedBy(user, request.boxId);
+        if (current.includesLocation()) DB.get().sharingGrantedBy(user, current.boxId);
+        else DB.get().addFriendWithoutSharing(user);
+        if (current.avatar != null && !AvatarManager.saveAvatar(App.getApp(), user.username, current.avatar)) {
+            L.w("Unable to save the approved profile photo");
+        }
         Nicknames.recordShared(user.userId, request.nickname);
         BackupDatabaseWorker.scheduleBackup(App.getApp());
         deny(request);
@@ -167,7 +196,7 @@ public final class FriendRequests {
             OscarClient.queueSendMessage(OscarClient.getQueue(App.getApp()), user, key, token,
                     UserComm.newAvatarRequest().toJSON(), false, false);
         }
-        fetchLatestIfSignedIn(user, request.boxId);
+        if (current.includesLocation()) fetchLatestIfSignedIn(user, current.boxId);
     }
 
     private static void fetchLatestIfSignedIn(UserRecord user, byte[] boxId) {

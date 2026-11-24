@@ -2,6 +2,7 @@ package io.pijun.george.api;
 
 public enum CommType {
 
+    FriendRequest("friend_request"),
     NicknameUpdate("nickname_update"),
     AvatarRequest("avatar_request"),
     AvatarUpdate("avatar_update"),

@@ -104,16 +104,31 @@ public class FriendRequestsFragment extends Fragment {
                 TextView heading = new TextView(requireContext());
                 heading.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
                 heading.setText(name);
-                content.addView(heading);
+                if (request.avatar != null) {
+                    var bitmap = android.graphics.BitmapFactory.decodeByteArray(request.avatar, 0, request.avatar.length);
+                    if (bitmap != null) {
+                        var avatar = new com.google.android.material.imageview.ShapeableImageView(requireContext());
+                        avatar.setShapeAppearanceModel(com.google.android.material.shape.ShapeAppearanceModel.builder()
+                                .setAllCornerSizes(com.google.android.material.shape.ShapeAppearanceModel.PILL).build());
+                        avatar.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                        avatar.setImageBitmap(bitmap);
+                        var identity = new LinearLayout(requireContext());
+                        identity.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                        identity.addView(avatar, dp(40), dp(40));
+                        heading.setPadding(dp(10), 0, 0, 0);
+                        identity.addView(heading);
+                        content.addView(identity);
+                    } else content.addView(heading);
+                } else content.addView(heading);
                 if (request.nickname != null) {
                     TextView handle = new TextView(requireContext());
                     handle.setText(Usernames.display(request.user.username));
                     handle.setTextColor(requireContext().getColor(R.color.text_secondary));
                     content.addView(handle);
                 }
-                if (request.requiresFreshOffer) {
+                if (!request.includesLocation()) {
                     TextView note = new TextView(requireContext());
-                    note.setText(R.string.restored_friend_request_needs_share);
+                    note.setText(R.string.friend_request_no_location);
                     note.setTextColor(requireContext().getColor(R.color.text_secondary));
                     content.addView(note);
                 }

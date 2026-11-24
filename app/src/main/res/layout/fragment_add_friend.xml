@@ -40,7 +40,7 @@
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/screen_title"
-            android:text="@string/friends"
+            android:text="@string/add_friend"
             android:textAllCaps="true"
             android:fontFamily="@font/montserrat_extra_bold"
             android:textSize="14sp"
@@ -111,7 +111,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/add_friend"
-            android:text="@string/add_friend"
+            android:text="@string/continue_friend_request"
             android:enabled="false"
             app:layout_constraintTop_toBottomOf="@id/username_container"
             app:layout_constraintStart_toStartOf="parent"

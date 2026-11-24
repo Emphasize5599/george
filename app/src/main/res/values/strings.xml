@@ -323,6 +323,10 @@
     <string name="avatar_crop_error">Couldn’t crop this photo.</string>
     <string name="check_friend_request_or_share">Enter a username to check for an incoming request or start sharing.</string>
     <string name="confirm_share_own_location">Share your location?</string>
+    <string name="continue_friend_request">Continue</string>
+    <string name="friend_request_not_now">Not now</string>
+    <string name="friend_request_sharing_choice">Send a friend request to %s with or without sharing your location.</string>
+    <string name="friend_request_no_location">Not sharing their location with you</string>
     <string name="confirm_share_with">Allow %s to see your location.</string>
     <string name="share_my_location_action">Share My Location</string>
     <string name="cant_add_yourself">You can’t add yourself.</string>

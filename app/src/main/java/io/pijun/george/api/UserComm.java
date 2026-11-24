@@ -147,6 +147,14 @@ public class UserComm {
     }
 
     @NonNull @CheckResult
+    public static UserComm newFriendRequest(@Nullable byte[] avatar) {
+        UserComm comm = new UserComm();
+        comm.type = CommType.FriendRequest;
+        comm.avatar = avatar;
+        return comm;
+    }
+
+    @NonNull @CheckResult
     public static UserComm newFriendRemoval() {
         UserComm comm = newLocationSharingRevocation();
         comm.friendRemoved = true;
@@ -232,6 +240,8 @@ public class UserComm {
             return false;
         }
         switch (type) {
+            case FriendRequest:
+                return dropBox == null && replyToBox == null;
             case AvatarRequest:
                 return true;
             case AvatarUpdate:

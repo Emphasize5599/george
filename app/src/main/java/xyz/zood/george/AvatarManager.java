@@ -203,6 +203,18 @@ public class AvatarManager {
         return true;
     }
 
+    @Nullable @WorkerThread
+    static byte[] requestAvatar(Context context) {
+        File file = getMyAvatar(context);
+        if (file.length() == 0 || file.length() > 128 * 1024) return null;
+        try {
+            return java.nio.file.Files.readAllBytes(file.toPath());
+        } catch (IOException error) {
+            L.w("Could not attach profile photo", error);
+            return null;
+        }
+    }
+
     @WorkerThread
     public static void sendAvatarToUser(@NonNull Context ctx, @NonNull UserRecord user) throws IOException {
         sendAvatarToUsers(ctx, Collections.singletonList(user));
