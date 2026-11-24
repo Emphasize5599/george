@@ -16,6 +16,7 @@ import java.util.Arrays;
 
 import io.pijun.george.api.DeviceInfo;
 import io.pijun.george.api.LimitedUserInfoUnchecked;
+import io.pijun.george.api.CommType;
 import io.pijun.george.api.Message;
 import io.pijun.george.api.MessageConverter;
 import io.pijun.george.api.OscarAPI;
@@ -98,10 +99,9 @@ public class MessageProcessor {
         }
 
 
-        if (FriendRequests.isBlocked(senderId)) return Result.Success;
-
         DB db = DB.get();
         UserRecord user = db.getUser(senderId);
+        if (user == null && FriendRequests.isBlocked(senderId)) return Result.Success;
         String token = prefs.getAccessToken();
         KeyPair keyPair = prefs.getKeyPair();
         if (!AuthenticationManager.isLoggedIn(context)) {
@@ -165,7 +165,10 @@ public class MessageProcessor {
             return Result.ErrorInvalidCommunication;
         }
 //        L.i("  comm type: " + comm.type);
-        if (FriendRequests.isBlocked(senderId)) return Result.Success;
+        if (FriendRequests.isBlocked(senderId)) {
+            if (comm.type == CommType.LocationSharingRevocation) return handleLocationSharingRevocation(user, comm);
+            return Result.Success;
+        }
         xyz.zood.george.Nicknames.record(user, comm);
         switch (comm.type) {
             case NicknameUpdate:

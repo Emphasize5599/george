@@ -31,6 +31,9 @@ public final class FriendRequests {
         public Snapshot.User user;
         public byte[] boxId;
         public String nickname;
+        public boolean requiresFreshOffer;
+        public long freshOfferAfter;
+        public boolean approved;
 
         public String displayName() {
             return nickname == null ? Usernames.display(user.username) : nickname;
@@ -51,7 +54,7 @@ public final class FriendRequests {
 
     public static ArrayList<Request> pending() {
         ArrayList<Request> result = storedRequests();
-        result.removeIf(request -> isBlocked(request.user.userId));
+        result.removeIf(request -> request.approved || isBlocked(request.user.userId));
         result.sort(Comparator.comparing(request -> request.user.username, String.CASE_INSENSITIVE_ORDER));
         return result;
     }
@@ -83,10 +86,16 @@ public final class FriendRequests {
     public static synchronized void receive(UserRecord user, UserComm comm) throws IOException, DB.DBException {
         if (isBlocked(user.userId)) return;
         FriendRecord friend = DB.get().getFriendByUserId(user.id);
-        ArrayList<Request> requests = pending();
-        boolean removedPending = requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId));
-        if (friend != null && (friend.receivingBoxId != null || comm.repliesToSharingOffer(friend.sendingBoxId))) {
+        ArrayList<Request> requests = storedRequests();
+        Request previous = findRequest(requests, user.userId);
+        if (previous != null && previous.requiresFreshOffer && Arrays.equals(previous.boxId, comm.dropBox)) return;
+        if (previous != null && previous.requiresFreshOffer && comm.time > 0 && comm.time <= previous.freshOfferAfter) return;
+        // Older clients omit the offer timestamp. Their new box needs ordinary approval.
+        boolean approved = previous != null && previous.requiresFreshOffer && previous.approved && comm.time > 0;
+        boolean removedPending = requests.remove(previous);
+        if (approved || (friend != null && (friend.receivingBoxId != null || comm.repliesToSharingOffer(friend.sendingBoxId)))) {
             DB.get().sharingGrantedBy(user, comm.dropBox);
+            if (approved) Nicknames.recordShared(user.userId, comm.nickname);
             if (removedPending) save(requests);
             BackupDatabaseWorker.scheduleBackup(App.getApp());
             fetchLatestIfSignedIn(user, comm.dropBox);
@@ -104,19 +113,21 @@ public final class FriendRequests {
     }
 
     public static synchronized void revoke(UserRecord user) throws IOException {
-        ArrayList<Request> requests = pending();
+        ArrayList<Request> requests = storedRequests();
         if (requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId))) save(requests);
         DB.get().sharingRevokedBy(user);
         BackupDatabaseWorker.scheduleBackup(App.getApp());
     }
 
     public static synchronized void forget(UserRecord user) throws IOException, DB.DBException {
-        forget(user.userId, user);
+        forget(user.userId, user, false);
     }
 
-    private static void forget(byte[] userId, @Nullable UserRecord user) throws IOException, DB.DBException {
-        ArrayList<Request> requests = storedRequests();
-        if (requests.removeIf(request -> Arrays.equals(request.user.userId, userId))) save(requests);
+    private static void forget(byte[] userId, @Nullable UserRecord user, boolean keepRequest) throws IOException, DB.DBException {
+        if (!keepRequest) {
+            ArrayList<Request> requests = storedRequests();
+            if (requests.removeIf(request -> Arrays.equals(request.user.userId, userId))) save(requests);
+        }
         if (user != null) {
             FriendRecord friend = DB.get().getFriendByUserId(user.id);
             if (friend != null) DB.get().removeFriend(friend);  // also deletes their last location
@@ -126,12 +137,21 @@ public final class FriendRequests {
     }
 
     static synchronized void deny(Request request) throws IOException {
-        ArrayList<Request> requests = pending();
+        if (isBlocked(request.user.userId)) return;
+        ArrayList<Request> requests = storedRequests();
         if (requests.removeIf(current -> matches(current, request))) save(requests);
     }
 
     static synchronized void approve(Request request) throws IOException, DB.DBException {
-        if (pending().stream().noneMatch(current -> matches(current, request))) return;
+        if (isBlocked(request.user.userId)) return;
+        ArrayList<Request> requests = storedRequests();
+        Request current = findRequest(requests, request.user.userId);
+        if (current == null || !matches(current, request)) return;
+        if (current.requiresFreshOffer) {
+            current.approved = true;
+            save(requests);
+            return;
+        }
         UserRecord user = DB.get().getUser(request.user.userId);
         if (user == null) {
             user = DB.get().addUser(request.user.userId, request.user.username, request.user.publicKey);
@@ -174,26 +194,56 @@ public final class FriendRequests {
 
     static synchronized void block(Snapshot.User user) throws IOException, DB.DBException {
         ArrayList<Snapshot.User> users = blocked();
-        if (!contains(users, user.userId)) users.add(user);
+        if (contains(users, user.userId)) return;
+        UserRecord known = DB.get().getUser(user.userId);
+        FriendRecord friend = known == null ? null : DB.get().getFriendByUserId(known.id);
+        ArrayList<Request> requests = storedRequests();
+        Request request = findRequest(requests, user.userId);
+        users.add(user);
         LinkedContacts.saveBlockedUsers(users);
         BackupDatabaseWorker.scheduleBackup(App.getApp());
-        forget(user.userId, DB.get().getUser(user.userId));
-        queueRemoval(user);
+
+        if (friend != null) {
+            if (request == null) {
+                request = new Request();
+                request.user = user;
+                requests.add(request);
+            }
+            if (friend.receivingBoxId != null) request.boxId = friend.receivingBoxId;
+            String nickname = Nicknames.shared(user.userId);
+            if (nickname != null) request.nickname = nickname;
+            request.requiresFreshOffer = true;
+            request.freshOfferAfter = System.currentTimeMillis();
+        }
+        if (request != null) {
+            request.approved = false;
+            save(requests);
+        }
+        forget(user.userId, known, true);
+        if (friend != null) queueRemoval(user);
     }
 
     static synchronized void unblock(Snapshot.User user) throws IOException, DB.DBException {
         ArrayList<Snapshot.User> users = blocked();
         if (!contains(users, user.userId)) return;
-        forget(user.userId, DB.get().getUser(user.userId));
-        // Repair older blocks even when their local friend row is already gone.
-        queueRemoval(user);
+        forget(user.userId, DB.get().getUser(user.userId), true);
+        Request request = findRequest(storedRequests(), user.userId);
+        // An ordinary pending offer survives blocking. Older or removed friendships still need cleanup.
+        if (request == null || request.requiresFreshOffer) queueRemoval(user);
         users.removeIf(blockedUser -> Arrays.equals(blockedUser.userId, user.userId));
         LinkedContacts.saveBlockedUsers(users);
         BackupDatabaseWorker.scheduleBackup(App.getApp());
     }
 
     public static synchronized void enforceBlocks() throws IOException, DB.DBException {
-        for (Snapshot.User user : blocked()) forget(user.userId, DB.get().getUser(user.userId));
+        for (Snapshot.User user : blocked()) forget(user.userId, DB.get().getUser(user.userId), true);
+    }
+
+    private static Request findRequest(ArrayList<Request> requests, byte[] userId) {
+        for (Request request : requests) {
+            if (Arrays.equals(request.user.userId, userId)) return request;
+        }
+        return null;
     }
 
     private static void queueRemoval(Snapshot.User user) throws IOException {

@@ -274,6 +274,7 @@
     </plurals>
     <string name="blocked_users">Blocked Users</string>
     <string name="no_blocked_users">No blocked users</string>
+    <string name="restored_friend_request_needs_share">Location will appear only if this person shares again.</string>
     <string name="no_friend_requests">No pending requests</string>
     <string name="approve_request">Approve</string>
     <string name="deny_request">Deny</string>

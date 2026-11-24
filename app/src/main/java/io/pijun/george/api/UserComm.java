@@ -130,6 +130,7 @@ public class UserComm {
         c.type = CommType.LocationSharingGrant;
         c.dropBox = boxId;
         c.replyToBox = replyToBox;
+        c.time = System.currentTimeMillis();
         return c;
     }
 

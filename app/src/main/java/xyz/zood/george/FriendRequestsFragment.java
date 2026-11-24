@@ -111,6 +111,12 @@ public class FriendRequestsFragment extends Fragment {
                     handle.setTextColor(requireContext().getColor(R.color.text_secondary));
                     content.addView(handle);
                 }
+                if (request.requiresFreshOffer) {
+                    TextView note = new TextView(requireContext());
+                    note.setText(R.string.restored_friend_request_needs_share);
+                    note.setTextColor(requireContext().getColor(R.color.text_secondary));
+                    content.addView(note);
+                }
                 LinearLayout actions = new LinearLayout(requireContext());
                 content.addView(actions, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
                 addRequestAction(actions, R.string.approve_request, () -> runAction(() -> FriendRequests.approve(request)));
