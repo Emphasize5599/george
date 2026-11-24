@@ -60,10 +60,13 @@ public class LayoutTourActivity extends AppCompatActivity {
             finish();
             return;
         }
-        Prefs.get(this).setUsername("familydemo");
-        Prefs.get(this).setUserId(new byte[16]);
-
         String scene = getIntent().getStringExtra("scene");
+        Prefs.get(this).setUsername("familydemo");
+        byte[] fixtureAccount = new byte[16];
+        // Keep this fixture's bar order independent of the folder tour's saved arrangement.
+        if ("friend-keyboard".equals(scene)) java.util.Arrays.fill(fixtureAccount, (byte) 50);
+        Prefs.get(this).setUserId(fixtureAccount);
+
         if (scene != null && scene.startsWith("friend")) {
             showFriendCard(scene);
             return;
