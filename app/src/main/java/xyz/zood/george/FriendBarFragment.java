@@ -12,7 +12,6 @@ import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
@@ -42,6 +41,7 @@ import io.pijun.george.database.DB;
 import io.pijun.george.database.FriendRecord;
 import io.pijun.george.view.AvatarView;
 import xyz.zood.george.viewmodels.MainViewModel;
+import xyz.zood.george.widget.InlineNameEditor;
 
 public class FriendBarFragment extends Fragment implements DB.Listener, AvatarManager.Listener {
     private static final long GROUP_HOLD_MS = 550;
@@ -54,6 +54,8 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     private RecyclerView list;
     private PopupWindow folderPopup;
     @Nullable private View folderCard;
+    @Nullable private InlineNameEditor folderEditor;
+    @Nullable private Runnable resizeFolder;
     @Nullable private String openFolderKey;
     @Nullable private String folderClosedKey;
     private long folderClosedByTapAt;
@@ -211,7 +213,6 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         context.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true);
         more.setBackgroundResource(ripple.resourceId);
         more.setContentDescription(getString(R.string.folder_menu, folderTitle(item)));
-        more.setOnClickListener(view -> folderMenu(view, item));
         header.addView(more, new LinearLayout.LayoutParams(dp(48), dp(48)));
         body.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -223,13 +224,8 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
         int cellWidth = dp(64), cellHeight = dp(64), gap = dp(16);
         int gridWidth = usedColumns * cellWidth + (usedColumns - 1) * gap;
         int gridHeight = visibleRows * cellHeight + (visibleRows - 1) * gap + dp(8);
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
         int margin = dp(12);
         body.setPadding(dp(16), dp(8), dp(16), dp(16));
-        // By default the grid sets the width; a longer name widens the card to fit on one line, up to the
-        // screen margins, and only then wraps (same rule as iOS).
-        int titleWidth = (int) Math.ceil(title.getPaint().measureText(folderTitle(item))) + dp(8) + dp(48);
-        int width = Math.min(Math.max(Math.max(gridWidth, titleWidth), dp(140)) + dp(32), screenWidth - 2 * margin);
         var scroll = new ScrollView(context);
         // Only a folder with more rows than fit can scroll, so only it shows a scroll bar.
         int rows = (item.members.size() + usedColumns - 1) / usedColumns;
@@ -261,34 +257,101 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             });
             makeMemberDraggable(tile, anchor, item, member);
         }
-        // Measure the real height (the title may wrap onto several lines).
-        card.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
-        int height = card.getMeasuredHeight();
-        int[] barPosition = new int[2];
-        int[] anchorPosition = new int[2];
-        list.getLocationOnScreen(barPosition);
-        anchor.getLocationOnScreen(anchorPosition);
-        // Centered over the folder's tile, or pinned to the screen margin when the tile is near an edge,
-        // floating just above the bar (over the map and any open friend card) without moving anything.
-        int left = Math.max(margin, Math.min(anchorPosition[0] + (anchor.getWidth() - width) / 2, screenWidth - margin - width));
-        int top = barPosition[1] - margin - height;
-        // The window reaches down to the top of the bar and clips the card, so the card slides up out from
-        // behind the bar when it opens and back down behind it when it closes. A little room on the sides and
-        // top keeps the card's shadow from being clipped.
         int shadow = dp(8);
         card.setCardElevation(dp(6));
         FrameLayout stage = new FrameLayout(context);
         stage.setClipChildren(true);
         stage.setPadding(shadow, shadow, shadow, 0);
-        stage.addView(card, new FrameLayout.LayoutParams(width, height, Gravity.TOP));
-        int travel = height + margin;
-        PopupWindow popup = new PopupWindow(stage, width + 2 * shadow, height + margin + shadow, true);
+        stage.addView(card, new FrameLayout.LayoutParams(1, 1, Gravity.TOP));
+        PopupWindow popup = new PopupWindow(stage, 1, 1, true);
         folderPopup = popup;
-        folderPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        folderPopup.setOutsideTouchable(true);
-        folderPopup.setTouchModal(false);
-        folderPopup.setAnimationStyle(0);
-        folderPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
+        popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        popup.setOutsideTouchable(true);
+        popup.setTouchModal(false);
+        popup.setAnimationStyle(0);
+        popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
+        popup.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+
+        var editor = new InlineNameEditor(context, com.google.android.material.R.style.TextAppearance_Material3_TitleMedium,
+                R.string.rename_folder, value -> {
+                    adapter.rename(item, value.trim());
+                    title.setText(folderTitle(item));
+                    more.setContentDescription(getString(R.string.folder_menu, folderTitle(item)));
+                    finishFolderEdit(title, more);
+                }, () -> finishFolderEdit(title, more));
+        folderEditor = editor;
+        header.addView(editor, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        android.graphics.Rect lastBounds = new android.graphics.Rect();
+        Runnable resize = () -> {
+            if (folderPopup != popup || list == null) return;
+            boolean editing = editor.getVisibility() == View.VISIBLE;
+            String name = editing ? editor.draft() : folderTitle(item);
+            if (editing && name.isEmpty()) name = getString(R.string.friend_folder);
+            int textWidth = 0;
+            for (String line : name.split("\n", -1)) {
+                textWidth = Math.max(textWidth, (int) Math.ceil(title.getPaint().measureText(line)));
+            }
+            int headerWidth = textWidth + (editing ? dp(104) : dp(56));
+            var visible = new android.graphics.Rect();
+            anchor.getWindowVisibleDisplayFrame(visible);
+            int[] barPosition = new int[2];
+            int[] anchorPosition = new int[2];
+            list.getLocationOnScreen(barPosition);
+            anchor.getLocationOnScreen(anchorPosition);
+            int bottom = Math.min(barPosition[1], visible.bottom);
+            int availableHeight = bottom - visible.top;
+            int rowsHeight = editing ? Math.min(gridHeight, Math.max(dp(64), availableHeight * 2 / 5)) : gridHeight;
+            if (scrollParams.height != rowsHeight) {
+                scrollParams.height = rowsHeight;
+                scroll.setLayoutParams(scrollParams);
+            }
+            int width = Math.min(Math.max(Math.max(gridWidth, headerWidth), dp(140)) + dp(32),
+                    Math.max(1, visible.width() - 2 * margin));
+            card.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED);
+            int height = card.getMeasuredHeight();
+            int left = Math.max(visible.left + margin, Math.min(anchorPosition[0] + (anchor.getWidth() - width) / 2,
+                    visible.right - margin - width));
+            int top = Math.max(visible.top + shadow, bottom - margin - height);
+            var bounds = new android.graphics.Rect(left - shadow, top - shadow, left + width + shadow, top + height + margin);
+            if (lastBounds.equals(bounds)) return;
+            lastBounds.set(bounds);
+            card.setLayoutParams(new FrameLayout.LayoutParams(width, height, Gravity.TOP));
+            if (popup.isShowing()) popup.update(bounds.left, bounds.top, bounds.width(), bounds.height());
+            else {
+                popup.setWidth(bounds.width());
+                popup.setHeight(bounds.height());
+                popup.showAtLocation(anchor.getRootView(), Gravity.TOP | Gravity.LEFT, bounds.left, bounds.top);
+            }
+        };
+        resizeFolder = resize;
+        Runnable edit = () -> {
+            if (folderPopup != popup || editor.getVisibility() == View.VISIBLE) return;
+            popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
+            popup.update();
+            title.setVisibility(View.GONE);
+            more.setVisibility(View.GONE);
+            editor.open(item.folder.name);
+            resize.run();
+        };
+        editor.onDraftChanged(resize);
+        title.setOnClickListener(view -> edit.run());
+        more.setOnClickListener(view -> folderMenu(view, item, edit));
+        header.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
+                stage.post(resize));
+        var root = anchor.getRootView();
+        android.view.ViewTreeObserver.OnGlobalLayoutListener onLayout = () -> stage.post(resize);
+        root.getViewTreeObserver().addOnGlobalLayoutListener(onLayout);
+        popup.setOnDismissListener(() -> {
+            root.getViewTreeObserver().removeOnGlobalLayoutListener(onLayout);
+            if (folderPopup == popup) {
+                folderPopup = null;
+                folderEditor = null;
+                resizeFolder = null;
+                folderCard = null;
+                openFolderKey = null;
+            }
+        });
         String key = item.key;
         // A tap outside slides the folder away. Tapping the folder's own tile closes it rather than reopening it.
         folderPopup.setTouchInterceptor((view, event) -> {
@@ -302,12 +365,22 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
             }
             return false;
         });
-        folderPopup.showAtLocation(anchor.getRootView(), Gravity.TOP | Gravity.START, left - shadow, top - shadow);
+        resize.run();
         folderCard = card;
         openFolderKey = key;
-        card.setTranslationY(travel);
+        card.setTranslationY(card.getMeasuredHeight() + margin);
         card.animate().translationY(0).setDuration(250)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
+    }
+
+    private void finishFolderEdit(TextView title, View more) {
+        if (folderEditor == null || folderPopup == null) return;
+        folderEditor.close();
+        folderPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
+        folderPopup.update();
+        title.setVisibility(View.VISIBLE);
+        more.setVisibility(View.VISIBLE);
+        if (resizeFolder != null) resizeFolder.run();
     }
 
     /** True when this tap on a folder's tile should close that folder instead of opening it. */
@@ -326,6 +399,9 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     private void closeFolder() {
         PopupWindow popup = folderPopup;
         View card = folderCard;
+        if (folderEditor != null) folderEditor.close();
+        folderEditor = null;
+        resizeFolder = null;
         folderPopup = null;
         folderCard = null;
         openFolderKey = null;
@@ -347,7 +423,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     }
 
     /** The folder's ⋮ menu, opening above the button like the friend card's (below only if there's no room). */
-    private void folderMenu(View anchor, FriendBarArrangement.Item item) {
+    private void folderMenu(View anchor, FriendBarArrangement.Item item, Runnable edit) {
         Context context = anchor.getContext();
         LinearLayout list = new LinearLayout(context);
         list.setOrientation(LinearLayout.VERTICAL);
@@ -367,21 +443,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
                     .setPositiveButton(R.string.ungroup_folder, (dialog, which) -> adapter.ungroup(item))
                     .show();
         });
-        addMenuRow(list, popup, R.string.rename_folder, R.drawable.ic_menu_edit, false, () -> {
-            closeFolder();
-            EditText input = new EditText(requireContext());
-            input.setSingleLine();
-            input.setText(item.folder.name);
-            input.setHint(R.string.friend_folder);
-            input.setContentDescription(getString(R.string.rename_folder));
-            FrameLayout field = new FrameLayout(requireContext());
-            field.setPadding(dp(24), 0, dp(24), 0);
-            field.addView(input, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            new MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.rename_folder).setView(field)
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.save, (dialog, which) -> adapter.rename(item, input.getText().toString().trim()))
-                    .show();
-        });
+        addMenuRow(list, popup, R.string.rename_folder, R.drawable.ic_menu_edit, false, edit);
         showMenuAbove(popup, list, anchor);
     }
 

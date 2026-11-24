@@ -31,9 +31,9 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.squareup.picasso.Picasso;
 
 import java.io.File;
@@ -195,28 +195,38 @@ public class AccountFragment extends Fragment implements AvatarManager.Listener 
         form.addView(changePhoto);
         addDivider(form, padding);
 
-        TextInputLayout field = new TextInputLayout(requireContext());
-        field.setHint(getString(R.string.nickname_optional));
-        field.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        TextInputEditText nickname = new TextInputEditText(field.getContext());
-        nickname.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
-        nickname.setSingleLine(true);
-        nickname.setText(Nicknames.own());
-        field.addView(nickname);
-        form.addView(field);
+        TextView nickname = new TextView(requireContext());
+        nickname.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+        nickname.setText(Nicknames.own() == null ? getString(R.string.nickname_optional) : Nicknames.own());
+        nickname.setMinHeight(padding * 2);
+        nickname.setGravity(Gravity.CENTER_VERTICAL);
+        nickname.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.ic_edit_24dp, 0);
+        nickname.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(requireContext().getColor(R.color.text_secondary)));
+        form.addView(nickname);
+
+        android.widget.FrameLayout nicknameHost = new android.widget.FrameLayout(requireContext());
+        nicknameHost.setVisibility(View.GONE);
+        form.addView(nicknameHost);
+        Runnable endEdit = () -> {
+            ((xyz.zood.george.widget.InlineNameEditor) nicknameHost.getChildAt(0)).close();
+            nicknameHost.setVisibility(View.GONE);
+            nickname.setVisibility(View.VISIBLE);
+            nickname.setText(Nicknames.own() == null ? getString(R.string.nickname_optional) : Nicknames.own());
+        };
+        var editor = new xyz.zood.george.widget.InlineNameEditor(requireContext(),
+                com.google.android.material.R.style.TextAppearance_Material3_TitleMedium, R.string.nickname_optional,
+                value -> { Nicknames.setOwn(value); endEdit.run(); }, endEdit);
+        nicknameHost.addView(editor);
+        nickname.setOnClickListener(view -> {
+            nickname.setVisibility(View.GONE);
+            nicknameHost.setVisibility(View.VISIBLE);
+            editor.open(Nicknames.own());
+        });
 
         TextView explanation = new TextView(requireContext());
         explanation.setText(R.string.shared_nickname_explanation);
         explanation.setPadding(0, padding / 2, 0, padding);
         form.addView(explanation);
-
-        MaterialButton save = new MaterialButton(requireContext());
-        save.setText(R.string.save_nickname);
-        save.setOnClickListener(view -> {
-            Nicknames.setOwn(nickname.getText() == null ? null : nickname.getText().toString());
-            android.widget.Toast.makeText(requireContext(), R.string.nickname_saved, android.widget.Toast.LENGTH_SHORT).show();
-        });
-        form.addView(save);
         addDivider(form, padding);
 
         MaterialButton blocked = new MaterialButton(requireContext(), null, androidx.appcompat.R.attr.borderlessButtonStyle);

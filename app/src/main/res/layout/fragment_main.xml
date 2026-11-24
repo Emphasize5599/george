@@ -85,6 +85,24 @@
                 app:layout_constraintEnd_toStartOf="@id/friend_platform"
                 tools:text="arash" />
 
+            <FrameLayout
+                android:id="@+id/nickname_editor"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/info_overflow" />
+
+            <androidx.constraintlayout.widget.Barrier
+                android:id="@+id/name_bottom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:barrierDirection="bottom"
+                app:barrierAllowsGoneWidgets="false"
+                app:constraint_referenced_ids="username,nickname_editor" />
+
             <!-- Platform logo and edit pencil sit just left of the ⋮ and × buttons, so a long name
                  wraps against the icons instead of having them pushed along behind its text. -->
 
@@ -138,13 +156,14 @@
                 android:contentDescription="@null"
                 android:layout_width="wrap_content"
                 android:layout_height="0dp"
-                android:layout_marginStart="0dp"
+
                 android:layout_marginTop="6dp"
                 android:src="@drawable/ic_sharp_battery_50_20dp"
                 app:tint="@color/zood_green"
                 app:layout_constraintDimensionRatio="1:1"
-                app:layout_constraintStart_toStartOf="@id/username"
-                app:layout_constraintTop_toBottomOf="@id/username" />
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_marginStart="16dp"
+                app:layout_constraintTop_toBottomOf="@id/name_bottom" />
 
             <TextView
                 android:id="@+id/battery"
@@ -204,7 +223,8 @@
                 android:textColor="@color/text_secondary"
                 style="@style/Zood.Caption"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="@id/username"
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_marginStart="16dp"
                 app:layout_constraintTop_toBottomOf="@id/battery_icon"
                 tools:text="1212 S. Westlake Blvd, Thousand Oaks" />
 
@@ -216,7 +236,8 @@
                 android:gravity="center_vertical"
                 android:orientation="vertical"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="@id/username"
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_marginStart="16dp"
                 app:layout_constraintTop_toBottomOf="@id/address">
 
                 <LinearLayout
@@ -298,7 +319,8 @@
                 app:icon="@drawable/ic_refresh_24dp"
                 app:iconGravity="textStart"
                 app:iconPadding="0dp"
-                app:layout_constraintStart_toStartOf="@id/username"
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_marginStart="16dp"
                 app:layout_constraintTop_toBottomOf="@id/status_row" />
 
 

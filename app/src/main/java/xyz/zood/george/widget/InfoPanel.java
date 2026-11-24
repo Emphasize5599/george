@@ -69,30 +69,23 @@ public class InfoPanel {
         }
     }
 
+    private final InlineNameEditor nicknameEditor;
+    private final android.widget.FrameLayout nicknameEditorHost;
+
     private void editNickname() {
         FriendRecord friend = getFriend();
-        if (friend == null) {
-            return;
-        }
-        com.google.android.material.textfield.TextInputLayout field = new com.google.android.material.textfield.TextInputLayout(context);
-        field.setHint(context.getString(R.string.nickname_optional));
-        int padding = Math.round(24 * context.getResources().getDisplayMetrics().density);
-        field.setPadding(padding, padding / 2, padding, 0);
-        field.setHelperText(context.getString(R.string.local_nickname_explanation));
-        com.google.android.material.textfield.TextInputEditText input = new com.google.android.material.textfield.TextInputEditText(field.getContext());
-        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
-        input.setText(xyz.zood.george.Nicknames.local(friend.user.userId));
-        field.addView(input);
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
-                .setTitle(R.string.friend_nickname)
-                .setView(field)
-                .setPositiveButton(R.string.save_nickname, (dialog, which) -> {
-                    xyz.zood.george.Nicknames.setLocal(friend.user.userId, input.getText() == null ? null : input.getText().toString());
-                    updateDisplayName();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        if (friend == null || nicknameEditorHost.getVisibility() == View.VISIBLE) return;
+        username.setVisibility(View.GONE);
+        nicknameEditorHost.setVisibility(View.VISIBLE);
+        nicknameEditor.open(xyz.zood.george.Nicknames.local(friend.user.userId));
     }
+
+    private void closeNicknameEditor() {
+        nicknameEditor.close();
+        nicknameEditorHost.setVisibility(View.GONE);
+        username.setVisibility(View.VISIBLE);
+    }
+
     private final Listener listener;
 
     private FriendRecord currFriend;
@@ -250,6 +243,16 @@ public class InfoPanel {
         if (username == null) {
             throw new IllegalArgumentException("'username' TextView is missing");
         }
+        nicknameEditorHost = root.findViewById(R.id.nickname_editor);
+        nicknameEditor = new InlineNameEditor(context, R.style.Zood_Headline6, R.string.nickname_optional, value -> {
+            FriendRecord friend = getFriend();
+            if (friend != null) xyz.zood.george.Nicknames.setLocal(friend.user.userId, value);
+            closeNicknameEditor();
+            updateDisplayName();
+        }, this::closeNicknameEditor);
+        nicknameEditorHost.addView(nicknameEditor, new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        username.setOnClickListener(view -> editNickname());
     }
 
     @UiThread
@@ -413,6 +416,7 @@ public class InfoPanel {
 
     @UiThread
     public void hide() {
+        closeNicknameEditor();
         dismissRefreshHelp();
         showId++;   // needs to be incremented here as well
         currFriend = null;
@@ -674,6 +678,7 @@ public class InfoPanel {
         }
 
         if (currFriend == null || currFriend.id != friend.id) {
+            closeNicknameEditor();
             dismissRefreshHelp();
             lastStatus = null;  // a different friend: don't fade from the previous friend's status
         }
