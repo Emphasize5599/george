@@ -413,6 +413,7 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
                 closeFolder();
                 return true;
             }
+            if (editor.isOutsideTap(event)) stage.post(editor::discardDraft);
             return false;
         });
         resize.run();
