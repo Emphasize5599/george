@@ -42,8 +42,8 @@ public final class InlineNameEditor extends LinearLayout {
         actions = new LinearLayout(context);
         actions.setGravity(Gravity.END);
         addView(actions, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-        addAction(R.drawable.ic_check_black_24dp, R.string.save, R.color.action_draft, () -> save.accept(draft()));
-        addAction(R.drawable.ic_close_black_24dp, android.R.string.cancel, R.color.text_secondary, cancel);
+        addAction(R.drawable.ic_check_black_24dp, R.string.save, R.color.action_positive, () -> save.accept(draft()));
+        addAction(R.drawable.ic_close_black_24dp, android.R.string.cancel, R.color.action_draft, cancel);
         setVisibility(GONE);
     }
 
