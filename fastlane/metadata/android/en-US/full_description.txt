@@ -1,5 +1,5 @@
 Amidst lets you share your location with friends you choose. Add friends by username, choose whether to share with each friend, and stop sharing at any time. You can organize the map's friend bar into folders. For a time-limited share, create a link and send it to someone you trust.
 
-Location shared through Amidst is encrypted end to end. With your permission, Amidst can update a share in the background and respond to Live Requests from friends you already share with. You can use the app to view friends' shared locations and send friend requests without sharing your location.
+Location shared through Amidst is always encrypted on the device before it is sent. With your permission, Amidst can update a share in the background and respond to Live Requests from friends you already share with. You can use the app to view friends' shared locations and send friend requests without sharing your location.
 
 Amidst is an independent, open-source client for the Zood Location network.

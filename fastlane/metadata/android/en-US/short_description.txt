@@ -1,1 +1,1 @@
-Share your location with friends you choose, with end-to-end encryption.
+Open Source, Always Encrypted location sharing for family and friends
