@@ -202,6 +202,7 @@
     <string name="grant_pre_q_location_permission_msg">Amidst needs permission to access your location in order to display your position on the map and share it with your friends (only).</string>
     <string name="no_thanks">No, thanks</string>
     <string name="activity_recognition_permission_needed">Activity recognition permission needed</string>
+    <string name="point_north">Reset map orientation to north</string>
     <string name="my_location">My location</string>
     <string name="send_location_ellipsis">Open in Maps</string>
     <string name="location_services_are_disabled">Location services are disabled</string>

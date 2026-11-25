@@ -18,6 +18,7 @@
             android:outlineProvider="bounds"
             android:transformPivotX="0px"
             app:maplibre_foregroundLoadColor="@color/map_placeholder"
+            app:maplibre_uiCompass="false"
             app:layout_constraintBottom_toTopOf="@+id/friends_bar_fragment"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="1.0"
@@ -366,6 +367,24 @@
             app:fabSize="normal"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/banners" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/point_north"
+            android:contentDescription="@string/point_north"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:backgroundTint="@color/fab_background"
+            android:foreground="@drawable/map_button_outline"
+            android:src="@drawable/ic_point_north"
+            android:visibility="gone"
+            app:tint="@color/action_blue"
+            app:rippleColor="@color/action_blue"
+            app:borderWidth="0dp"
+            android:elevation="4dp"
+            app:fabSize="normal"
+            app:layout_constraintEnd_toStartOf="@id/settings"
+            app:layout_constraintTop_toTopOf="@id/settings" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/my_location_fab"

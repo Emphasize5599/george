@@ -103,6 +103,8 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     private long friendForCameraToTrack = -1;
     private FriendshipManager friendshipManager;
     private MapLibreMap mlMap;
+    private final MapLibreMap.OnCameraMoveListener compassCameraMoveListener = this::updateCompass;
+    private final MapLibreMap.OnCameraIdleListener compassCameraIdleListener = this::updateCompass;
     private InfoPanel infoPanel;
     private boolean isFlyingCameraToMyLocation = false;
     private KeyPair keyPair;
@@ -252,6 +254,11 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                 binding.timedShareFab.setVisibility(View.VISIBLE);
             }
         });
+        binding.pointNorth.setOnClickListener(view -> {
+            if (mlMap != null) {
+                mlMap.animateCamera(CameraUpdateFactory.bearingTo(0));
+            }
+        });
         binding.timedShareFab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -297,6 +304,10 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         AvatarManager.removeListener(avatarListener);
         viewModel.setNicknameDraft(-1, null);
         symbolTracker = null;
+        if (mlMap != null) {
+            mlMap.removeOnCameraMoveListener(compassCameraMoveListener);
+            mlMap.removeOnCameraIdleListener(compassCameraIdleListener);
+        }
         mlMap = null;
         myLocationSymbol = null;
         infoPanel = null;
@@ -606,9 +617,25 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
     //region OnMapReadyCallback
 
+    private void updateCompass() {
+        if (mlMap == null || binding == null) return;
+
+        double bearing = Math.IEEEremainder(mlMap.getCameraPosition().bearing, 360);
+        boolean rotated = Math.abs(bearing) > 1;
+        binding.pointNorth.setVisibility(rotated ? View.VISIBLE : View.GONE);
+        if (rotated) {
+            // Rotate the arrow inside the stationary button using the drawable's 0–10000 level.
+            double clockwiseBearing = bearing < 0 ? bearing + 360 : bearing;
+            binding.pointNorth.setImageLevel((int) Math.round(clockwiseBearing / 360 * 10_000));
+        }
+    }
+
     @Override
     public void onMapReady(@NonNull MapLibreMap map) {
+        if (binding == null) return;
         this.mlMap = map;
+        map.addOnCameraMoveListener(compassCameraMoveListener);
+        map.addOnCameraIdleListener(compassCameraIdleListener);
         String mapStyle = Utils.isNightMode(requireContext()) ? DARK_MAP_STYLE : LIGHT_MAP_STYLE;
         map.setStyle(mapStyle, style -> {
             GeoJsonOptions gjOpts = new GeoJsonOptions().withTolerance(0.05f);
@@ -647,6 +674,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         if (pos != null) {
             map.moveCamera(CameraUpdateFactory.newCameraPosition(pos));
         }
+        updateCompass();
         map.addOnFlingListener(new MapLibreMap.OnFlingListener() {
             @Override
             public void onFling() {
