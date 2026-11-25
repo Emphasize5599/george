@@ -23,12 +23,18 @@ public final class InviteLedger {
         public byte[] token;
         @Nullable public byte[] usedBy;
         @Nullable public List<byte[]> invalidatedFor;
+        @Nullable public Boolean shareOnRedemption;
     }
 
     public static List<Record> issued(byte[] token, List<Record> records) {
+        return issued(token, records, false);
+    }
+
+    static List<Record> issued(byte[] token, List<Record> records, boolean shareOnRedemption) {
         List<Record> next = new ArrayList<>(records);
         Record record = new Record();
         record.token = token.clone();
+        record.shareOnRedemption = shareOnRedemption ? true : null;
         next.add(record);
         return trim(next);
     }
@@ -120,6 +126,7 @@ public final class InviteLedger {
             if (index < 0) {
                 merged = new Record();
                 merged.token = record.token.clone();
+                merged.shareOnRedemption = record.shareOnRedemption;
                 ordered.add(merged);
             } else {
                 merged = ordered.get(index);

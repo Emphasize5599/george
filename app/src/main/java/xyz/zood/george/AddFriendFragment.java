@@ -146,7 +146,7 @@ public class AddFriendFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 if (sharingCandidate != null) addFriend(sharingCandidate, FriendshipManager.AddChoice.WITHOUT_LOCATION);
-                else FriendLink.shareInvite(requireContext());
+                else InviteModeFragment.showFrom(AddFriendFragment.this);
             }
         });
         binding.addFriend.setOnClickListener(new View.OnClickListener() {

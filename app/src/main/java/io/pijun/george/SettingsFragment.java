@@ -27,6 +27,8 @@ import xyz.zood.george.FriendshipManager;
 import xyz.zood.george.FriendBarFragment;
 import xyz.zood.george.NoticesFragment;
 import xyz.zood.george.R;
+import xyz.zood.george.NewFriendSharing;
+import xyz.zood.george.InviteModeFragment;
 import xyz.zood.george.ThemeDialog;
 import xyz.zood.george.databinding.FragmentSettingsBinding;
 import xyz.zood.george.service.LiveRequestService;
@@ -118,7 +120,7 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
     }
 
     public void onInviteFriendAction() {
-        xyz.zood.george.FriendLink.shareInvite(requireContext());
+        InviteModeFragment.showFrom(this);
     }
 
     @Override
@@ -169,6 +171,21 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
     }
 
     @Override
+    public void onDefaultSharingAction() {
+        Context context = requireContext();
+        boolean on = NewFriendSharing.isEnabled(context);
+        new MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.share_with_new_friends)
+                .setMessage(R.string.share_with_new_friends_explanation)
+                .setPositiveButton(on ? R.string.turn_off : R.string.turn_on, (dialog, which) -> {
+                    NewFriendSharing.setEnabled(context, !on);
+                    adapter.refreshLocationItems();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    @Override
     public void onLiveRequestsAction() {
         Context ctx = requireContext();
         boolean on = LiveRequestService.isEnabled(ctx);
@@ -177,7 +194,7 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
                 .setMessage(R.string.live_requests_dialog_message)
                 .setPositiveButton(on ? R.string.turn_off : R.string.turn_on, (dialog, which) -> {
                     LiveRequestService.setEnabled(ctx, !on);
-                    adapter.refreshLiveRequestsItem();
+                    adapter.refreshLocationItems();
                     if (!on) {
                         BatterySettings.requestUnrestrictedUsage(ctx);
                     }

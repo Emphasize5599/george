@@ -1,21 +1,15 @@
 package xyz.zood.george;
 
-import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.UiThread;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 
-import io.pijun.george.Prefs;
 
 /**
  * Friend links: a shareable link to someone's Amidst profile. Same format as the iPhone app.
@@ -118,37 +112,4 @@ public final class FriendLink {
         return link;
     }
 
-    /**
-     * Asks whether the invite should include the user's own friend link. Some people want to hand out a link straight
-     * to their profile; others would rather not share their username with everyone who sees the message (for example
-     * in a group chat), so it's their choice.
-     */
-    @UiThread
-    public static void shareInvite(@NonNull Context context) {
-        String username = Prefs.get(context).getUsername();
-        String[] choices = {context.getString(R.string.invite_with_link), context.getString(R.string.invite_without_link)};
-        new MaterialAlertDialogBuilder(context)
-                .setTitle(R.string.share_an_invite)
-                .setItems(choices, (dialog, which) -> {
-                    String text = context.getString(R.string.invite_friend_msg);
-                    if (which == 0) {
-                        if (username == null) {
-                            Toast.makeText(context, R.string.invite_link_failed, Toast.LENGTH_LONG).show();
-                            return;
-                        }
-                        try {
-                            text = context.getString(R.string.invite_friend_link_msg, InviteTokens.issueLink(username));
-                        } catch (IOException error) {
-                            Toast.makeText(context, R.string.invite_link_failed, Toast.LENGTH_LONG).show();
-                            return;
-                        }
-                    }
-                    Intent send = new Intent(Intent.ACTION_SEND);
-                    send.putExtra(Intent.EXTRA_TEXT, text);
-                    send.setType("text/plain");
-                    context.startActivity(Intent.createChooser(send, context.getString(R.string.send_to)));
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
 }

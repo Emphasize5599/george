@@ -160,6 +160,11 @@ public class OnboardingFragment extends Fragment {
             holder.image.setImageResource(slideImageIds[position]);
             holder.title.setText(slideTitleIds[position]);
             holder.body.setText(slideBodyIds[position]);
+            holder.sharingOption.setVisibility(position == getLastSlideIndex() ? View.VISIBLE : View.GONE);
+            holder.defaultSharing.setOnCheckedChangeListener(null);
+            holder.defaultSharing.setChecked(NewFriendSharing.isEnabled(holder.itemView.getContext()));
+            holder.defaultSharing.setOnCheckedChangeListener((button, checked) ->
+                    NewFriendSharing.setEnabled(button.getContext(), checked));
         }
 
         @NonNull
@@ -177,6 +182,8 @@ public class OnboardingFragment extends Fragment {
         final ImageView image;
         final TextView title;
         final TextView body;
+        final View sharingOption;
+        final com.google.android.material.materialswitch.MaterialSwitch defaultSharing;
 
         OnboardingSlideViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -184,6 +191,8 @@ public class OnboardingFragment extends Fragment {
             this.image = itemView.findViewById(R.id.image);
             this.title = itemView.findViewById(R.id.title);
             this.body = itemView.findViewById(R.id.body);
+            this.sharingOption = itemView.findViewById(R.id.sharing_option);
+            this.defaultSharing = itemView.findViewById(R.id.default_sharing);
         }
     }
 

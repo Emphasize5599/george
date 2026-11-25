@@ -70,16 +70,25 @@ public final class InviteRedemptions {
         }
 
         boolean accepted;
+        boolean firstRedemption;
         synchronized (FriendRequests.class) {
             if (FriendRequests.isBlocked(user.userId)) return;
-            accepted = InviteTokens.wasUsedBy(message.inviteToken, user.userId)
-                    ? DB.get().getFriendByUserId(user.id) != null
-                    : FriendRequests.acceptInvite(user, message);
+            firstRedemption = !InviteTokens.wasUsedBy(message.inviteToken, user.userId);
+            accepted = firstRedemption ? FriendRequests.acceptInvite(user, message)
+                    : DB.get().getFriendByUserId(user.id) != null;
         }
         UserComm reply = UserComm.newInviteRedemption(message.inviteToken, accepted);
         if (OscarClient.queueSendMessage(OscarClient.getQueue(App.getApp()), user, keys,
                 accessToken, reply.toJSON(), true, false) != null) {
             throw new IOException("Unable to queue invite confirmation");
+        }
+        if (accepted && firstRedemption) {
+            synchronized (FriendRequests.class) {
+                if (accessToken.equals(Prefs.get(App.getApp()).getAccessToken())
+                        && InviteTokens.permitsSharing(message.inviteToken, user.userId)) {
+                    NewFriendSharing.shareIfEnabled(App.getApp(), user, accessToken);
+                }
+            }
         }
     }
 }

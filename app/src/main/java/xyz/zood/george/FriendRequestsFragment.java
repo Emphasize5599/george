@@ -88,6 +88,13 @@ public class FriendRequestsFragment extends Fragment {
             if (users.isEmpty()) addName(getString(R.string.no_blocked_users));
         } else {
             var requests = FriendRequests.pending();
+            boolean shareBack = NewFriendSharing.isEnabled(requireContext());
+            if (shareBack && !requests.isEmpty()) {
+                var explanation = new TextView(requireContext());
+                explanation.setText(R.string.approve_shares_location);
+                explanation.setPadding(0, 0, 0, dp(12));
+                rows.addView(explanation);
+            }
             for (FriendRequests.Request request : requests) {
                 String name = request.displayName();
                 var card = new com.google.android.material.card.MaterialCardView(requireContext());
@@ -134,7 +141,9 @@ public class FriendRequestsFragment extends Fragment {
                 }
                 LinearLayout actions = new LinearLayout(requireContext());
                 content.addView(actions, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-                addRequestAction(actions, R.string.approve_request, () -> runAction(() -> FriendRequests.approve(request)));
+                boolean shareOnApproval = shareBack && !request.requiresFreshOffer;
+                addRequestAction(actions, shareOnApproval ? R.string.approve_and_share : R.string.approve_request,
+                        () -> runAction(() -> FriendRequests.approve(request, shareOnApproval)));
                 addRequestAction(actions, R.string.deny_request, () -> confirm(R.string.deny_request, name, () -> FriendRequests.deny(request)));
                 addRequestAction(actions, R.string.block_user, () -> confirm(R.string.block_user, name, () -> FriendRequests.block(request.user)));
             }
@@ -170,7 +179,7 @@ public class FriendRequestsFragment extends Fragment {
         button.setMinWidth(0);
         button.setMinimumHeight(dp(48));
         button.setPadding(0, 0, 0, 0);
-        button.setTextColor(requireContext().getColor(label == R.string.approve_request
+        button.setTextColor(requireContext().getColor((label == R.string.approve_request || label == R.string.approve_and_share)
                 ? R.color.action_positive : R.color.action_destructive));
         button.setOnClickListener(view -> action.run());
         parent.addView(button, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));

@@ -244,46 +244,34 @@ public class FriendshipManager {
                 listener.onShareOpFinished(false);
                 return;
             }
-            startSharing(friend, listener);
+            listener.onShareOpFinished(startSharing(friend));
         }
     }
 
-    private void startSharing(FriendRecord friend, OnShareOpFinishedListener listener) {
+    boolean startSharing(FriendRecord friend) {
         byte[] sendingBoxId = new byte[Constants.DROP_BOX_ID_LENGTH];
         new SecureRandom().nextBytes(sendingBoxId);
-        // send the sending box id to the friend
         FriendRecord current = db.getFriendByUserId(friend.user.id);
-        if (current == null) {
-            listener.onShareOpFinished(false);
-            return;
-        }
+        if (current == null) return false;
         UserComm comm = UserComm.newLocationSharingGrant(sendingBoxId, current.receivingBoxId);
-        String errMsg = OscarClient.queueSendMessage(queue, friend.user, keyPair, accessToken, comm.toJSON(), false, false);
-        if (errMsg != null) {
-            L.w("startSharingWith - queueSendMessage", new RuntimeException(errMsg));
-            listener.onShareOpFinished(false);
-            return;
+        String error = OscarClient.queueSendMessage(queue, friend.user, keyPair, accessToken, comm.toJSON(), false, false);
+        if (error != null) {
+            L.w("Unable to queue location sharing grant");
+            return false;
         }
-
-        // add this to our database
         try {
             db.startSharingWith(friend.user, sendingBoxId);
         } catch (DB.DBException ex) {
-            L.w("startSharingWith - startSharingWith", ex);
-            listener.onShareOpFinished(false);
+            L.w("Unable to save location sharing grant", ex);
+            return false;
         }
-
-        // notify the listener before doing any low priority work
-        listener.onShareOpFinished(true);
-
-        // send the friend our avatar
+        BackupDatabaseWorker.scheduleBackup(ctx);
         try {
             AvatarManager.sendAvatarToUser(ctx, friend.user);
         } catch (IOException ex) {
-            L.w("startSharingWith - sendAvatarToUser", ex);
-            listener.onShareOpFinished(false);
+            L.w("Unable to send avatar after starting location sharing", ex);
         }
-        BackupDatabaseWorker.scheduleBackup(ctx);
+        return true;
     }
 
     @WorkerThread

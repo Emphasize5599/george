@@ -52,6 +52,7 @@ public class Snapshot {
         public byte[] token;
         @Nullable public byte[] usedBy;
         @Nullable public java.util.List<byte[]> invalidatedFor;
+        @Nullable public Boolean shareOnRedemption;
     }
 
     @Nullable

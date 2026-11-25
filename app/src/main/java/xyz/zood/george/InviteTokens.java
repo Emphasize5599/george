@@ -34,12 +34,13 @@ public final class InviteTokens {
     }
 
     /** A new one-time link for {@code username}, remembered before it is shown. */
-    public static synchronized String issueLink(String username) throws IOException {
+    public static synchronized String issueLink(String username, boolean sharing) throws IOException {
         byte[] token = new byte[InviteLedger.TOKEN_LENGTH];
         new SecureRandom().nextBytes(token);
         String key = accountKey();
         if (key == null) throw new IOException("Not signed in");
-        List<InviteLedger.Record> records = InviteLedger.issued(token, load(key));
+        List<InviteLedger.Record> records = InviteLedger.issued(token, load(key),
+                sharing && NewFriendSharing.isEnabled(App.getApp()));
         save(key, records);
         BackupDatabaseWorker.scheduleBackup(App.getApp());
         return FriendLink.url(username, token);
@@ -64,6 +65,14 @@ public final class InviteTokens {
         return load(key).stream().anyMatch(record ->
                 Arrays.equals(record.token, token) && Arrays.equals(record.usedBy, sender)
                         && !InviteLedger.isInvalidatedFor(record, sender));
+    }
+
+    static synchronized boolean permitsSharing(byte[] token, byte[] recipient) {
+        String key = accountKey();
+        return key != null && load(key).stream().anyMatch(record ->
+                Arrays.equals(record.token, token) && Arrays.equals(record.usedBy, recipient)
+                        && Boolean.TRUE.equals(record.shareOnRedemption)
+                        && !InviteLedger.isInvalidatedFor(record, recipient));
     }
 
     static synchronized void invalidateFor(byte[] user) throws IOException {
@@ -100,6 +109,7 @@ public final class InviteTokens {
             invite.token = record.token;
             invite.usedBy = record.usedBy;
             invite.invalidatedFor = record.invalidatedFor;
+            invite.shareOnRedemption = record.shareOnRedemption;
             invites.add(invite);
         }
         return invites;
@@ -132,6 +142,7 @@ public final class InviteTokens {
             record.token = invite.token;
             record.usedBy = invite.usedBy;
             record.invalidatedFor = invite.invalidatedFor;
+            record.shareOnRedemption = invite.shareOnRedemption;
             records.add(record);
         }
         return records;

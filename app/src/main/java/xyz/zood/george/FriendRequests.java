@@ -208,7 +208,11 @@ public final class FriendRequests {
         if (requests.removeIf(current -> matches(current, request))) save(requests);
     }
 
-    static synchronized void approve(Request request) throws IOException, DB.DBException {
+    static void approve(Request request) throws IOException, DB.DBException {
+        approve(request, false);
+    }
+
+    static synchronized void approve(Request request, boolean shareBack) throws IOException, DB.DBException {
         if (isBlocked(request.user.userId)) return;
         ArrayList<Request> requests = storedRequests();
         Request current = findRequest(requests, request.user.userId);
@@ -238,6 +242,7 @@ public final class FriendRequests {
                     UserComm.newAvatarRequest().toJSON(), false, false);
         }
         if (current.includesLocation()) fetchLatestIfSignedIn(user, current.boxId);
+        if (shareBack && token != null) NewFriendSharing.shareIfEnabled(App.getApp(), user, token);
     }
 
     public static synchronized void repairLocationGrants() throws IOException, DB.DBException {

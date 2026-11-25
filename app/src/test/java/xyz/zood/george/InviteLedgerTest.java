@@ -11,6 +11,15 @@ import static org.junit.Assert.*;
 public class InviteLedgerTest {
 
     @Test
+    public void sharingConsentStaysWithTheLinkItWasIssuedFor() {
+        List<InviteLedger.Record> records = InviteLedger.issued(filled(11), new ArrayList<>());
+        records = InviteLedger.issued(filled(12), records, true);
+        List<InviteLedger.Record> restored = InviteLedger.merge(new ArrayList<>(), records);
+        assertNull(restored.get(0).shareOnRedemption);
+        assertEquals(Boolean.TRUE, restored.get(1).shareOnRedemption);
+    }
+
+    @Test
     public void removingAFriendOnlyInvalidatesTheirAccessToExistingLinks() {
         byte[] oldToken = filled(11);
         byte[] newToken = filled(12);

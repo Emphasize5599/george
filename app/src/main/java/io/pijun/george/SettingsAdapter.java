@@ -28,6 +28,7 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     private static final int THEME = 10;
     private static final int LIVE_REQUESTS = 11;
     private static final int FOLDER_GRID = 13;
+    private static final int DEFAULT_SHARING = 14;
 
     private final ArrayList<RecyclerViewAdapterItem> adapterItems = new ArrayList<>();
 
@@ -174,6 +175,14 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                 h.textView.setOnClickListener(view -> listener.onFolderGridAction());
                 break;
             }
+            case DEFAULT_SHARING: {
+                SettingsListItemViewHolder h = (SettingsListItemViewHolder) holder;
+                boolean enabled = xyz.zood.george.NewFriendSharing.isEnabled(h.textView.getContext());
+                h.textView.setText(enabled ? R.string.share_with_new_friends_on : R.string.share_with_new_friends_off);
+                h.textView.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_my_location_black_24dp, 0, 0, 0);
+                h.textView.setOnClickListener(view -> listener.onDefaultSharingAction());
+                break;
+            }
             case LIVE_REQUESTS: {
                 SettingsListItemViewHolder h = (SettingsListItemViewHolder) holder;
                 boolean on = xyz.zood.george.service.LiveRequestService.isEnabled(h.textView.getContext());
@@ -195,11 +204,12 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     }
     //endregion
 
-    void refreshLiveRequestsItem() {
+    void refreshLocationItems() {
         notifyDataSetChanged();
     }
 
     private void rebuildRecycler() {
+        adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, DEFAULT_SHARING));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, LIVE_REQUESTS));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, THEME));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, FOLDER_GRID));
@@ -211,6 +221,7 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     interface Listener {
         @UiThread void onAboutAction();
         @UiThread void onFolderGridAction();
+        @UiThread void onDefaultSharingAction();
         @UiThread void onInviteFriendAction();
         @UiThread void onLiveRequestsAction();
         @UiThread void onLogOutAction();
