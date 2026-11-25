@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 
 import io.pijun.george.api.TaskSender;
 import io.pijun.george.database.DB;
+import xyz.zood.george.worker.BackupDatabaseWorker;
 import xyz.zood.george.worker.LocationWorker;
 import xyz.zood.george.receiver.PassiveLocationReceiver;
 
@@ -54,6 +55,7 @@ public class App extends Application {
             @Override
             public void run() {
                 if (AuthenticationManager.isLoggedIn(App.this)) {
+                    BackupDatabaseWorker.scheduleThumbnailBackfill(App.this);
                     LocationWorker.scheduleLocationWorker(App.this);
                     PassiveLocationReceiver.requestUpdates(App.this);
                 }

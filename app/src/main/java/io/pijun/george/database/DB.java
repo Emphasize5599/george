@@ -17,6 +17,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.TreeMap;
 import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -402,6 +403,7 @@ public class DB {
     @CheckResult
     public Snapshot getSnapshot() {
         Snapshot snapshot = new Snapshot();
+        var profilePhotos = new TreeMap<String, Snapshot.Friend>();
         snapshot.blocked = LinkedContacts.blockedUsers();
         snapshot.nickname = xyz.zood.george.Nicknames.own();
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
@@ -441,6 +443,7 @@ public class DB {
                     f.receivingBoxId = friendRecord.receivingBoxId;
                     f.establishedWithoutLocation = friendRecord.establishedWithoutLocation;
                     snapshot.friends.add(f);
+                    profilePhotos.put(friendRecord.user.username, f);
                 }
             }
 
@@ -451,6 +454,16 @@ public class DB {
             db.setTransactionSuccessful();
         } finally {
             db.endTransaction();
+        }
+
+        int thumbnailBytes = AvatarManager.BACKUP_THUMBNAIL_TOTAL_BYTES;
+        for (var profile : profilePhotos.entrySet()) {
+            if (thumbnailBytes == 0) break;
+            byte[] thumbnail = AvatarManager.backupThumbnail(App.getApp(), profile.getKey());
+            if (thumbnail != null && thumbnail.length <= thumbnailBytes) {
+                profile.getValue().avatarThumbnail = thumbnail;
+                thumbnailBytes -= thumbnail.length;
+            }
         }
 
         File avatar = AvatarManager.getMyAvatar(App.getApp());
@@ -606,6 +619,7 @@ public class DB {
             throw new DBException("Snapshot is from a newer database format");
         }
 
+        var profilePhotos = new TreeMap<String, byte[]>();
         try {
             db.beginTransaction();
             deleteAllData();
@@ -622,11 +636,21 @@ public class DB {
                 boolean established = f.establishedWithoutLocation != null ? f.establishedWithoutLocation
                         : f.sendingBoxId == null && f.receivingBoxId == null;
                 addFriend(user.id, f.sendingBoxId, f.receivingBoxId, established);
+                if (f.avatarThumbnail != null) profilePhotos.put(user.username, f.avatarThumbnail);
             }
 
             db.setTransactionSuccessful();
         } finally {
             db.endTransaction();
+        }
+
+        int thumbnailBytes = AvatarManager.BACKUP_THUMBNAIL_TOTAL_BYTES;
+        for (var profile : profilePhotos.entrySet()) {
+            byte[] thumbnail = profile.getValue();
+            if (thumbnail.length <= thumbnailBytes
+                    && AvatarManager.restoreBackupThumbnail(ctx, profile.getKey(), thumbnail)) {
+                thumbnailBytes -= thumbnail.length;
+            }
         }
 
         if (snapshot.avatar != null && snapshot.avatar.length > 0) {

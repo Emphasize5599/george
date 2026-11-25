@@ -6,12 +6,14 @@ import android.graphics.BitmapFactory;
 
 import com.squareup.picasso.Picasso;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -44,6 +46,78 @@ public class AvatarManager {
     private static final String AVATAR_DIR = "avatars";
     public static final String MY_AVATAR = "me";
     private static final CopyOnWriteArrayList<WeakReference<Listener>> listeners = new CopyOnWriteArrayList<>();
+
+    public static final int BACKUP_THUMBNAIL_TOTAL_BYTES = 128 * 1024;
+    private static final int BACKUP_THUMBNAIL_MAX_BYTES = 12 * 1024;
+    private static final int BACKUP_THUMBNAIL_SIZE = 128;
+
+    /** Reads the shared profile photo cache. Linked contact photos are stored separately. */
+    @Nullable @WorkerThread
+    public static byte[] backupThumbnail(Context context, String username) {
+        if (!canCacheFriendThumbnail(username)) return null;
+        File photo = getAvatar(context, username);
+        long length = photo.length();
+        if (length <= 0 || length > 1024 * 1024) return null;
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(photo.getAbsolutePath(), options);
+        int longest = Math.max(options.outWidth, options.outHeight);
+        if (options.outWidth <= 0 || options.outHeight <= 0 || longest > 4096) return null;
+        if (longest <= BACKUP_THUMBNAIL_SIZE && length <= BACKUP_THUMBNAIL_MAX_BYTES) {
+            try {
+                byte[] cached = Files.readAllBytes(photo.toPath());
+                if (isBackupThumbnail(cached)) return cached;
+            } catch (IOException ignored) {
+                return null;
+            }
+        }
+
+        options.inJustDecodeBounds = false;
+        options.inSampleSize = Math.max(1, Integer.highestOneBit(longest / BACKUP_THUMBNAIL_SIZE));
+        Bitmap bitmap = BitmapFactory.decodeFile(photo.getAbsolutePath(), options);
+        if (bitmap == null) return null;
+        float ratio = Math.min(1f, (float) BACKUP_THUMBNAIL_SIZE / Math.max(bitmap.getWidth(), bitmap.getHeight()));
+        Bitmap thumbnail = Bitmap.createScaledBitmap(bitmap, Math.max(1, Math.round(bitmap.getWidth() * ratio)),
+                Math.max(1, Math.round(bitmap.getHeight() * ratio)), true);
+        try {
+            var bytes = new ByteArrayOutputStream();
+            for (int quality : new int[]{72, 50}) {
+                if (thumbnail.compress(Bitmap.CompressFormat.JPEG, quality, bytes)
+                        && bytes.size() <= BACKUP_THUMBNAIL_MAX_BYTES) return bytes.toByteArray();
+                bytes.reset();
+            }
+            return null;
+        } finally {
+            if (thumbnail != bitmap) thumbnail.recycle();
+            bitmap.recycle();
+        }
+    }
+
+    @WorkerThread
+    public static boolean restoreBackupThumbnail(Context context, String username, byte[] data) {
+        if (!canCacheFriendThumbnail(username) || !isBackupThumbnail(data)) return false;
+        try {
+            return saveAvatar(context, username, data);
+        } catch (IOException error) {
+            L.w("Unable to restore a profile thumbnail", error);
+            return false;
+        }
+    }
+
+    private static boolean canCacheFriendThumbnail(String username) {
+        // The reserved filename for our own avatar predates the per-friend backup field.
+        return !MY_AVATAR.equalsIgnoreCase(username) && !username.isEmpty()
+                && username.indexOf('/') < 0 && username.indexOf((char) 92) < 0;
+    }
+
+    private static boolean isBackupThumbnail(byte[] data) {
+        if (data == null || data.length == 0 || data.length > BACKUP_THUMBNAIL_MAX_BYTES) return false;
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(data, 0, data.length, options);
+        return options.outWidth > 0 && options.outWidth <= BACKUP_THUMBNAIL_SIZE
+                && options.outHeight > 0 && options.outHeight <= BACKUP_THUMBNAIL_SIZE;
+    }
 
     //region Listener management
 

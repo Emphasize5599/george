@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.util.UUID;
 
 import io.pijun.george.AuthenticationManager;
+import io.pijun.george.Hex;
 import io.pijun.george.L;
 import io.pijun.george.Prefs;
 import io.pijun.george.Sodium;
@@ -30,6 +31,7 @@ import io.pijun.george.database.Snapshot;
 import retrofit2.Response;
 
 public class BackupDatabaseWorker extends Worker {
+    private static final String THUMBNAIL_BACKUPS = "avatar_thumbnail_backups";
 
     public BackupDatabaseWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
@@ -64,12 +66,28 @@ public class BackupDatabaseWorker extends Worker {
         WorkManager.getInstance(ctx).enqueue(req);
     }
 
+    /** Backfill previously cached avatars once, with a retry at the next launch if upload fails. */
+    public static void scheduleThumbnailBackfill(Context context) {
+        byte[] account = Prefs.get(context).getUserId();
+        if (account != null && !context.getSharedPreferences(THUMBNAIL_BACKUPS, Context.MODE_PRIVATE)
+                .getBoolean(Hex.toHexString(account), false)) {
+            scheduleBackup(context);
+        }
+    }
+
     @NonNull
     @WorkerThread
     private Result uploadSnapshot() {
         Context ctx = getApplicationContext();
+        Prefs prefs = Prefs.get(ctx);
+        String token = prefs.getAccessToken();
+        byte[] symmetricKey = prefs.getSymmetricKey();
+        byte[] account = prefs.getUserId();
+        if (symmetricKey == null || TextUtils.isEmpty(token) || account == null) return Result.success();
+
         // Never overwrite the backup of an account that's now active on another device; sign out instead.
         Snapshot remote = xyz.zood.george.DeviceSession.fetchRemote(ctx);
+        if (!token.equals(prefs.getAccessToken())) return Result.success();
         if (xyz.zood.george.DeviceSession.isSupersededBy(remote)) {
             xyz.zood.george.DeviceSession.signOutBecauseSupersededElsewhere(ctx);
             return Result.success();
@@ -77,11 +95,7 @@ public class BackupDatabaseWorker extends Worker {
         Snapshot snapshot = DB.get().getSnapshot();
         snapshot.activeDevice = xyz.zood.george.DeviceSession.recordFor(remote);
 
-        byte[] symmetricKey = Prefs.get(ctx).getSymmetricKey();
-        String token = Prefs.get(ctx).getAccessToken();
-        if (symmetricKey == null || TextUtils.isEmpty(token)) {
-            return Result.success();
-        }
+        if (!token.equals(prefs.getAccessToken())) return Result.success();
 
         byte[] snapshotBytes = snapshot.toJson();
         if (snapshotBytes == null) {
@@ -96,6 +110,8 @@ public class BackupDatabaseWorker extends Worker {
                 L.w("\terror from server: " + err);
                 return Result.failure();
             } else {
+                ctx.getSharedPreferences(THUMBNAIL_BACKUPS, Context.MODE_PRIVATE)
+                        .edit().putBoolean(Hex.toHexString(account), true).apply();
                 L.i("BackupDB completed");
                 return Result.success();
             }

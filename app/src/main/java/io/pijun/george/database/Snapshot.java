@@ -21,6 +21,7 @@ public class Snapshot {
         public Boolean establishedWithoutLocation;
         public String nickname;
         public String sharedNickname;
+        @Nullable public byte[] avatarThumbnail;
         // Family Locator: the phone contact this friend is linked to (stock Zood ignores these keys).
         // The name restores anywhere; the id is an Android lookup URI or an iOS Contacts identifier,
         // so it's only reused on the platform named in linkedContactPlatform.

@@ -271,7 +271,9 @@ public class MessageProcessor {
             }
 
             boolean success = AvatarManager.saveAvatar(context, user.username, comm.avatar);
-            if (!success) {
+            if (success) {
+                xyz.zood.george.worker.BackupDatabaseWorker.scheduleBackup(context);
+            } else {
                 L.w("Failed to save a friend avatar");
             }
         } catch (IOException ex) {
