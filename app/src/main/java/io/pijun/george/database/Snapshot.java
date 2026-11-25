@@ -47,6 +47,15 @@ public class Snapshot {
     @Nullable
     public ArrayList<User> blocked;
 
+    /** One-time invite links this account has issued. {@code usedBy} is set once someone redeems one. */
+    public static class Invite {
+        public byte[] token;
+        @Nullable public byte[] usedBy;
+    }
+
+    @Nullable
+    public ArrayList<Invite> invites;
+
     // Family Locator: friend bar folders and order.
     public static class Folder {
         public String id;

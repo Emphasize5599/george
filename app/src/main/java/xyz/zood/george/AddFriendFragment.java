@@ -44,6 +44,7 @@ public class AddFriendFragment extends Fragment {
 
     private static final String ARG_ACCESS_TOKEN = "access_token";
     private static final String ARG_PREFILL = "prefill";
+    private static final String ARG_INVITE_TOKEN = "invite_token";
     private static final String ARG_KEY_PAIR = "key_pair";
 
     private String accessToken;
@@ -51,6 +52,9 @@ public class AddFriendFragment extends Fragment {
     private FriendshipManager friendshipManager;
     private String sharingCandidate;
     private boolean submitting;
+    @Nullable private byte[] inviteToken;
+    @Nullable private String invitedUsername;
+    private boolean inviteStepShown;
     private ColorStateList continueBackground;
     private androidx.activity.OnBackPressedCallback sharingBack;
 
@@ -58,11 +62,18 @@ public class AddFriendFragment extends Fragment {
         return newInstance(accessToken, keyPair, null);
     }
 
-    /** {@code prefill} fills in a username from a friend link; nothing is sent until the user taps Continue. */
+    /** {@code prefill} fills in a username from a friend link; nothing is sent until the user confirms. */
     static AddFriendFragment newInstance(@NonNull String accessToken, @NonNull KeyPair keyPair, @Nullable String prefill) {
+        return newInstance(accessToken, keyPair, prefill, null);
+    }
+
+    /** {@code inviteToken} connects immediately instead of sending a request the other person has to approve. */
+    static AddFriendFragment newInstance(@NonNull String accessToken, @NonNull KeyPair keyPair, @Nullable String prefill,
+                                         @Nullable byte[] inviteToken) {
         AddFriendFragment fragment = new AddFriendFragment();
         Bundle args = new Bundle();
         if (prefill != null) args.putString(ARG_PREFILL, prefill);
+        if (inviteToken != null) args.putByteArray(ARG_INVITE_TOKEN, inviteToken);
         args.putString(ARG_ACCESS_TOKEN, accessToken);
         args.putParcelable(ARG_KEY_PAIR, keyPair);
 
@@ -98,6 +109,8 @@ public class AddFriendFragment extends Fragment {
             throw new RuntimeException("You must create the fragment via newInstance");
         }
         accessToken = args.getString(ARG_ACCESS_TOKEN);
+        inviteToken = args.getByteArray(ARG_INVITE_TOKEN);
+        invitedUsername = args.getString(ARG_PREFILL);
         if (accessToken == null) {
             throw new RuntimeException("missing access token");
         }
@@ -257,6 +270,10 @@ public class AddFriendFragment extends Fragment {
 
         showUserValidityIcon(valid);
         binding.addFriend.setEnabled(valid);
+        if (valid && inviteTokenFor(username) != null && !inviteStepShown) {
+            inviteStepShown = true;
+            showSharingStep(username);
+        }
     }
 
     @UiThread
@@ -276,7 +293,13 @@ public class AddFriendFragment extends Fragment {
         binding.usernameContainer.setEnabled(false);
         binding.addFriend.setEnabled(false);
         binding.inviteFriend.setEnabled(false);
-        App.runInBackground(() -> friendshipManager.addFriend(username, choice, this::onAddFriendFinished));
+        byte[] token = inviteTokenFor(username);
+        App.runInBackground(() -> friendshipManager.addFriend(username, choice, token, this::onAddFriendFinished));
+    }
+
+    @Nullable
+    private byte[] inviteTokenFor(@Nullable String username) {
+        return username != null && username.equals(invitedUsername) ? inviteToken : null;
     }
 
     private void showSharingStep(@Nullable String username) {
@@ -288,10 +311,14 @@ public class AddFriendFragment extends Fragment {
             if (keyboard != null) keyboard.hideSoftInputFromWindow(binding.username.getWindowToken(), 0);
             binding.username.clearFocus();
         }
+        boolean invite = inviteTokenFor(username) != null;
         binding.usernameContainer.setVisibility(choosing ? View.GONE : View.VISIBLE);
-        binding.screenTitle.setText(choosing ? R.string.confirm_share_own_location : R.string.add_friend);
+        binding.screenTitle.setText(choosing
+                ? (invite ? R.string.connect_with_friend : R.string.confirm_share_own_location)
+                : R.string.add_friend);
         binding.screenPurpose.setText(choosing
-                ? getString(R.string.friend_request_sharing_choice, Usernames.display(username))
+                ? getString(invite ? R.string.invite_accept_sharing_choice : R.string.friend_request_sharing_choice,
+                Usernames.display(username))
                 : getString(R.string.check_friend_request_or_share));
         binding.addFriend.setText(choosing ? R.string.share_my_location_action : R.string.continue_friend_request);
         binding.addFriend.setBackgroundTintList(choosing

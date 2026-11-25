@@ -89,6 +89,10 @@ public final class FriendRequests {
 
     public static synchronized void receive(UserRecord user, UserComm comm) throws IOException, DB.DBException {
         if (isBlocked(user.userId)) return;
+        if (comm.inviteToken != null) {
+            acceptInvite(user, comm);
+            return;
+        }
         FriendRecord friend = DB.get().getFriendByUserId(user.id);
         ArrayList<Request> requests = storedRequests();
         Request previous = findRequest(requests, user.userId);
@@ -119,6 +123,40 @@ public final class FriendRequests {
         request.avatar = validAvatar(comm.avatar) ? comm.avatar : previous == null ? null : previous.avatar;
         requests.add(request);
         save(requests);
+    }
+
+    /**
+     * Redeems a one-time invite. An unknown or already-used token is ignored and does not become a request.
+     * The friend is added without our outgoing sharing. A grant only fills the receiving box.
+     */
+    private static void acceptInvite(UserRecord user, UserComm comm) throws IOException, DB.DBException {
+        if (!InviteTokens.authorize(comm.inviteToken, user.userId)) return;
+        ArrayList<Request> requests = storedRequests();
+        if (requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId))) save(requests);
+        FriendRecord friend = DB.get().getFriendByUserId(user.id);
+        boolean created = friend == null;
+        if (comm.type == CommType.FriendRequest) {
+            if (created) DB.get().addFriendWithoutSharing(user);
+        } else if (comm.dropBox != null) {
+            // Create the friendship first so the grant cannot turn on our sending box.
+            DB.get().addFriendWithoutSharing(user);
+            DB.get().sharingGrantedBy(user, comm.dropBox);
+            fetchLatestIfSignedIn(user, comm.dropBox);
+        }
+        Nicknames.recordShared(user.userId, comm.nickname);
+        if (validAvatar(comm.avatar) && !AvatarManager.saveAvatar(App.getApp(), user.username, comm.avatar)) {
+            L.w("Unable to save the invited profile photo");
+        }
+        if (created) {
+            var prefs = Prefs.get(App.getApp());
+            var key = prefs.getKeyPair();
+            String token = prefs.getAccessToken();
+            if (key != null && token != null) {
+                OscarClient.queueSendMessage(OscarClient.getQueue(App.getApp()), user, key, token,
+                        UserComm.newAvatarRequest().toJSON(), false, false);
+            }
+        }
+        BackupDatabaseWorker.scheduleBackup(App.getApp());
     }
 
     public static synchronized void recordPendingAvatar(UserRecord user, byte[] avatar) throws IOException {

@@ -58,6 +58,8 @@ public class UserComm {
     @Nullable public Boolean liveRequests;
     @Nullable public byte[] replyToBox;
     @Nullable public Boolean friendRemoved;
+    /** Set on a one-time invite. The inviter redeems it instead of showing a friend request. */
+    @Nullable public byte[] inviteToken;
 
     @Retention(SOURCE)
     @StringDef({
@@ -126,10 +128,17 @@ public class UserComm {
 
     @NonNull @CheckResult
     public static UserComm newLocationSharingGrant(@NonNull byte[] boxId, @Nullable byte[] replyToBox) {
+        return newLocationSharingGrant(boxId, replyToBox, null);
+    }
+
+    @NonNull @CheckResult
+    public static UserComm newLocationSharingGrant(@NonNull byte[] boxId, @Nullable byte[] replyToBox,
+                                                   @Nullable byte[] inviteToken) {
         UserComm c = new UserComm();
         c.type = CommType.LocationSharingGrant;
         c.dropBox = boxId;
         c.replyToBox = replyToBox;
+        if (inviteToken != null && inviteToken.length == Constants.DROP_BOX_ID_LENGTH) c.inviteToken = inviteToken;
         c.time = System.currentTimeMillis();
         return c;
     }
@@ -148,9 +157,15 @@ public class UserComm {
 
     @NonNull @CheckResult
     public static UserComm newFriendRequest(@Nullable byte[] avatar) {
+        return newFriendRequest(avatar, null);
+    }
+
+    @NonNull @CheckResult
+    public static UserComm newFriendRequest(@Nullable byte[] avatar, @Nullable byte[] inviteToken) {
         UserComm comm = new UserComm();
         comm.type = CommType.FriendRequest;
         comm.avatar = avatar;
+        if (inviteToken != null && inviteToken.length == Constants.DROP_BOX_ID_LENGTH) comm.inviteToken = inviteToken;
         return comm;
     }
 

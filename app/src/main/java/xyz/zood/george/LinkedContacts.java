@@ -25,6 +25,8 @@ import io.pijun.george.Hex;
 import io.pijun.george.L;
 import io.pijun.george.Prefs;
 import io.pijun.george.api.OscarClient;
+import io.pijun.george.database.DB;
+import io.pijun.george.database.FriendRecord;
 import io.pijun.george.database.Snapshot;
 import xyz.zood.george.worker.BackupDatabaseWorker;
 
@@ -97,7 +99,7 @@ public final class LinkedContacts {
         changed();
     }
 
-    static boolean linkPickedContact(byte[] friendId, Uri contactUri) {
+    static synchronized boolean linkPickedContact(byte[] friendId, Uri contactUri) {
         var context = App.getApp();
         var resolver = context.getContentResolver();
         String name = null;
@@ -130,8 +132,38 @@ public final class LinkedContacts {
         if (!readContact) return false;
         if (name == null || name.trim().isEmpty()) name = context.getString(R.string.unnamed_contact);
 
-        AtomicFile photo = new AtomicFile(photoFile(friendId));
-        photo.delete();
+        saveContactPhoto(contactUri, new AtomicFile(photoFile(friendId)), true);
+        link(friendId, name.trim(), contactUri.toString());
+        return true;
+    }
+
+    static ArrayList<FriendRecord> missingPhotos() {
+        var friends = DB.get().getFriends();
+        friends.removeIf(friend -> {
+            byte[] id = friend.user.userId;
+            return !"android".equals(platform(id)) || uri(id) == null || photoFile(id).exists();
+        });
+        return friends;
+    }
+
+    static synchronized void restorePhotos(byte[] account, ArrayList<FriendRecord> missing) {
+        boolean changed = false;
+        for (var friend : missing) {
+            if (!Arrays.equals(account, Prefs.get(App.getApp()).getUserId())) break;
+            byte[] id = friend.user.userId;
+            String reference = uri(id);
+            File file = photoFile(id);
+            if (reference == null || file.exists() || !"android".equals(platform(id))) continue;
+            Uri contactUri = Uri.parse(reference);
+            if (!"content".equals(contactUri.getScheme()) || !ContactsContract.AUTHORITY.equals(contactUri.getAuthority())) continue;
+            changed |= saveContactPhoto(contactUri, new AtomicFile(file), false);
+        }
+        if (changed) Nicknames.notifyListeners();
+    }
+
+    private static boolean saveContactPhoto(Uri contactUri, AtomicFile photo, boolean replaceExisting) {
+        if (replaceExisting) photo.delete();
+        var resolver = App.getApp().getContentResolver();
         try (var stream = ContactsContract.Contacts.openContactPhotoInputStream(resolver, contactUri)) {
             Bitmap bitmap = stream == null ? null : BitmapFactory.decodeStream(stream);
             if (bitmap != null) {
@@ -140,6 +172,7 @@ public final class LinkedContacts {
                     output = photo.startWrite();
                     if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)) throw new IOException("Unable to encode contact photo");
                     photo.finishWrite(output);
+                    return true;
                 } catch (IOException error) {
                     if (output != null) photo.failWrite(output);
                     throw error;
@@ -150,15 +183,14 @@ public final class LinkedContacts {
         } catch (IOException | IllegalArgumentException | SecurityException error) {
             L.w("Unable to save selected contact photo", error);
         }
-        link(friendId, name.trim(), contactUri.toString());
-        return true;
+        return false;
     }
 
     public static File photoFile(byte[] friendId) {
         return new File(new File(App.getApp().getFilesDir(), "contact_photos"), key(friendId, "avatar") + ".jpg");
     }
 
-    public static void unlink(@NonNull byte[] friendUserId) {
+    public static synchronized void unlink(@NonNull byte[] friendUserId) {
         String oldName = name(friendUserId);
         new AtomicFile(photoFile(friendUserId)).delete();
         prefs().edit()

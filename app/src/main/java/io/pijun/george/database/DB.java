@@ -405,6 +405,7 @@ public class DB {
         Snapshot snapshot = new Snapshot();
         var profilePhotos = new TreeMap<String, Snapshot.Friend>();
         snapshot.blocked = LinkedContacts.blockedUsers();
+        snapshot.invites = xyz.zood.george.InviteTokens.forBackup();
         snapshot.nickname = xyz.zood.george.Nicknames.own();
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
         db.beginTransaction();

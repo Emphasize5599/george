@@ -276,6 +276,7 @@ public class AuthenticationManager {
         if (restoredSnapshot != null) {
             xyz.zood.george.Nicknames.restore(restoredSnapshot);
             xyz.zood.george.LinkedContacts.restore(restoredSnapshot);
+            xyz.zood.george.InviteTokens.restore(restoredSnapshot);
         }
         try {
             xyz.zood.george.FriendRequests.enforceBlocks();

@@ -3,6 +3,7 @@ package xyz.zood.george;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -10,21 +11,22 @@ import androidx.annotation.UiThread;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 
 import io.pijun.george.Prefs;
 
 /**
- * Friend links: a shareable link to someone's Amidst profile that lets the recipient send them a friend request.
- * Same format as the iPhone app.
+ * Friend links: a shareable link to someone's Amidst profile. Same format as the iPhone app.
  *
  * The link people share is a web address, because a web link is tappable in every messaging app and still works for
  * someone who doesn't have Amidst yet: the landing page (GitHub Pages, repository Emphasize5599/amidst) shows install
  * links and an "Open in Amidst" button that uses the app's own amidst:// scheme.
  *
- * A link carries only the public username. Nothing is sent or shared until the person who opens it confirms in
- * Add Friend, so a link can never add someone or share a location by itself.
+ * A one-time link also carries {@code t}, a random token the inviter stored. Accepting it connects the two people
+ * immediately. A link with only the public username still asks the inviter to approve a friend request.
+ * Nothing is sent until the person who opens the link confirms in Add Friend.
  */
 public final class FriendLink {
 
@@ -36,16 +38,35 @@ public final class FriendLink {
     private static final String WEB_PATH = "/amidst/add";
     private static final String SCHEME = "amidst";
 
-    /**
-     * A username from a link the app was opened with, waiting for the map screen. Kept outside any screen so a link
-     * opened while signed out is still handled right after sign-in.
-     */
-    @Nullable private static String pending;
+    /** A friend link waiting for the map screen, including its one-time token when the link had a valid one. */
+    public static final class Pending {
+        public final String username;
+        @Nullable public final byte[] inviteToken;
 
-    /** The link that opens Add Friend for {@code username}. */
+        Pending(@NonNull String username, @Nullable byte[] inviteToken) {
+            this.username = username;
+            this.inviteToken = inviteToken;
+        }
+    }
+
+    /**
+     * A link the app was opened with, waiting for the map screen. Kept outside any screen so a link opened while
+     * signed out is still handled right after sign-in.
+     */
+    @Nullable private static Pending pending;
+
+    /** The reusable link that opens Add Friend for {@code username}. */
     @NonNull
     public static String url(@NonNull String username) {
-        return HOME_URL + "add/?u=" + Uri.encode(username.toLowerCase(Locale.ROOT));
+        return url(username, null);
+    }
+
+    /** A one-time link when {@code inviteToken} is 16 bytes; otherwise the reusable username link. */
+    @NonNull
+    public static String url(@NonNull String username, @Nullable byte[] inviteToken) {
+        String link = HOME_URL + "add/?u=" + Uri.encode(username.toLowerCase(Locale.ROOT));
+        String token = InviteLedger.encodeToken(inviteToken);
+        return token == null ? link : link + "#t=" + token;
     }
 
     /**
@@ -72,19 +93,29 @@ public final class FriendLink {
         return username.matches("[a-z0-9]{5,32}") ? username : null;
     }
 
+    /** The one-time token on a link, or null when it is missing or not 16 bytes (the link stays a normal request). */
+    @Nullable
+    static byte[] tokenFrom(@Nullable Uri uri) {
+        if (uri == null) return null;
+        String fragment = uri.getFragment();
+        String rawToken = fragment != null && fragment.startsWith("t=")
+                ? fragment.substring(2) : uri.getQueryParameter("t");
+        return InviteLedger.decodeToken(rawToken);
+    }
+
     /** Remembers the friend link in {@code intent}, if it has one. */
     static void receive(@Nullable Intent intent) {
         if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())) return;
         String username = usernameFrom(intent.getData());
-        if (username != null) pending = username;
+        if (username != null) pending = new Pending(username, tokenFrom(intent.getData()));
     }
 
-    /** The waiting friend link's username (once), or null. */
+    /** The waiting friend link (once), or null. */
     @Nullable
-    static String takePending() {
-        String username = pending;
+    static Pending takePending() {
+        Pending link = pending;
         pending = null;
-        return username;
+        return link;
     }
 
     /**
@@ -98,10 +129,17 @@ public final class FriendLink {
         String[] choices = {context.getString(R.string.invite_with_link), context.getString(R.string.invite_without_link)};
         new MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.share_an_invite)
+                .setMessage(R.string.invite_link_explanation)
                 .setItems(choices, (dialog, which) -> {
-                    String text = which == 0 && username != null
-                            ? context.getString(R.string.invite_friend_link_msg, url(username))
-                            : context.getString(R.string.invite_friend_msg);
+                    String text = context.getString(R.string.invite_friend_msg);
+                    if (which == 0 && username != null) {
+                        try {
+                            text = context.getString(R.string.invite_friend_link_msg, InviteTokens.issueLink(username));
+                        } catch (IOException error) {
+                            Toast.makeText(context, R.string.invite_link_failed, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                    }
                     Intent send = new Intent(Intent.ACTION_SEND);
                     send.putExtra(Intent.EXTRA_TEXT, text);
                     send.setType("text/plain");

@@ -333,6 +333,7 @@ public class AccountFragment extends Fragment implements AvatarManager.Listener 
                 LinkedContacts.deleteForAccount(account);
                 Nicknames.deleteForAccount(account);
                 FriendRequests.deleteForAccount(account);
+                InviteTokens.deleteForAccount(account);
                 if (Objects.equals(token, Prefs.get(context).getAccessToken())) {
                     AuthenticationManager.get().logOut(context, activity::finish);
                 }

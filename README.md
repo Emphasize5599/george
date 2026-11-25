@@ -38,6 +38,10 @@ Google Play and the Google Play logo are trademarks of Google Inc.
 
 Continue after the username check to choose **Share My Location** or **Not Now**. Both send a friend request to a current Amidst client. **Not Now** sends your optional profile photo and display name without a location grant, and the recipient sees that you are not sharing. Older Zood clients only understand requests that include a grant. Approving a request leaves your location sharing off. If either person chooses to share later, their location updates the existing friend card.
 
+A one-time link connects the first recipient whose confirmation is processed by a current Amidst client. The inviter’s sharing stays off unless they turn it on. A username-only link uses the ordinary request flow.
+
+After location setup, Amidst can ask for optional Contacts access if an already-linked Android contact needs its photo restored. Photos are read from the linked cards on the device and stay there.
+
 ### Live Requests with Zood and Amidst
 
 Refresh remains available when the other client omits device status, as original Zood does, or last reported Live Requests off. A legacy completion reply triggers a check for a newer encrypted location. The friend card waits up to 30 seconds and retains the previous location and timestamp if no update arrives.

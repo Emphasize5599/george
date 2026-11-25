@@ -49,6 +49,12 @@ public class FriendshipManager {
 
     @WorkerThread
     void addFriend(@NonNull String username, @NonNull AddChoice choice, @NonNull OnAddFriendFinishedListener listener) {
+        addFriend(username, choice, null, listener);
+    }
+
+    @WorkerThread
+    void addFriend(@NonNull String username, @NonNull AddChoice choice, @Nullable byte[] inviteToken,
+                   @NonNull OnAddFriendFinishedListener listener) {
         Prefs prefs = Prefs.get(ctx);
         if (Usernames.isOwn(username, prefs.getUsername())) {
             listener.onAddFriendFinished(AddFriendResult.CantAddSelf, null);
@@ -71,7 +77,7 @@ public class FriendshipManager {
                 return;
             }
             for (FriendRequests.Request request : FriendRequests.pending()) {
-                if (!Arrays.equals(request.user.userId, user.userId)) continue;
+                if (inviteToken != null || !Arrays.equals(request.user.userId, user.userId)) continue;
                 try {
                     FriendRequests.approve(request);
                     listener.onAddFriendFinished(AddFriendResult.Success, null);
@@ -90,23 +96,23 @@ public class FriendshipManager {
                 return;
             }
             if (choice == AddChoice.WITHOUT_LOCATION) {
-                if (friend == null) sendRequestWithoutLocation(user, listener);
+                if (inviteToken != null || friend == null) sendRequestWithoutLocation(user, inviteToken, listener);
                 else listener.onAddFriendFinished(AddFriendResult.Success, null);
                 return;
             }
-            addFriend(user, listener);
+            addFriend(user, inviteToken, listener);
         }
     }
 
-    private void sendRequestWithoutLocation(UserRecord user, OnAddFriendFinishedListener listener) {
-        UserComm request = UserComm.newFriendRequest(AvatarManager.requestAvatar(ctx));
+    private void sendRequestWithoutLocation(UserRecord user, @Nullable byte[] inviteToken, OnAddFriendFinishedListener listener) {
+        UserComm request = UserComm.newFriendRequest(AvatarManager.requestAvatar(ctx), inviteToken);
         String error = OscarClient.queueSendMessage(queue, user, keyPair, accessToken, request.toJSON(), false, false);
         if (error != null) {
             listener.onAddFriendFinished(AddFriendResult.SharingGrantFailed, error);
             return;
         }
         try {
-            db.addFriendWithoutSharing(user);
+            if (db.getFriendByUserId(user.id) == null) db.addFriendWithoutSharing(user);
             Nicknames.notifyListeners();
             BackupDatabaseWorker.scheduleBackup(ctx);
             listener.onAddFriendFinished(AddFriendResult.Success, null);
@@ -115,13 +121,13 @@ public class FriendshipManager {
         }
     }
 
-    private void addFriend(UserRecord user, OnAddFriendFinishedListener listener) {
+    private void addFriend(UserRecord user, @Nullable byte[] inviteToken, OnAddFriendFinishedListener listener) {
         // check if we already have this user as a friend, and if we're already sharing with them
         final FriendRecord friend = db.getFriendByUserId(user.id);
         if (friend != null) {
             if (friend.sendingBoxId != null) {
                 // send the sending box id to this person one more time, just in case
-                UserComm comm = UserComm.newLocationSharingGrant(friend.sendingBoxId, friend.receivingBoxId);
+                UserComm comm = UserComm.newLocationSharingGrant(friend.sendingBoxId, friend.receivingBoxId, inviteToken);
                 String errMsg = OscarClient.queueSendMessage(queue, user, keyPair, accessToken, comm.toJSON(), false, false);
                 if (errMsg != null) {
                     CloudLogger.log(errMsg);
@@ -135,7 +141,8 @@ public class FriendshipManager {
 
         byte[] sendingBoxId = new byte[Constants.DROP_BOX_ID_LENGTH];
         new SecureRandom().nextBytes(sendingBoxId);
-        UserComm comm = UserComm.newLocationSharingGrant(sendingBoxId);
+        UserComm comm = UserComm.newLocationSharingGrant(sendingBoxId, null, inviteToken);
+        if (inviteToken != null) comm.avatar = AvatarManager.requestAvatar(ctx);
         String errMsg = OscarClient.queueSendMessage(queue, user, keyPair, accessToken, comm.toJSON(), false, false);
         if (errMsg != null) {
             listener.onAddFriendFinished(AddFriendResult.SharingGrantFailed, errMsg);
@@ -143,6 +150,7 @@ public class FriendshipManager {
         }
 
         try {
+            if (inviteToken != null) db.addFriendWithoutSharing(user);
             db.startSharingWith(user, sendingBoxId);
         } catch (DB.DBException dbe) {
             listener.onAddFriendFinished(AddFriendResult.DatabaseError, dbe.getLocalizedMessage());

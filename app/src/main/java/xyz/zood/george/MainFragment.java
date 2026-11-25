@@ -114,6 +114,8 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     private ActivityResultLauncher<Void> pickContactLauncher;
     private ActivityResultLauncher<String> activityPermLauncher;
     private ActivityResultLauncher<String> contactsPermissionLauncher;
+    private ActivityResultLauncher<String> restoreContactsPermissionLauncher;
+    private boolean activityPermissionInFlight;
     // The friend being linked while the system contact picker is open (kept across process death).
     @Nullable private byte[] contactLinkFriendId;
     private LocationManager locationManager;
@@ -186,11 +188,17 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                 }
             }
         });
-        activityPermLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {});
+        activityPermLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                granted -> {
+                    activityPermissionInFlight = false;
+                    restoreLinkedContactPhotos();
+                });
         pickContactLauncher = registerForActivityResult(new ActivityResultContracts.PickContact(), this::onContactPicked);
         // Even without the permission, some providers grant access to the individual selected contact.
         contactsPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(),
                 granted -> launchContactPicker());
+        restoreContactsPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                granted -> { if (granted) restoreLinkedContactPhotos(); });
 
         viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
         locationManager = requireContext().getApplicationContext().getSystemService(LocationManager.class);
@@ -296,6 +304,12 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
         AuthenticationManager.get().removeListener(this);
 
         super.onDestroy();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        refreshBackgroundLocationNotice();
     }
 
     @Override
@@ -487,11 +501,15 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
     }
 
     private void openAddFriend(@Nullable String prefill) {
+        openAddFriend(prefill, null);
+    }
+
+    private void openAddFriend(@Nullable String prefill, @Nullable byte[] inviteToken) {
         if (!isAdded()) return;
         getParentFragmentManager().beginTransaction()
                 .setCustomAnimations(R.animator.new_enter_from_right, R.animator.new_exit_to_left,
                         R.animator.new_enter_from_left, R.animator.new_exit_to_right)
-                .replace(R.id.fragment_host, AddFriendFragment.newInstance(accessToken, keyPair, prefill))
+                .replace(R.id.fragment_host, AddFriendFragment.newInstance(accessToken, keyPair, prefill, inviteToken))
                 .addToBackStack(null)
                 .commit();
     }
@@ -502,16 +520,16 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
      */
     @UiThread
     void showPendingFriendLink() {
-        String username = FriendLink.takePending();
-        if (username == null || !isAdded()) return;
-        if (username.equals(Prefs.get(requireContext()).getUsername())) return;
+        FriendLink.Pending link = FriendLink.takePending();
+        if (link == null || !isAdded()) return;
+        if (link.username.equals(Prefs.get(requireContext()).getUsername())) return;
         App.runInBackground(() -> {
-            UserRecord user = DB.get().getUser(username);
+            UserRecord user = DB.get().getUser(link.username);
             FriendRecord friend = user == null ? null : DB.get().getFriendByUserId(user.id);
             App.runOnUiThread(() -> {
                 if (!isAdded()) return;
                 if (friend != null) onFriendSelected(friend);
-                else openAddFriend(username);
+                else openAddFriend(link.username, link.inviteToken);
             });
         });
     }
@@ -579,13 +597,13 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             App.runOnUiThread(() -> {
                 Context context = getContext();
                 if (binding == null || context == null) return;
-                if (sharing && Permissions.checkForegroundLocationPermission(context)
-                        && !Permissions.checkBackgroundLocationPermission(context)) {
+                boolean canShareInBackground = Permissions.checkBackgroundLocationPermission(context);
+                if (sharing && Permissions.checkForegroundLocationPermission(context) && !canShareInBackground) {
                     bgLocationPermissionNotifier.show();
                 } else {
                     bgLocationPermissionNotifier.hide();
-                    if (sharing && Permissions.checkBackgroundLocationPermission(context)) askForActivityOnce();
                 }
+                if (!sharing || !canShareInBackground || !askForActivityOnce()) restoreLinkedContactPhotos();
             });
         });
     }
@@ -595,13 +613,43 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
      * whether you're walking or running. Declining just leaves that out.
      */
     @UiThread
-    private void askForActivityOnce() {
+    private boolean askForActivityOnce() {
         Context ctx = getContext();
-        if (ctx == null || !isAdded() || Permissions.checkActivityRecognitionPermission(ctx)) return;
+        if (ctx == null || !isResumed() || Permissions.checkActivityRecognitionPermission(ctx)) return false;
         var prefs = ctx.getSharedPreferences("movement_detector", Context.MODE_PRIVATE);
-        if (prefs.getBoolean("asked_permission", false)) return;
+        if (prefs.getBoolean("asked_permission", false)) return false;
         prefs.edit().putBoolean("asked_permission", true).apply();
+        activityPermissionInFlight = true;
         activityPermLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION);
+        return true;
+    }
+
+    private void restoreLinkedContactPhotos() {
+        Context context = getContext();
+        if (context == null || binding == null || activityPermissionInFlight
+                || !Permissions.checkForegroundLocationPermission(context)) return;
+        var prefs = context.getSharedPreferences("linked_contacts", Context.MODE_PRIVATE);
+        boolean granted = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        if (!granted && prefs.getBoolean("asked_restore_permission", false)) return;
+        byte[] account = Prefs.get(context).getUserId();
+        if (account == null) return;
+        App.runInBackground(() -> {
+            if (!java.util.Arrays.equals(account, Prefs.get(context).getUserId())) return;
+            var missing = LinkedContacts.missingPhotos();
+            if (missing.isEmpty()) return;
+            if (granted) {
+                LinkedContacts.restorePhotos(account, missing);
+                return;
+            }
+            App.runOnUiThread(() -> {
+                if (binding == null || !isResumed() || activityPermissionInFlight
+                        || prefs.getBoolean("asked_restore_permission", false)
+                        || !java.util.Arrays.equals(account, Prefs.get(context).getUserId())) return;
+                prefs.edit().putBoolean("asked_restore_permission", true).apply();
+                restoreContactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS);
+            });
+        });
     }
 
     private void verifyLocationServicesEnabled() {

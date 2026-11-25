@@ -50,6 +50,47 @@ public class NicknameProtocolTest {
     }
 
     @Test
+    public void inviteTokenIsOptionalAndDoesNotChangeAFriendRequest() {
+        byte[] token = new byte[16];
+        java.util.Arrays.fill(token, (byte) 7);
+        UserComm request = UserComm.newFriendRequest(null, token);
+        String json = OscarClient.sGson.toJson(request);
+        assertTrue(json.contains("\"invite_token\""));
+        assertFalse(json.contains("drop_box"));
+        UserComm back = OscarClient.sGson.fromJson(json, UserComm.class);
+        assertArrayEquals(token, back.inviteToken);
+        assertTrue(back.isValid());
+        assertFalse(OscarClient.sGson.toJson(UserComm.newFriendRequest(null)).contains("invite_token"));
+
+        UserComm grant = UserComm.newLocationSharingGrant(token, null, token);
+        UserComm grantBack = OscarClient.sGson.fromJson(OscarClient.sGson.toJson(grant), UserComm.class);
+        assertArrayEquals(token, grantBack.inviteToken);
+        assertArrayEquals(token, grantBack.dropBox);
+        assertTrue(grantBack.isValid());
+    }
+
+    @Test
+    public void snapshotInvitesStayOnSchemaVersionOne() {
+        Snapshot snapshot = new Snapshot();
+        snapshot.schemaVersion = 1;
+        Snapshot.Invite invite = new Snapshot.Invite();
+        invite.token = new byte[16];
+        java.util.Arrays.fill(invite.token, (byte) 4);
+        snapshot.invites = new java.util.ArrayList<>(java.util.Collections.singletonList(invite));
+        String json = new String(snapshot.toJson(), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(json.contains("\"invites\""));
+        assertFalse(json.contains("used_by"));
+        Snapshot back = Snapshot.fromJson(snapshot.toJson());
+        assertNotNull(back);
+        assertEquals(1, back.schemaVersion);
+        assertArrayEquals(invite.token, back.invites.get(0).token);
+        assertNull(back.invites.get(0).usedBy);
+        Snapshot legacy = Snapshot.fromJson("{\"schema_version\":1,\"friends\":[],\"users\":[]}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertNotNull(legacy);
+        assertNull(legacy.invites);
+    }
+
+    @Test
     public void restoresIosNicknameFieldsWithoutChangingSchemaVersion() {
         String json = "{\"schema_version\":1,\"timestamp\":0,\"nickname\":\"My name\",\"friends\":[{\"nickname\":\"Dad\",\"shared_nickname\":\"Alexander\"}],\"users\":[]}";
         Snapshot snapshot = OscarClient.sGson.fromJson(json, Snapshot.class);

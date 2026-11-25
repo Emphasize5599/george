@@ -61,6 +61,9 @@ public class CrossPlatformBackupTest {
         assertEquals("ios-device", s.activeDevice.id);
         assertEquals("ios", s.activeDevice.platform);
         assertEquals(1_700_000_000_000L, s.activeDevice.since);
+        assertNotNull(s.invites);
+        assertArrayEquals(filled(4, 16), s.invites.get(0).token);
+        assertNull(s.invites.get(0).usedBy);
     }
 
     @Test
@@ -107,9 +110,14 @@ public class CrossPlatformBackupTest {
         s.activeDevice.platform = "android";
         s.activeDevice.since = 1_800_000_000_000L;
 
+        Snapshot.Invite invite = new Snapshot.Invite();
+        invite.token = filled(9, 16);
+        invite.usedBy = filled(2, 16);
+        s.invites = new ArrayList<>(Collections.singletonList(invite));
+
         byte[] json = s.toJson();
         String text = new String(json, StandardCharsets.UTF_8);
-        for (String key : new String[]{"\"linked_contact_name\"", "\"bar_order\"", "\"active_device\"", "\"blocked\"", "\"folders\"", "\"shared_nickname\""}) {
+        for (String key : new String[]{"\"linked_contact_name\"", "\"bar_order\"", "\"active_device\"", "\"blocked\"", "\"folders\"", "\"shared_nickname\"", "\"invites\"", "\"used_by\""}) {
             assertTrue("missing " + key, text.contains(key));
         }
 
