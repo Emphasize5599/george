@@ -186,6 +186,14 @@ public class MessageProcessor {
             case DeviceInfo:
                 L.i("We shouldn't be receiving device_info from other users");
                 return Result.ErrorInvalidCommunication;
+            case InviteRedemption:
+                try {
+                    xyz.zood.george.InviteRedemptions.receive(user, comm, token, keyPair);
+                    return Result.Success;
+                } catch (IOException | DB.DBException ex) {
+                    L.w("Unable to process invite redemption", ex);
+                    return Result.ErrorDatabaseException;
+                }
             case FriendRequest:
             case LocationSharingGrant:
                 Result result = handleLocationSharingGrant(user, comm);

@@ -352,6 +352,12 @@ public class AddFriendFragment extends Fragment {
                         showUserValidityIcon(false);
                         binding.addFriend.setEnabled(false);
                         return;
+                    case InviteExpired:
+                        errMsg = getString(R.string.invite_expired);
+                        break;
+                    case InviteUnconfirmed:
+                        errMsg = getString(R.string.invite_unconfirmed);
+                        break;
                     case UserNotFound:
                         errMsg = getString(R.string.unknown_error_getting_user_info);
                         break;

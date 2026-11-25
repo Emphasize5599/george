@@ -58,6 +58,13 @@ public final class InviteTokens {
         return true;
     }
 
+    static synchronized boolean wasUsedBy(byte[] token, byte[] sender) {
+        String key = accountKey();
+        if (key == null) return false;
+        return load(key).stream().anyMatch(record ->
+                Arrays.equals(record.token, token) && Arrays.equals(record.usedBy, sender));
+    }
+
     /** Joins backup tokens with the ones already on this phone. A token stays used if either copy says so. */
     public static synchronized void restore(@Nullable Snapshot snapshot) {
         if (snapshot == null) return;

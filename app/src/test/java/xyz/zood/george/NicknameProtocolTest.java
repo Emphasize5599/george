@@ -70,6 +70,23 @@ public class NicknameProtocolTest {
     }
 
     @Test
+    public void inviteRedemptionKeepsRequestAndExplicitRejectionDistinct() {
+        byte[] token = new byte[16];
+        UserComm request = UserComm.newInviteRedemption(token, null);
+        UserComm rejected = UserComm.newInviteRedemption(token, false);
+        UserComm accepted = UserComm.newInviteRedemption(token, true);
+        for (UserComm message : new UserComm[]{request, rejected, accepted}) {
+            UserComm decoded = OscarClient.sGson.fromJson(OscarClient.sGson.toJson(message), UserComm.class);
+            assertTrue(decoded.isValid());
+            assertEquals(message.inviteAccepted, decoded.inviteAccepted);
+            assertArrayEquals(token, decoded.inviteToken);
+        }
+        assertFalse(UserComm.newInviteRedemption(new byte[15], null).isValid());
+        request.dropBox = token;
+        assertFalse(request.isValid());
+    }
+
+    @Test
     public void snapshotInvitesStayOnSchemaVersionOne() {
         Snapshot snapshot = new Snapshot();
         snapshot.schemaVersion = 1;

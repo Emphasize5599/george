@@ -129,14 +129,14 @@ public final class FriendRequests {
      * Redeems a one-time invite. An unknown or already-used token is ignored and does not become a request.
      * The friend is added without our outgoing sharing. A grant only fills the receiving box.
      */
-    private static void acceptInvite(UserRecord user, UserComm comm) throws IOException, DB.DBException {
-        if (!InviteTokens.authorize(comm.inviteToken, user.userId)) return;
+    static synchronized boolean acceptInvite(UserRecord user, UserComm comm) throws IOException, DB.DBException {
+        if (isBlocked(user.userId) || !InviteTokens.authorize(comm.inviteToken, user.userId)) return false;
         ArrayList<Request> requests = storedRequests();
         if (requests.removeIf(request -> Arrays.equals(request.user.userId, user.userId))) save(requests);
         FriendRecord friend = DB.get().getFriendByUserId(user.id);
         boolean created = friend == null;
-        if (comm.type == CommType.FriendRequest) {
-            if (created) DB.get().addFriendWithoutSharing(user);
+        if (comm.type != CommType.LocationSharingGrant) {
+            DB.get().addFriendWithoutSharing(user);
         } else if (comm.dropBox != null) {
             // Create the friendship first so the grant cannot turn on our sending box.
             DB.get().addFriendWithoutSharing(user);
@@ -157,6 +157,7 @@ public final class FriendRequests {
             }
         }
         BackupDatabaseWorker.scheduleBackup(App.getApp());
+        return true;
     }
 
     public static synchronized void recordPendingAvatar(UserRecord user, byte[] avatar) throws IOException {

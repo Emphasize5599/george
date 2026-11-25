@@ -95,17 +95,51 @@ public class FriendshipManager {
                 listener.onAddFriendFinished(AddFriendResult.ConfirmSharing, user.username);
                 return;
             }
+            if (inviteToken != null) {
+                confirmInvite(user, inviteToken, choice == AddChoice.SHARE, listener);
+                return;
+            }
             if (choice == AddChoice.WITHOUT_LOCATION) {
-                if (inviteToken != null || friend == null) sendRequestWithoutLocation(user, inviteToken, listener);
+                if (friend == null) sendRequestWithoutLocation(user, listener);
                 else listener.onAddFriendFinished(AddFriendResult.Success, null);
                 return;
             }
-            addFriend(user, inviteToken, listener);
+            addFriend(user, listener);
         }
     }
 
-    private void sendRequestWithoutLocation(UserRecord user, @Nullable byte[] inviteToken, OnAddFriendFinishedListener listener) {
-        UserComm request = UserComm.newFriendRequest(AvatarManager.requestAvatar(ctx), inviteToken);
+    private void confirmInvite(UserRecord user, byte[] token, boolean sharing, OnAddFriendFinishedListener listener) {
+        boolean sent = InviteRedemptions.send(user, token, AvatarManager.requestAvatar(ctx), accessToken, keyPair, accepted -> {
+            synchronized (FriendRequests.class) {
+                if (accepted == null || !accessToken.equals(Prefs.get(ctx).getAccessToken())) {
+                    listener.onAddFriendFinished(AddFriendResult.InviteUnconfirmed, null);
+                    return;
+                }
+                if (!accepted) {
+                    listener.onAddFriendFinished(AddFriendResult.InviteExpired, null);
+                    return;
+                }
+                if (FriendRequests.isBlocked(user.userId)) {
+                    listener.onAddFriendFinished(AddFriendResult.SharingGrantFailed, ctx.getString(R.string.unblock_before_sharing));
+                    return;
+                }
+                try {
+                    db.addFriendWithoutSharing(user);
+                    Nicknames.notifyListeners();
+                    BackupDatabaseWorker.scheduleBackup(ctx);
+                } catch (DB.DBException error) {
+                    listener.onAddFriendFinished(AddFriendResult.DatabaseError, error.getLocalizedMessage());
+                    return;
+                }
+                if (sharing) addFriend(user, listener);
+                else listener.onAddFriendFinished(AddFriendResult.Success, null);
+            }
+        });
+        if (!sent) listener.onAddFriendFinished(AddFriendResult.InviteUnconfirmed, null);
+    }
+
+    private void sendRequestWithoutLocation(UserRecord user, OnAddFriendFinishedListener listener) {
+        UserComm request = UserComm.newFriendRequest(AvatarManager.requestAvatar(ctx));
         String error = OscarClient.queueSendMessage(queue, user, keyPair, accessToken, request.toJSON(), false, false);
         if (error != null) {
             listener.onAddFriendFinished(AddFriendResult.SharingGrantFailed, error);
@@ -121,13 +155,13 @@ public class FriendshipManager {
         }
     }
 
-    private void addFriend(UserRecord user, @Nullable byte[] inviteToken, OnAddFriendFinishedListener listener) {
+    private void addFriend(UserRecord user, OnAddFriendFinishedListener listener) {
         // check if we already have this user as a friend, and if we're already sharing with them
         final FriendRecord friend = db.getFriendByUserId(user.id);
         if (friend != null) {
             if (friend.sendingBoxId != null) {
                 // send the sending box id to this person one more time, just in case
-                UserComm comm = UserComm.newLocationSharingGrant(friend.sendingBoxId, friend.receivingBoxId, inviteToken);
+                UserComm comm = UserComm.newLocationSharingGrant(friend.sendingBoxId, friend.receivingBoxId);
                 String errMsg = OscarClient.queueSendMessage(queue, user, keyPair, accessToken, comm.toJSON(), false, false);
                 if (errMsg != null) {
                     CloudLogger.log(errMsg);
@@ -141,8 +175,7 @@ public class FriendshipManager {
 
         byte[] sendingBoxId = new byte[Constants.DROP_BOX_ID_LENGTH];
         new SecureRandom().nextBytes(sendingBoxId);
-        UserComm comm = UserComm.newLocationSharingGrant(sendingBoxId, null, inviteToken);
-        if (inviteToken != null) comm.avatar = AvatarManager.requestAvatar(ctx);
+        UserComm comm = UserComm.newLocationSharingGrant(sendingBoxId);
         String errMsg = OscarClient.queueSendMessage(queue, user, keyPair, accessToken, comm.toJSON(), false, false);
         if (errMsg != null) {
             listener.onAddFriendFinished(AddFriendResult.SharingGrantFailed, errMsg);
@@ -150,7 +183,6 @@ public class FriendshipManager {
         }
 
         try {
-            if (inviteToken != null) db.addFriendWithoutSharing(user);
             db.startSharingWith(user, sendingBoxId);
         } catch (DB.DBException dbe) {
             listener.onAddFriendFinished(AddFriendResult.DatabaseError, dbe.getLocalizedMessage());
@@ -271,6 +303,8 @@ public class FriendshipManager {
         Success,
         ConfirmSharing,
         CantAddSelf,
+        InviteExpired,
+        InviteUnconfirmed,
         UserNotFound,
         SharingGrantFailed,
         DatabaseError,

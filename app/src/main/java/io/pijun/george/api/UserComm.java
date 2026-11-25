@@ -60,6 +60,7 @@ public class UserComm {
     @Nullable public Boolean friendRemoved;
     /** Set on a one-time invite. The inviter redeems it instead of showing a friend request. */
     @Nullable public byte[] inviteToken;
+    @Nullable public Boolean inviteAccepted;
 
     @Retention(SOURCE)
     @StringDef({
@@ -249,12 +250,23 @@ public class UserComm {
         return c;
     }
 
+    public static UserComm newInviteRedemption(byte[] token, @Nullable Boolean accepted) {
+        UserComm comm = new UserComm();
+        comm.type = CommType.InviteRedemption;
+        comm.inviteToken = token;
+        comm.inviteAccepted = accepted;
+        return comm;
+    }
+
     @SuppressWarnings({"RedundantIfStatement", "BooleanMethodIsAlwaysInverted"})
     public boolean isValid() {
         if (type == null) {
             return false;
         }
         switch (type) {
+            case InviteRedemption:
+                return inviteToken != null && inviteToken.length == Constants.USER_ID_LENGTH
+                        && dropBox == null && replyToBox == null;
             case FriendRequest:
                 return dropBox == null && replyToBox == null;
             case AvatarRequest:

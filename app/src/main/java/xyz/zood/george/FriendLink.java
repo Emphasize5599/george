@@ -129,10 +129,13 @@ public final class FriendLink {
         String[] choices = {context.getString(R.string.invite_with_link), context.getString(R.string.invite_without_link)};
         new MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.share_an_invite)
-                .setMessage(R.string.invite_link_explanation)
                 .setItems(choices, (dialog, which) -> {
                     String text = context.getString(R.string.invite_friend_msg);
-                    if (which == 0 && username != null) {
+                    if (which == 0) {
+                        if (username == null) {
+                            Toast.makeText(context, R.string.invite_link_failed, Toast.LENGTH_LONG).show();
+                            return;
+                        }
                         try {
                             text = context.getString(R.string.invite_friend_link_msg, InviteTokens.issueLink(username));
                         } catch (IOException error) {
