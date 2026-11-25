@@ -124,9 +124,6 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         binding.showRegisterButton.animate().setStartDelay(0).setDuration(dur).translationX(-binding.showRegisterButton.getRight());
         binding.showSignInButton.animate().setStartDelay(0).setDuration(dur).translationX(-binding.showSignInButton.getRight());
 
-        // also move the wordmark and 'developed by' items
-        binding.developedByZood.animate().setStartDelay(0).setDuration(dur).translationY(1000);
-        binding.wordmark.animate().setStartDelay(0).setDuration(dur).translationY(1000);
     }
 
     void transitionToLogin() {
@@ -190,8 +187,6 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         binding.logo.setAlpha(0f);
         binding.welcomeLabel.setAlpha(0f);
         binding.mainInstructions.setAlpha(0f);
-        binding.wordmark.setAlpha(0f);
-        binding.developedByZood.setAlpha(0f);
         binding.showRegisterButton.setAlpha(0f);
         binding.showSignInButton.setAlpha(0f);
 
@@ -200,14 +195,10 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         binding.mainInstructions.setVisibility(View.VISIBLE);
         binding.showRegisterButton.setVisibility(View.VISIBLE);
         binding.showSignInButton.setVisibility(View.VISIBLE);
-        binding.wordmark.setVisibility(View.VISIBLE);
-        binding.developedByZood.setVisibility(View.VISIBLE);
 
         binding.logo.animate().alpha(1).setDuration(dur).setStartDelay(delay);
         binding.welcomeLabel.animate().alpha(1).setDuration(dur).setStartDelay(delay);
         binding.mainInstructions.animate().alpha(1).setDuration(dur).setStartDelay(delay);
-        binding.wordmark.animate().alpha(1).setDuration(dur).setStartDelay(delay);
-        binding.developedByZood.animate().alpha(1).setDuration(dur).setStartDelay(delay);
         binding.showRegisterButton.animate().alpha(1).setDuration(dur).setStartDelay(delay);
         binding.showSignInButton.animate().alpha(1).setDuration(dur).setStartDelay(delay);
     }
@@ -234,8 +225,6 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         binding.logo.animate().setStartDelay(500).setDuration(dur).translationY(0);
 
         // bring back the main views
-        binding.wordmark.animate().setStartDelay(500).setDuration(dur).translationY(0);
-        binding.developedByZood.animate().setStartDelay(500).setDuration(dur).translationY(0);
 
         binding.welcomeLabel.animate().setStartDelay(500).setDuration(dur).translationX(0);
         binding.mainInstructions.animate().setStartDelay(500).setDuration(dur).translationX(0);
@@ -277,8 +266,6 @@ public class WelcomeViewHolder implements ViewTreeObserver.OnGlobalLayoutListene
         binding.logo.animate().setStartDelay(500).setDuration(dur).translationY(0);
 
         // bring back the main views
-        binding.wordmark.animate().setStartDelay(500).setDuration(dur).translationY(0);
-        binding.developedByZood.animate().setStartDelay(500).setDuration(dur).translationY(0);
 
         binding.welcomeLabel.animate().setStartDelay(500).setDuration(dur).translationX(0);
         binding.mainInstructions.animate().setStartDelay(500).setDuration(dur).translationX(0);

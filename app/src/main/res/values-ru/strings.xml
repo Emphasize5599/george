@@ -151,7 +151,6 @@
     <string name="seconds_abbreviated_msg">%ds</string>
     <string name="send_to">Отправить</string>
     <string name="register_subtitle_msg">Информация о вашей учетной записи зашифрована на вашем телефоне и скопирована на наши серверы. Ваша информация не будет (и не может быть) продана кому-либо.</string>
-    <string name="built_with_heartemoji_in_thousand_oaks">Создано с ❤️ в Таузанд-Окс (англ. Thousand Oaks)</string>
     <string name="welcome_to_zood_location">Добро пожаловать в Amidst</string>
     <string name="sign_in_or_register_a_new_account_to_get_started">Войдите или зарегистрируйте новый аккаунт чтобы начать.</string>
     <string name="sign_in_welcome_back_msg">Добро пожаловать! Мы скучали по вам.</string>

@@ -41,17 +41,17 @@
 
     <ImageView
         android:id="@+id/logo"
-        android:src="@drawable/welcome_logo"
+        android:src="@mipmap/ic_launcher"
         android:contentDescription="@null"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:layout_marginBottom="16dp"
         android:visibility="invisible"
         app:layout_constraintBottom_toTopOf="@id/welcome_label"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintWidth_percent="0.2"
-        app:layout_constrainedHeight="true" />
+        app:layout_constraintDimensionRatio="1:1" />
 
     <TextView
         android:id="@+id/welcome_label"
@@ -85,37 +85,6 @@
         android:paddingEnd="32dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
-
-    <ImageView
-        android:id="@+id/wordmark"
-        android:src="@drawable/ic_zood_logo"
-        android:contentDescription="@string/app_name"
-        tools:visibility="invisible"
-        android:visibility="invisible"
-        android:layout_marginTop="24dp"
-        android:layout_marginBottom="16dp"
-        app:layout_constraintVertical_chainStyle="packed"
-        app:layout_constraintBottom_toTopOf="@id/developed_by_zood"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_width="67dp"
-        android:layout_height="32.5dp" />
-
-    <TextView
-        android:id="@+id/developed_by_zood"
-        android:text="@string/built_with_heartemoji_in_thousand_oaks"
-        android:textColor="@color/text_tertiary"
-        android:textSize="11sp"
-        tools:visibility="invisible"
-        android:visibility="invisible"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="24dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        tools:ignore="SmallSp" />
 
     <!--Show registration and show sign in buttons-->
 
@@ -155,7 +124,7 @@
 
     <ImageView
         android:id="@+id/si_logo_placeholder"
-        android:src="@drawable/welcome_logo"
+        android:src="@mipmap/ic_launcher"
         android:visibility="invisible"
         tools:visibility="visible"
         android:contentDescription="@null"
@@ -165,9 +134,9 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintWidth_percent="0.2"
-        app:layout_constrainedHeight="true"
+        app:layout_constraintDimensionRatio="1:1"
         android:layout_width="0dp"
-        android:layout_height="wrap_content" />
+        android:layout_height="0dp" />
 
     <TextView
         android:id="@+id/si_title"
@@ -272,7 +241,7 @@
 
     <ImageView
         android:id="@+id/register_logo_placeholder"
-        android:src="@drawable/welcome_logo"
+        android:src="@mipmap/ic_launcher"
         android:visibility="invisible"
         android:contentDescription="@null"
         app:layout_constraintVertical_chainStyle="packed"
@@ -281,9 +250,9 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintWidth_percent="0.2"
-        app:layout_constrainedHeight="true"
+        app:layout_constraintDimensionRatio="1:1"
         android:layout_width="0dp"
-        android:layout_height="wrap_content" />
+        android:layout_height="0dp" />
 
     <TextView
         android:id="@+id/register_title"
