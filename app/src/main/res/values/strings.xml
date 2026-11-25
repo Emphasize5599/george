@@ -173,7 +173,7 @@
     <string name="invite_link_failed">Couldn\'t create an invite link. Try again.</string>
     <string name="connect_with_friend">Connect?</string>
     <string name="invite_accept_sharing_choice">A valid invite connects you with %s when their app receives it. They choose when to share their location.</string>
-    <string name="invite_expired">This invite has expired or already been used. Ask for a new link.</string>
+    <string name="invite_expired">This invite has expired for you. Ask the inviter for a new link.</string>
     <string name="invite_unconfirmed">Couldn’t confirm this invite. Ask the inviter to open an updated Amidst app, then try again.</string>
     <string name="invite_without_link">Without my username</string>
     <string name="notifications">Notifications</string>

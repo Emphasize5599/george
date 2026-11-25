@@ -51,6 +51,7 @@ public class Snapshot {
     public static class Invite {
         public byte[] token;
         @Nullable public byte[] usedBy;
+        @Nullable public java.util.List<byte[]> invalidatedFor;
     }
 
     @Nullable

@@ -270,24 +270,7 @@ public class LiveRequestService extends Service implements OscarSocket.Listener 
 
     @Override
     public void onPushNotificationReceived(@NonNull PushNotification notification) {
-        Context ctx = getApplicationContext();
-        MessageProcessor.Result result = MessageProcessor.decryptAndProcess(ctx,
-                notification.senderId, notification.cipherText, notification.nonce);
-        if (result != MessageProcessor.Result.Success) {
-            L.i("LiveRequestService error processing message: " + result);
-        }
-        if (notification.id == null || notification.id.equals("0")) {
-            return; // transient
-        }
-        try {
-            long msgId = Long.parseLong(notification.id);
-            String token = Prefs.get(ctx).getAccessToken();
-            if (msgId != 0 && token != null) {
-                OscarClient.queueDeleteMessage(ctx, token, msgId);
-            }
-        } catch (NumberFormatException ex) {
-            L.w("LiveRequestService bad message id", ex);
-        }
+        MessageProcessor.receiveSocketNotification(notification);
     }
 
     //endregion

@@ -528,7 +528,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             FriendRecord friend = user == null ? null : DB.get().getFriendByUserId(user.id);
             App.runOnUiThread(() -> {
                 if (!isAdded()) return;
-                if (friend != null) onFriendSelected(friend);
+                if (link.inviteToken == null && friend != null) onFriendSelected(friend);
                 else openAddFriend(link.username, link.inviteToken);
             });
         });
@@ -1373,38 +1373,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
             if (LiveRequestService.isRunning()) {
                 return;
             }
-            Context ctx = App.getApp().getApplicationContext();
-            MessageProcessor.Result result = MessageProcessor.decryptAndProcess(ctx,
-                    notification.senderId,
-                    notification.cipherText,
-                    notification.nonce);
-            if (result != MessageProcessor.Result.Success) {
-                L.i("MF error decrypting+processing push notification: " + result);
-            }
-
-            // Was this a transient message?
-            if (notification.id == null || notification.id.equals("0")) {
-                return;
-            }
-
-            // Wasn't transient, so let's delete it from the server
-            long msgId;
-            try {
-                msgId = Long.parseLong(notification.id);
-                if (msgId == 0) { // technically, a redundant check
-                    return;
-                }
-            } catch (NumberFormatException ex) {
-                // something is up on the server
-                L.w("failed to parse push message id", ex);
-                return;
-            }
-
-            String token = Prefs.get(ctx).getAccessToken();
-            if (token == null) {
-                return;
-            }
-            OscarClient.queueDeleteMessage(ctx, token, msgId);
+            MessageProcessor.receiveSocketNotification(notification);
         }
     };
 

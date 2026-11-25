@@ -11,6 +11,23 @@ import static org.junit.Assert.*;
 public class InviteLedgerTest {
 
     @Test
+    public void removingAFriendOnlyInvalidatesTheirAccessToExistingLinks() {
+        byte[] oldToken = filled(11);
+        byte[] newToken = filled(12);
+        byte[] removed = filled(13);
+        byte[] other = filled(14);
+        List<InviteLedger.Record> oldBackup = InviteLedger.issued(oldToken, new ArrayList<>());
+        List<InviteLedger.Record> revoked = InviteLedger.issued(oldToken, new ArrayList<>());
+        assertTrue(InviteLedger.invalidate(removed, revoked));
+        assertFalse(InviteLedger.invalidate(removed, revoked));
+        List<InviteLedger.Record> restored = InviteLedger.merge(oldBackup, revoked);
+        assertFalse(InviteLedger.authorize(oldToken, removed, restored));
+        assertFalse(InviteLedger.authorize(oldToken, removed, InviteLedger.merge(revoked, oldBackup)));
+        assertTrue(InviteLedger.authorize(oldToken, other, restored));
+        assertTrue(InviteLedger.authorize(newToken, removed, InviteLedger.issued(newToken, restored)));
+    }
+
+    @Test
     public void unusedTokenRejectsReplayByAnySender() {
         byte[] token = filled(7);
         byte[] sender = filled(8);

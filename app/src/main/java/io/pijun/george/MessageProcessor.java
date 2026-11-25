@@ -3,9 +3,7 @@ package io.pijun.george;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
-import android.text.format.DateUtils;
 
-import androidx.annotation.AnyThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Size;
 import androidx.annotation.WorkerThread;
@@ -13,16 +11,21 @@ import androidx.core.content.ContextCompat;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import io.pijun.george.api.DeviceInfo;
 import io.pijun.george.api.LimitedUserInfoUnchecked;
 import io.pijun.george.api.CommType;
 import io.pijun.george.api.Message;
-import io.pijun.george.api.MessageConverter;
 import io.pijun.george.api.OscarAPI;
 import io.pijun.george.api.OscarClient;
 import io.pijun.george.api.OscarError;
 import io.pijun.george.api.OutboundMessage;
+import io.pijun.george.api.PushNotification;
 import io.pijun.george.api.UserComm;
 import io.pijun.george.api.task.SendMessageTask;
 import io.pijun.george.crypto.EncryptedData;
@@ -30,7 +33,6 @@ import io.pijun.george.crypto.KeyPair;
 import io.pijun.george.database.DB;
 import io.pijun.george.database.FriendRecord;
 import io.pijun.george.database.UserRecord;
-import io.pijun.george.queue.PersistentQueue;
 import retrofit2.Response;
 import xyz.zood.george.AvatarManager;
 import xyz.zood.george.Permissions;
@@ -63,13 +65,14 @@ public class MessageProcessor {
         RetryFriendRemoval
     }
 
-    private static final String QUEUE_FILENAME = "message_processor";
-    private static volatile MessageProcessor singleton;
-    private final PersistentQueue<Message> queue;
+    private static final ScheduledExecutorService inboxExecutor = Executors.newSingleThreadScheduledExecutor();
+    private static String requestedInbox;
+    private static boolean inboxScheduled;
+    private static ScheduledFuture<?> inboxRetry;
+    private static String acknowledgmentAccount;
+    private static Message awaitingAcknowledgment;
 
-    private MessageProcessor() {
-        queue = new PersistentQueue<>(App.getApp(), QUEUE_FILENAME, new MessageConverter());
-    }
+    private MessageProcessor() {}
 
     @WorkerThread
     public static Result decryptAndProcess(@NonNull Context context, @NonNull byte[] senderId, @NonNull byte[] cipherText, @NonNull byte[] nonce) {
@@ -224,25 +227,6 @@ public class MessageProcessor {
                         user.username + " - " + comm);
                 return Result.ErrorInvalidCommunication;
         }
-    }
-
-    @NonNull
-    @AnyThread
-    private static MessageProcessor get() {
-        if (singleton == null) {
-            synchronized (MessageProcessor.class) {
-                if (singleton == null) {
-                    singleton = new MessageProcessor();
-                    App.runInBackground(new WorkerRunnable() {
-                        @Override
-                        public void run() {
-                            singleton.processQueue();
-                        }
-                    });
-                }
-            }
-        }
-        return singleton;
     }
 
     private static Result handleAvatarRequest(@NonNull Context ctx, @NonNull UserRecord user) {
@@ -545,102 +529,88 @@ public class MessageProcessor {
         return Result.Success;
     }
 
-    @SuppressWarnings("InfiniteLoopStatement")
-    @WorkerThread
-    private void processQueue() {
-        while (true) {
-            Message msg;
-            try {
-                msg = queue.blockingPeek();
-                Result result = decryptAndProcess(App.getApp(), msg.senderId, msg.cipherText, msg.nonce);
-                String token = Prefs.get(App.getApp()).getAccessToken();
-                switch (result) {
-                    case Success:
-                        queue.poll();
-                        // delete the action from the server
-                        if (msg.id != 0 && token != null) {
-                            OscarClient.queueDeleteMessage(App.getApp(), token, msg.id);
-                        }
-                        break;
-                    case ErrorNoNetwork:
-                    case ErrorRemoteInternal:
-                    case RetryFriendRemoval:
-                        L.w("reschedulable action processing error");
-                        // sleep for 60 seconds, then try again
-                        //noinspection BusyWait
-                        Thread.sleep(60 * DateUtils.SECOND_IN_MILLIS);
-                        break;
-                    case ErrorDecryptionFailed:
-                        // somebody must have a corrupt keypair
-                    case ErrorInvalidSenderId:
-                    case ErrorMissingCipherText:
-                    case ErrorMissingNonce:
-                    case ErrorInvalidCommunication:
-                        // just remove the invalid message
-                    case ErrorNotLoggedIn:
-                        // if we're not logged in, toss the message
-                    case ErrorDatabaseException:
-                    case ErrorDatabaseInconsistency:
-                    case ErrorEncryptionFailed:
-                    case ErrorNotAFriend:
-                    case ErrorUnknownSender:
-                    case ErrorUnknown:
-                    default:
-                        queue.poll();
-                        // delete the action from the server
-                        if (msg.id != 0 && token != null) {
-                            OscarClient.queueDeleteMessage(App.getApp(), token, msg.id);
-                        }
-                        L.w("error processing action: " + result);
-                        UserRecord user = DB.get().getUser(msg.senderId);
-                        if (user != null) {
-                        } else {
-                            L.w("\tfrom an unknown user");
-                        }
-                        break;
-                }
-            } catch (Throwable t) {
-                L.w("MessageProcessor.processQueue", t);
-            }
+    /** Durable socket messages signal the inbox. Only transient messages are handled inline. */
+    public static void receiveSocketNotification(@NonNull PushNotification notification) {
+        if (notification.id != null && !notification.id.equals("0")) {
+            String token = Prefs.get(App.getApp()).getAccessToken();
+            if (token != null) retrieveAndProcessNewMessages(token);
+            return;
+        }
+        Result result = decryptAndProcess(App.getApp(), notification.senderId, notification.cipherText, notification.nonce);
+        if (result != Result.Success) L.w("Unable to process transient message: " + result);
+    }
+
+    public static synchronized void retrieveAndProcessNewMessages(@NonNull String accessToken) {
+        if (!accessToken.equals(Prefs.get(App.getApp()).getAccessToken())) return;
+        requestedInbox = accessToken;
+        if (!inboxScheduled) {
+            inboxScheduled = true;
+            inboxExecutor.execute(MessageProcessor::syncInbox);
         }
     }
 
-    @AnyThread
-    public static void queue(@NonNull Message msg) {
-        App.runInBackground(new WorkerRunnable() {
-            @Override
-            public void run() {
-                get().queue.offer(msg);
+    private static void syncInbox() {
+        while (true) {
+            String token;
+            synchronized (MessageProcessor.class) {
+                token = requestedInbox;
+                requestedInbox = null;
+                if (token == null) {
+                    inboxScheduled = false;
+                    return;
+                }
             }
-        });
+            if (!token.equals(Prefs.get(App.getApp()).getAccessToken())) continue;
+            if (inboxRetry != null) inboxRetry.cancel(false);
+            try {
+                if (drainInbox(token)) continue;
+            } catch (IOException | RuntimeException error) {
+                L.w("Unable to sync the message inbox", error);
+            }
+            inboxRetry = inboxExecutor.schedule(() -> retrieveAndProcessNewMessages(token), 30, TimeUnit.SECONDS);
+        }
     }
 
-    public static void retrieveAndProcessNewMessages(@NonNull String accessToken) {
-        if (accessToken.equals(Prefs.get(App.getApp()).getAccessToken())) {
+    private static boolean drainInbox(String token) throws IOException {
+        if (!token.equals(acknowledgmentAccount)) {
+            awaitingAcknowledgment = null;
+            acknowledgmentAccount = token;
+        }
+        OscarAPI api = OscarClient.newInstance(token);
+        Response<Message[]> response = api.getMessages().execute();
+        if (!response.isSuccessful()) {
+            L.w("Unable to read the message inbox: " + OscarError.fromResponse(response));
+            return response.code() < 500 && response.code() != 429;
+        }
+        Message[] messages = response.body();
+        if (messages == null) return true;
+
+        // The server's socket callbacks and inbox response can both arrive out of order.
+        Arrays.sort(messages, Comparator.comparingLong(message -> message.id));
+        for (Message message : messages) {
+            if (!token.equals(Prefs.get(App.getApp()).getAccessToken())) return true;
+
+            boolean alreadyApplied = awaitingAcknowledgment != null && awaitingAcknowledgment.id == message.id
+                    && Arrays.equals(awaitingAcknowledgment.nonce, message.nonce);
+            if (!alreadyApplied) {
+                Result result = decryptAndProcess(App.getApp(), message.senderId, message.cipherText, message.nonce);
+                if (result == Result.ErrorNoNetwork || result == Result.ErrorRemoteInternal
+                        || result == Result.RetryFriendRemoval) return false;
+                if (result != Result.Success) L.w("Discarding invalid inbox message: " + result);
+            }
+            awaitingAcknowledgment = message;
+            Response<Void> deleted = api.deleteMessage(message.id).execute();
+            if (!deleted.isSuccessful() && deleted.code() != 404) return false;
+            awaitingAcknowledgment = null;
+        }
+
+        if (token.equals(Prefs.get(App.getApp()).getAccessToken())) {
             try {
                 FriendRequests.repairLocationGrants();
             } catch (IOException | DB.DBException error) {
                 L.w("Could not repair a previously queued location grant", error);
             }
         }
-        OscarAPI api = OscarClient.newInstance(accessToken);
-        try {
-            Response<Message[]> response = api.getMessages().execute();
-            if (!response.isSuccessful()) {
-                OscarError err = OscarError.fromResponse(response);
-                L.w("error checking for messages: " + err);
-                return;
-            }
-            Message[] msgs = response.body();
-            if (msgs == null) {
-                return;
-            }
-            for (Message msg : msgs) {
-                queue(msg);
-            }
-        } catch (IOException ignore) {
-            // meh, we'll try again later
-        }
+        return true;
     }
-
 }

@@ -22,6 +22,7 @@ public final class InviteLedger {
     public static final class Record {
         public byte[] token;
         @Nullable public byte[] usedBy;
+        @Nullable public List<byte[]> invalidatedFor;
     }
 
     public static List<Record> issued(byte[] token, List<Record> records) {
@@ -37,13 +38,31 @@ public final class InviteLedger {
         if (token == null || token.length != TOKEN_LENGTH || sender == null || sender.length != TOKEN_LENGTH) return false;
         for (Record record : records) {
             if (!Arrays.equals(record.token, token)) continue;
-            if (record.usedBy == null) {
+            if (record.usedBy == null && !isInvalidatedFor(record, sender)) {
                 record.usedBy = sender.clone();
                 return true;
             }
             return false;
         }
         return false;
+    }
+
+    static boolean isInvalidatedFor(Record record, byte[] sender) {
+        return record.invalidatedFor != null && record.invalidatedFor.stream()
+                .anyMatch(user -> Arrays.equals(user, sender));
+    }
+
+    /** Exclude one account from the current links without affecting anyone else. */
+    static boolean invalidate(byte[] sender, List<Record> records) {
+        boolean changed = false;
+        for (Record record : records) {
+            if (record.usedBy != null && !Arrays.equals(record.usedBy, sender)) continue;
+            if (isInvalidatedFor(record, sender)) continue;
+            if (record.invalidatedFor == null) record.invalidatedFor = new ArrayList<>();
+            record.invalidatedFor.add(sender.clone());
+            changed = true;
+        }
+        return changed;
     }
 
     /** A token is used if either side says so. Local wins when the two sides name different people. */
@@ -97,13 +116,21 @@ public final class InviteLedger {
             if (record == null || record.token == null || record.token.length != TOKEN_LENGTH) continue;
             byte[] usedBy = record.usedBy != null && record.usedBy.length == TOKEN_LENGTH ? record.usedBy : null;
             int index = indexOf(ordered, record.token);
+            Record merged;
             if (index < 0) {
-                Record copy = new Record();
-                copy.token = record.token.clone();
-                copy.usedBy = usedBy == null ? null : usedBy.clone();
-                ordered.add(copy);
-            } else if (ordered.get(index).usedBy == null && usedBy != null) {
-                ordered.get(index).usedBy = usedBy.clone();
+                merged = new Record();
+                merged.token = record.token.clone();
+                ordered.add(merged);
+            } else {
+                merged = ordered.get(index);
+            }
+            if (merged.usedBy == null && usedBy != null) merged.usedBy = usedBy.clone();
+            if (record.invalidatedFor != null) {
+                for (byte[] sender : record.invalidatedFor) {
+                    if (sender == null || sender.length != TOKEN_LENGTH || isInvalidatedFor(merged, sender)) continue;
+                    if (merged.invalidatedFor == null) merged.invalidatedFor = new ArrayList<>();
+                    merged.invalidatedFor.add(sender.clone());
+                }
             }
         }
     }

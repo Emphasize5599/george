@@ -38,7 +38,7 @@ Google Play and the Google Play logo are trademarks of Google Inc.
 
 Continue after the username check to choose **Share My Location** or **Not Now**. Both send a friend request to a current Amidst client. **Not Now** sends your optional profile photo and display name without a location grant, and the recipient sees that you are not sharing. Older Zood clients only understand requests that include a grant. Approving a request leaves your location sharing off. If either person chooses to share later, their location updates the existing friend card.
 
-A one-time link connects the first recipient whose confirmation is processed by a current Amidst client. The inviter’s sharing stays off unless they turn it on. Both apps must support confirmation. If the link is unavailable or no confirmation arrives, the recipient sees an error and their location is not shared. A username-only link uses the ordinary request flow.
+A one-time link connects the first recipient whose confirmation is processed by a current Amidst client. The inviter’s sharing stays off unless they turn it on. Both apps must support confirmation. If the link is unavailable or no confirmation arrives, the recipient sees an error and their location is not shared. Removing a friend expires existing one-time links for that person. A new link can connect them again. A username-only link uses the ordinary request flow.
 
 After location setup, Amidst can ask for optional Contacts access if an already-linked Android contact needs its photo restored. Photos are read from the linked cards on the device and stay there.
 

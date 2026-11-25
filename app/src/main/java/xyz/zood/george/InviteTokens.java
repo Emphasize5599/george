@@ -62,7 +62,18 @@ public final class InviteTokens {
         String key = accountKey();
         if (key == null) return false;
         return load(key).stream().anyMatch(record ->
-                Arrays.equals(record.token, token) && Arrays.equals(record.usedBy, sender));
+                Arrays.equals(record.token, token) && Arrays.equals(record.usedBy, sender)
+                        && !InviteLedger.isInvalidatedFor(record, sender));
+    }
+
+    static synchronized void invalidateFor(byte[] user) throws IOException {
+        String key = accountKey();
+        if (key == null) return;
+        List<InviteLedger.Record> records = load(key);
+        if (InviteLedger.invalidate(user, records)) {
+            save(key, records);
+            BackupDatabaseWorker.scheduleBackup(App.getApp());
+        }
     }
 
     /** Joins backup tokens with the ones already on this phone. A token stays used if either copy says so. */
@@ -88,6 +99,7 @@ public final class InviteTokens {
             Snapshot.Invite invite = new Snapshot.Invite();
             invite.token = record.token;
             invite.usedBy = record.usedBy;
+            invite.invalidatedFor = record.invalidatedFor;
             invites.add(invite);
         }
         return invites;
@@ -119,6 +131,7 @@ public final class InviteTokens {
             InviteLedger.Record record = new InviteLedger.Record();
             record.token = invite.token;
             record.usedBy = invite.usedBy;
+            record.invalidatedFor = invite.invalidatedFor;
             records.add(record);
         }
         return records;

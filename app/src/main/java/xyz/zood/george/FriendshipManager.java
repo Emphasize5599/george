@@ -87,7 +87,7 @@ public class FriendshipManager {
                 return;
             }
             FriendRecord friend = db.getFriendByUserId(user.id);
-            if (friend != null && friend.receivingBoxId != null) {
+            if (inviteToken == null && friend != null && friend.receivingBoxId != null) {
                 listener.onAddFriendFinished(AddFriendResult.Success, null);
                 return;
             }
@@ -212,6 +212,13 @@ public class FriendshipManager {
     @WorkerThread
     void removeFriend(@NonNull FriendRecord friend, @NonNull OnRemoveFriendFinishedListener listener) {
         synchronized (FriendRequests.class) {
+            try {
+                InviteTokens.invalidateFor(friend.user.userId);
+            } catch (IOException error) {
+                L.w("Unable to invalidate old invites before removing friend", error);
+                listener.onRemoveFriendFinished(false);
+                return;
+            }
             String error = OscarClient.queueSendMessage(queue, friend.user, keyPair, accessToken,
                     UserComm.newFriendRemoval().toJSON(), false, false);
             if (error != null) {

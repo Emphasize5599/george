@@ -283,6 +283,7 @@ public final class FriendRequests {
         BackupDatabaseWorker.scheduleBackup(App.getApp());
 
         if (friend != null) {
+            InviteTokens.invalidateFor(user.userId);
             if (request == null) {
                 request = new Request();
                 request.user = user;
