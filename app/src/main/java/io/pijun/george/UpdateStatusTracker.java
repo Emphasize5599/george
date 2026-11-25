@@ -1,5 +1,6 @@
 package io.pijun.george;
 
+import android.os.SystemClock;
 import android.text.format.DateUtils;
 import android.util.LongSparseArray;
 
@@ -22,6 +23,9 @@ public class UpdateStatusTracker {
         RequestDenied,
         RequestFulfilled,
     }
+
+    private static final long REQUEST_TIMEOUT = 30 * DateUtils.SECOND_IN_MILLIS;
+    private static final long STATUS_DURATION = DateUtils.MINUTE_IN_MILLIS;
 
     static class Response {
         final long responseTime;
@@ -47,47 +51,30 @@ public class UpdateStatusTracker {
     @CheckResult
     @AnyThread
     public static synchronized State getFriendState(long friendId) {
-        long now = System.currentTimeMillis();
+        long now = SystemClock.elapsedRealtime();
         Long reqTime = requestTimes.get(friendId);
-        // if this is old data, remove it
-        if (reqTime != null && (now - reqTime) > 2 * DateUtils.MINUTE_IN_MILLIS ) {
+        if (reqTime == null) return State.NotRequested;
+
+        long elapsed = now - reqTime;
+        if (elapsed >= STATUS_DURATION) {
             requestTimes.remove(friendId);
-            reqTime = null;
-        }
-
-        if (reqTime == null) {
-            return State.NotRequested;
-        }
-
-        // check if we have a response
-        Response resp = responses.get(friendId);
-        // if this is old response data, remove it
-        if (resp != null && (now - resp.responseTime) > 2 * DateUtils.MINUTE_IN_MILLIS) {
             responses.remove(friendId);
-            // a 2 minute old response is no longer relevant
-            resp = null;
-        }
-        if (resp == null) {
-            // no response, so let's check if the request was sent recently
-            long sinceReq = now - reqTime;
-            if (sinceReq < 15000) {
-                return State.Requested;
-            } else if (sinceReq < 60000) {
-                return State.RequestedAndUnresponsive;
-            }
             return State.NotRequested;
         }
 
-        if (resp.action.equals(UserComm.LOCATION_UPDATE_REQUEST_ACTION_STARTING)) {
-            return State.RequestAcknowledged;
-        } else if (resp.action.equals(UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED)) {
-            return State.RequestFulfilled;
+        Response resp = responses.get(friendId);
+        if (resp != null) {
+            if (UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED.equals(resp.action)) return State.RequestFulfilled;
+            if (UserComm.LOCATION_UPDATE_REQUEST_ACTION_TOO_SOON.equals(resp.action)) return State.RequestDenied;
         }
-        if (!resp.action.equals(UserComm.LOCATION_UPDATE_REQUEST_ACTION_TOO_SOON)) {
-            L.i("Returning friendstate denied, but response action is " + resp.action);
-        }
+        if (elapsed >= REQUEST_TIMEOUT) return State.RequestedAndUnresponsive;
+        return resp == null ? State.Requested : State.RequestAcknowledged;
+    }
 
-        return State.RequestDenied;
+    @AnyThread
+    public static boolean isPending(long friendId) {
+        State state = getFriendState(friendId);
+        return state == State.Requested || state == State.RequestAcknowledged;
     }
 
     /**
@@ -122,40 +109,46 @@ public class UpdateStatusTracker {
         }
     }
 
-    public static void setLastRequestTime(long friendId, long reqTime) {
-        synchronized (UpdateStatusTracker.class) {
-            requestTimes.put(friendId, reqTime);
-            responses.remove(friendId);
-            notifyListeners(friendId);
-        }
+    public static synchronized boolean startRequest(long friendId) {
+        if (isPending(friendId)) return false;
+
+        long reqTime = SystemClock.elapsedRealtime();
+        requestTimes.put(friendId, reqTime);
+        responses.remove(friendId);
+        notifyListeners(friendId);
+        scheduleStatusUpdate(friendId, reqTime, REQUEST_TIMEOUT);
+        scheduleStatusUpdate(friendId, reqTime, STATUS_DURATION);
+        return true;
+    }
+
+    private static void scheduleStatusUpdate(long friendId, long reqTime, long delay) {
+        App.runOnUiThread(() -> {
+            synchronized (UpdateStatusTracker.class) {
+                Long current = requestTimes.get(friendId);
+                if (current != null && current == reqTime) notifyListeners(friendId);
+            }
+        }, delay);
     }
 
     @AnyThread
-    static void setUpdateRequestResponse(long friendId, long respTime, String message) {
-        synchronized (UpdateStatusTracker.class) {
-            Response existing = responses.get(friendId);
-            // An acknowledgement can arrive after the location that already completed this request.
-            if (existing != null && UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED.equals(existing.action)) {
-                return;
-            }
-            responses.put(friendId, new Response(respTime, message));
-            notifyListeners(friendId);
+    static synchronized void setUpdateRequestResponse(long friendId, String action) {
+        if (!isPending(friendId)) return;
+        if (UserComm.LOCATION_UPDATE_REQUEST_ACTION_STARTING.equals(action)
+                || UserComm.LOCATION_UPDATE_REQUEST_ACTION_TOO_SOON.equals(action)) {
+            recordResponse(friendId, action);
         }
+    }
+
+    private static void recordResponse(long friendId, String action) {
+        responses.put(friendId, new Response(System.currentTimeMillis(), action));
+        notifyListeners(friendId);
     }
 
     /** A newer location satisfies a pending refresh, regardless of what caused the phone to send it. */
     @AnyThread
-    static void onLocationReceived(long friendId, long locationTime, Long previousTime) {
-        synchronized (UpdateStatusTracker.class) {
-            if (previousTime != null && locationTime <= previousTime) {
-                return;
-            }
-            State state = getFriendState(friendId);
-            if (state == State.Requested || state == State.RequestedAndUnresponsive
-                    || state == State.RequestAcknowledged) {
-                setUpdateRequestResponse(friendId, System.currentTimeMillis(),
-                        UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED);
-            }
+    static synchronized void onLocationReceived(long friendId, long locationTime, Long previousTime) {
+        if ((previousTime == null || locationTime > previousTime) && isPending(friendId)) {
+            recordResponse(friendId, UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED);
         }
     }
 

@@ -441,7 +441,14 @@ public class MessageProcessor {
             return Result.Success;
         }
         FriendDevices.record(App.getApp(), user.userId, comm);
-        UpdateStatusTracker.setUpdateRequestResponse(friend.id, System.currentTimeMillis(), comm.locationUpdateRequestAction);
+        if (UserComm.LOCATION_UPDATE_REQUEST_ACTION_FINISHED.equals(comm.locationUpdateRequestAction)) {
+            // Stock Zood can report completion without a fresh fix. Verify against the receiving box.
+            if (UpdateStatusTracker.isPending(friend.id)) {
+                FriendRequests.fetchLatestIfSignedIn(user, friend.receivingBoxId);
+            }
+        } else {
+            UpdateStatusTracker.setUpdateRequestResponse(friend.id, comm.locationUpdateRequestAction);
+        }
 
         return Result.Success;
     }

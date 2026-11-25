@@ -913,7 +913,7 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
                     }
                     L.i("Requesting a friend location update");
                     UserComm comm = UserComm.newLocationUpdateRequest();
-                    UpdateStatusTracker.setLastRequestTime(friend.id, System.currentTimeMillis());
+                    if (!UpdateStatusTracker.startRequest(friend.id)) return;
                     String errMsg = OscarClient.queueSendMessage(OscarClient.getQueue(requireContext()), friend.user, keyPair, accessToken, comm.toJSON(), true, true);
                     if (errMsg != null) {
                         L.w("manual location request failed: " + errMsg);

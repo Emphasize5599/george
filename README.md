@@ -38,6 +38,10 @@ Google Play and the Google Play logo are trademarks of Google Inc.
 
 Continue after the username check to choose **Share My Location** or **Not Now**. Both send a friend request to a current Amidst client. **Not Now** sends your optional profile photo and display name without a location grant, and the recipient sees that you are not sharing. Older Zood clients only understand requests that include a grant. Approving a request leaves your location sharing off. If either person chooses to share later, their location updates the existing friend card.
 
+### Live Requests with Zood and Amidst
+
+Refresh remains available when the other client omits device status, as original Zood does, or last reported Live Requests off. A legacy completion reply triggers a check for a newer encrypted location. The friend card waits up to 30 seconds and retains the previous location and timestamp if no update arrives.
+
 ### Editing names
 
 Tap a nickname on a friend card or in Account, or tap an open folder’s title to edit it in place. The friend-card pencil and Rename Folder menu action do the same thing. Names wrap as you type, and the folder widens within the screen margins. Use the green checkmark to save or the yellow × to discard the draft. Tapping outside the editor or pressing Back with the keyboard closed also discards the draft. A friend’s editor starts with the name on their card. The card and the bottom bar move above the keyboard, and an offscreen friend tile scrolls into view to show the draft name and any initials. Tap a friend’s tile again to close their card. Tap a folder name or choose Rename Folder to open the keyboard. The folder title is vertically centered with its menu button, and its bottom-bar label previews the draft. In Settings, About opens Notices & Trademarks and displays the installed version at the top.

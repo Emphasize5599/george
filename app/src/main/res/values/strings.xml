@@ -249,7 +249,7 @@
     <string name="updated">Updated</string>
     <string name="requesting_ellipsis">Requesting…</string>
     <string name="getting_their_location_ellipsis">Getting their location…</string>
-    <string name="no_response">No response</string>
+    <string name="no_new_location">No new location received</string>
     <string name="updated_moments_ago">They updated moments ago</string>
     <string name="refresh_location">Refresh location</string>
     <string name="open_address_in_maps">Open address in Maps</string>
@@ -266,7 +266,7 @@
     <string name="loading_contacts">Loading contacts…</string>
     <string name="no_contacts_found">No contacts</string>
     <string name="no_contacts_app">No contacts app is available.</string>
-    <string name="on_demand_refresh_unsupported">On-demand refresh unsupported</string>
+    <string name="on_demand_refresh_unsupported">On-demand refresh temporarily unavailable</string>
     <string name="linked_contact_toast">Linked to %s</string>
     <string name="bar_add">Add</string>
     <string name="bar_requests">Requests</string>
@@ -330,7 +330,7 @@
     <string name="confirm_share_own_location">Share your location?</string>
     <string name="continue_friend_request">Continue</string>
     <string name="friend_request_not_now">Not now</string>
-    <string name="friend_request_sharing_choice">Send a friend request to %s with or without sharing your location.</string>
+    <string name="friend_request_sharing_choice">Send a friend request to %s. If you choose Not now, they need a compatible version of Amidst to see the request.</string>
     <string name="friend_request_no_location">Not sharing their location with you</string>
     <string name="confirm_share_with">Allow %s to see your location.</string>
     <string name="share_my_location_action">Share My Location</string>

@@ -234,7 +234,7 @@ public class LayoutTourActivity extends AppCompatActivity {
         FriendDevices.record(this, friend.user.userId, capability);
         if (scene.equals("friend-unsupported")) DeviceStatusProbe.onStatusReceived(friend.user.userId, false);
         if (scene.equals("friend-requesting")) {
-            UpdateStatusTracker.setLastRequestTime(friend.id, System.currentTimeMillis());
+            UpdateStatusTracker.startRequest(friend.id);
         }
 
         ConstraintLayout panel = root.findViewById(R.id.info_panel);
@@ -245,7 +245,7 @@ public class LayoutTourActivity extends AppCompatActivity {
                 viewModel.setNicknameDraft(friendId, draft);
             }
             @Override public void onInfoPanelLocationRequested(@NonNull FriendRecord f) {
-                UpdateStatusTracker.setLastRequestTime(f.id, System.currentTimeMillis());
+                UpdateStatusTracker.startRequest(f.id);
             }
             @Override public void onInfoPanelRemoveFriend(@NonNull FriendRecord f) {}
             @Override public void onInfoPanelOpenInMaps(@NonNull String displayName, @NonNull FriendLocation l) {}

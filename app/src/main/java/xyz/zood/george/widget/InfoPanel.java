@@ -129,7 +129,6 @@ public class InfoPanel {
     // Set by applyRequestCapability(): the friend's phone has said it can't answer Refresh requests,
     // and whether we're still re-checking that before saying so.
     private boolean requestsUnsupported;
-    private boolean checkingSupport;
     // The last text shown in the status row, so a change can fade in instead of snapping.
     @Nullable private CharSequence lastStatus;
 
@@ -271,11 +270,10 @@ public class InfoPanel {
 
     @UiThread
     private void updateRefreshButton() {
-        setRefreshShown(View.VISIBLE);
-        if (applyRequestCapability()) {
-            return;
-        }
-        refreshButton.setEnabled(true);
+        applyRequestCapability();
+        boolean sharing = currFriend != null && currFriend.receivingBoxId != null;
+        setRefreshShown(sharing ? View.VISIBLE : View.INVISIBLE);
+        refreshButton.setEnabled(sharing && !UpdateStatusTracker.isPending(currFriend.id));
     }
 
     // region Status row
@@ -304,17 +302,7 @@ public class InfoPanel {
         boolean justUpdated = state == UpdateStatusTracker.State.RequestFulfilled
                 && answeredAt != null && now - answeredAt < UPDATED_CHECK_DURATION;
 
-        if (requestsUnsupported) {
-            String update = currLoc == null ? "" : updatedText(currLoc.time, now);
-            if (checkingSupport) {
-                String checking = context.getString(R.string.checking_ellipsis);
-                text = update.isEmpty() ? checking : update + "\n" + checking;
-            } else {
-                text = update;
-                showInfo = true;
-            }
-            color = R.color.text_secondary;
-        } else if (justUpdated) {
+        if (justUpdated) {
             text = context.getString(R.string.updated);
             showCheck = true;
             color = R.color.zood_green;
@@ -330,10 +318,14 @@ public class InfoPanel {
         } else if (state == UpdateStatusTracker.State.RequestAcknowledged) {
             text = context.getString(R.string.getting_their_location_ellipsis);
         } else if (state == UpdateStatusTracker.State.RequestedAndUnresponsive) {
-            text = context.getString(R.string.no_response);
+            String noUpdate = context.getString(R.string.no_new_location);
+            text = currLoc == null ? noUpdate : noUpdate + "\n" + updatedText(currLoc.time, now);
             color = R.color.zood_orange;
         } else if (state == UpdateStatusTracker.State.RequestDenied) {
-            text = context.getString(R.string.updated_moments_ago);
+            text = currLoc == null ? context.getString(R.string.no_new_location) : updatedText(currLoc.time, now);
+        } else if (requestsUnsupported) {
+            text = currLoc == null ? "" : updatedText(currLoc.time, now);
+            showInfo = true;
         } else if (currLoc != null) {
             text = updatedText(currLoc.time, now);
         } else {
@@ -620,13 +612,9 @@ public class InfoPanel {
         return Math.round(value * context.getResources().getDisplayMetrics().density);
     }
 
-    /**
-     * Grays out Refresh and shows "Unsupported (?)" when the friend's phone has told us it can't answer
-     * location requests (an iPhone, or a fork user, with Live Requests off).
-     * @return true if requests are unsupported for the current friend.
-     */
+    /** Refresh stays available when the other device reports a limitation. */
     @UiThread
-    private boolean applyRequestCapability() {
+    private void applyRequestCapability() {
         FriendRecord friend = currFriend;
         FriendDevices.Device device = friend == null ? null : FriendDevices.get(context, friend.user.userId);
         platformIcon.setVisibility(device == null || device.platform == null ? View.GONE : View.VISIBLE);
@@ -637,22 +625,13 @@ public class InfoPanel {
         boolean reportedUnavailable = friend != null && friend.receivingBoxId != null
                 && device != null && device.cannotAnswerRequests();
         if (reportedUnavailable) DeviceStatusProbe.probeIfNeeded(context, friend);
-        checkingSupport = reportedUnavailable && DeviceStatusProbe.isProbing(friend.user.userId);
-        // Unsupported when their phone recently said Live Requests is off, or a check just confirmed it.
-        // An old "off" report is re-checked first, since they may have turned it back on.
-        requestsUnsupported = reportedUnavailable
-                && (device.recentlyReportedOff() || checkingSupport || DeviceStatusProbe.isConfirmedUnavailable(friend.user.userId));
-        if (requestsUnsupported && device.recentlyReportedOff()) checkingSupport = false;
-        if (!requestsUnsupported) {
+        requestsUnsupported = reportedUnavailable && DeviceStatusProbe.isConfirmedUnavailable(friend.user.userId);
+        if (requestsUnsupported) {
+            @StringRes int body = device.isIPhone() ? R.string.unsupported_iphone_body : R.string.unsupported_android_body;
+            refreshHelpBody = context.getString(body, xyz.zood.george.Nicknames.displayName(friend.user));
+        } else {
             dismissRefreshHelp();
-            return false;
         }
-        refreshButton.setEnabled(false);
-        setRefreshShown(View.GONE);  // condensed: no room kept for a button that can't be used
-        if (checkingSupport) dismissRefreshHelp();
-        @StringRes int body = device.isIPhone() ? R.string.unsupported_iphone_body : R.string.unsupported_android_body;
-        refreshHelpBody = context.getString(body, xyz.zood.george.Nicknames.displayName(friend.user));
-        return true;
     }
 
     /** A friend's device status changed or a check finished: redraw Refresh / Unsupported for the open friend. */
@@ -663,12 +642,7 @@ public class InfoPanel {
             if (friend == null || !java.util.Arrays.equals(friend.user.userId, userId)) {
                 return;
             }
-            if (currLoc != null) {
-                updateRefreshButton();
-            } else if (!applyRequestCapability()) {
-                refreshButton.setEnabled(friend.receivingBoxId != null);
-                setRefreshShown(friend.receivingBoxId != null ? View.VISIBLE : View.INVISIBLE);
-            }
+            updateRefreshButton();
             updateStatusRow(System.currentTimeMillis());
         }
     };
@@ -676,9 +650,7 @@ public class InfoPanel {
     @UiThread
     private void onRefreshClicked() {
         final FriendRecord friend = getFriend();
-        if (friend == null) {
-            return;
-        }
+        if (friend == null || friend.receivingBoxId == null || UpdateStatusTracker.isPending(friend.id)) return;
         listener.onInfoPanelLocationRequested(friend);
     }
 
@@ -722,9 +694,8 @@ public class InfoPanel {
         // If we don't have location info yet (from a new friend)
         if (loc == null) {
             setAddressMessage(R.string.waiting_for_location_ellipsis);
-            setRefreshShown(View.VISIBLE);
-            refreshButton.setEnabled(!applyRequestCapability());
-            updateStatusRow(System.currentTimeMillis());
+            updateRefreshButton();
+            updateRefreshProgressBarState(friend.id);
             bearing.setVisibility(View.GONE);
             motion.setVisibility(View.GONE);
             battery.setVisibility(View.INVISIBLE);
@@ -894,14 +865,6 @@ public class InfoPanel {
                 vis = View.VISIBLE;
                 colorId = R.color.zood_canary;
                 break;
-            case RequestedAndUnresponsive:
-                vis = View.VISIBLE;
-                colorId = R.color.inactive;
-                break;
-            case RequestDenied:
-                vis = View.VISIBLE;
-                colorId = R.color.zood_red;
-                break;
             case RequestAcknowledged:
                 vis = View.VISIBLE;
                 colorId = R.color.zood_blue;
@@ -919,6 +882,7 @@ public class InfoPanel {
         }
         refreshProgressBar.setVisibility(vis);
         if (currFriend != null && currFriend.id == friendId) {
+            updateRefreshButton();
             updateStatusRow(System.currentTimeMillis());
         }
     }

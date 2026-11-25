@@ -210,7 +210,7 @@ public final class FriendRequests {
         }
     }
 
-    private static void fetchLatestIfSignedIn(UserRecord user, byte[] boxId) {
+    public static void fetchLatestIfSignedIn(UserRecord user, byte[] boxId) {
         String token = Prefs.get(App.getApp()).getAccessToken();
         if (token != null) App.runInBackground(() -> fetchLatest(user, boxId, token));
     }
@@ -228,7 +228,7 @@ public final class FriendRequests {
                 }
             }
         } catch (IOException error) {
-            L.w("Unable to fetch the first approved location", error);
+            L.w("Unable to fetch the latest shared location", error);
         }
     }
 
