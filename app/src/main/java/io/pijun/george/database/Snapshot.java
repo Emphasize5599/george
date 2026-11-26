@@ -57,6 +57,7 @@ public class Snapshot {
 
     @Nullable
     public ArrayList<Invite> invites;
+    @Nullable public xyz.zood.george.AccountPreferences preferences;
 
     // Family Locator: friend bar folders and order.
     public static class Folder {

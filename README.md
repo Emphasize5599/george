@@ -42,7 +42,7 @@ A one-time link connects the first recipient whose confirmation is processed by 
 
 After location setup, Amidst can ask for optional Contacts access if an already-linked Android contact needs its photo restored. Photos are read from the linked cards on the device and stay there.
 
-**Share with new friends** starts off. Enable it in onboarding or Settings to share when you explicitly approve a request or someone redeems a one-time link you created with sharing on. Existing friends keep their current settings. You can turn sharing off separately from each friend's card. Invite a Friend opens a screen where you can choose a one-time link or a download link without your username.
+**Share with new friends** and **Live Requests** start on unless an existing preference says otherwise. Both can be changed in Location setup. These choices, folder grid size, and onboarding completion are saved in the encrypted account backup. Appearance stays on the device. Enable it in onboarding or Settings to share when you explicitly approve a request or someone redeems a one-time link you created with sharing on. Existing friends keep their current settings. You can turn sharing off separately from each friend's card. Invite a Friend opens a screen where you can choose a one-time link or a download link without your username.
 
 ### Live Requests with Zood and Amidst
 

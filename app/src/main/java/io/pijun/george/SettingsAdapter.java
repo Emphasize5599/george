@@ -26,7 +26,6 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     private static final int NOTIFICATIONS = 8;
     private static final int PRIVACY_POLICY = 9;
     private static final int THEME = 10;
-    private static final int LIVE_REQUESTS = 11;
     private static final int FOLDER_GRID = 13;
     private static final int DEFAULT_SHARING = 14;
 
@@ -177,40 +176,17 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             }
             case DEFAULT_SHARING: {
                 SettingsListItemViewHolder h = (SettingsListItemViewHolder) holder;
-                boolean enabled = xyz.zood.george.NewFriendSharing.isEnabled(h.textView.getContext());
-                h.textView.setText(enabled ? R.string.share_with_new_friends_on : R.string.share_with_new_friends_off);
+                h.textView.setText(R.string.location_setup);
                 h.textView.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_my_location_black_24dp, 0, 0, 0);
                 h.textView.setOnClickListener(view -> listener.onDefaultSharingAction());
-                break;
-            }
-            case LIVE_REQUESTS: {
-                SettingsListItemViewHolder h = (SettingsListItemViewHolder) holder;
-                boolean on = xyz.zood.george.service.LiveRequestService.isEnabled(h.textView.getContext());
-                h.textView.setText(on ? R.string.live_requests_on : R.string.live_requests_off);
-                h.textView.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        listener.onLiveRequestsAction();
-                    }
-                });
-                h.textView.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                        R.drawable.ic_position_service,
-                        0,
-                        0,
-                        0);
                 break;
             }
         }
     }
     //endregion
 
-    void refreshLocationItems() {
-        notifyDataSetChanged();
-    }
-
     private void rebuildRecycler() {
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, DEFAULT_SHARING));
-        adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, LIVE_REQUESTS));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, THEME));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, FOLDER_GRID));
         adapterItems.add(new RecyclerViewAdapterItem(R.layout.settings_list_item, PRIVACY_POLICY));
@@ -223,7 +199,6 @@ public class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         @UiThread void onFolderGridAction();
         @UiThread void onDefaultSharingAction();
         @UiThread void onInviteFriendAction();
-        @UiThread void onLiveRequestsAction();
         @UiThread void onLogOutAction();
         @UiThread void onNotificationsClicked();
         @UiThread void onPrivacyPolicyClicked();

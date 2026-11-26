@@ -22,7 +22,6 @@ import com.squareup.picasso.Picasso;
 import java.io.File;
 
 import xyz.zood.george.AvatarManager;
-import xyz.zood.george.BatterySettings;
 import xyz.zood.george.FriendshipManager;
 import xyz.zood.george.FriendBarFragment;
 import xyz.zood.george.NoticesFragment;
@@ -173,33 +172,16 @@ public class SettingsFragment extends Fragment implements SettingsAdapter.Listen
     @Override
     public void onDefaultSharingAction() {
         Context context = requireContext();
-        boolean on = NewFriendSharing.isEnabled(context);
         new MaterialAlertDialogBuilder(context)
-                .setTitle(R.string.share_with_new_friends)
-                .setMessage(R.string.share_with_new_friends_explanation)
-                .setPositiveButton(on ? R.string.turn_off : R.string.turn_on, (dialog, which) -> {
-                    NewFriendSharing.setEnabled(context, !on);
-                    adapter.refreshLocationItems();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
-    }
-
-    @Override
-    public void onLiveRequestsAction() {
-        Context ctx = requireContext();
-        boolean on = LiveRequestService.isEnabled(ctx);
-        new MaterialAlertDialogBuilder(ctx)
-                .setTitle(R.string.live_requests)
-                .setMessage(R.string.live_requests_dialog_message)
-                .setPositiveButton(on ? R.string.turn_off : R.string.turn_on, (dialog, which) -> {
-                    LiveRequestService.setEnabled(ctx, !on);
-                    adapter.refreshLocationItems();
-                    if (!on) {
-                        BatterySettings.requestUnrestrictedUsage(ctx);
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, null)
+                .setTitle(R.string.location_setup)
+                .setMultiChoiceItems(new String[]{
+                        getString(R.string.share_with_new_friends), getString(R.string.live_requests)
+                }, new boolean[]{NewFriendSharing.isEnabled(context), LiveRequestService.isEnabled(context)},
+                        (dialog, which, checked) -> {
+                            if (which == 0) NewFriendSharing.setEnabled(context, checked);
+                            else LiveRequestService.setEnabled(context, checked);
+                        })
+                .setPositiveButton(android.R.string.ok, null)
                 .show();
     }
 

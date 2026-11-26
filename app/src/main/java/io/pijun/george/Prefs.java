@@ -67,7 +67,8 @@ public class Prefs {
 
     @AnyThread
     void clearAll() {
-        mPrefs.edit().clear().apply();
+        int appearance = getNightMode();
+        mPrefs.edit().clear().putInt(KEY_NIGHT_MODE, appearance).apply();
     }
 
     @Nullable

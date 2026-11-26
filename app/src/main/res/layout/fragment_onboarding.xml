@@ -52,6 +52,17 @@
         android:background="@drawable/page_indicator"
         android:backgroundTint="@color/divider"
         app:layout_constraintStart_toEndOf="@id/indicator_3"
+        app:layout_constraintEnd_toStartOf="@id/indicator_5"
+        app:layout_constraintTop_toTopOf="@id/button"
+        app:layout_constraintBottom_toBottomOf="@id/button"
+        android:layout_margin="8dp"
+        android:layout_width="8dp"
+        android:layout_height="8dp" />
+    <View
+        android:id="@+id/indicator_5"
+        android:background="@drawable/page_indicator"
+        android:backgroundTint="@color/divider"
+        app:layout_constraintStart_toEndOf="@id/indicator_4"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@id/button"
         app:layout_constraintBottom_toBottomOf="@id/button"

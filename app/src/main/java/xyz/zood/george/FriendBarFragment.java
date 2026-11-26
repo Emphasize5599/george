@@ -187,11 +187,16 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
     }
 
     static int gridSize(Context context, int axis) {
+        var preferences = AccountPreferences.get(context);
+        Integer value = axis == 0 ? preferences.folderColumns : preferences.folderRows;
+        return value == null ? 3 : Math.max(2, Math.min(GRID_MAX[axis], value));
+    }
+
+    static int legacyGridSize(Context context, int axis) {
         return context.getSharedPreferences("folder_grid", Context.MODE_PRIVATE).getInt(GRID_KEYS[axis], 3);
     }
 
     public static void chooseGridSize(Context context) {
-        var preferences = context.getSharedPreferences("folder_grid", Context.MODE_PRIVATE);
         new MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.friend_folder_grid)
                 .setItems(new String[]{
@@ -203,7 +208,10 @@ public class FriendBarFragment extends Fragment implements DB.Listener, AvatarMa
                             new MaterialAlertDialogBuilder(context)
                                     .setTitle(axis == 0 ? R.string.folder_columns : R.string.folder_rows)
                                     .setSingleChoiceItems(values, gridSize(context, axis) - 2, (choice, selected) -> {
-                                        preferences.edit().putInt(GRID_KEYS[axis], selected + 2).apply();
+                                        AccountPreferences.update(context, preferences -> {
+                                            if (axis == 0) preferences.folderColumns = selected + 2;
+                                            else preferences.folderRows = selected + 2;
+                                        });
                                         choice.dismiss();
                                     })
                                     .setNegativeButton(android.R.string.cancel, null)

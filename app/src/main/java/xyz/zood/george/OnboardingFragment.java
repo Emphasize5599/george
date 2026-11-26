@@ -1,6 +1,7 @@
 package xyz.zood.george;
 
 import android.os.Bundle;
+import android.content.Context;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -37,12 +38,15 @@ public class OnboardingFragment extends Fragment {
     private FragmentOnboardingBinding binding;
     private String accessToken;
     private KeyPair keyPair;
+    private int appearance;
+    private CentralParkPreview preview;
 
     @DrawableRes
     private final int[] slideImageIds = new int[]{
             R.drawable.onboarding_add_friends,
             R.drawable.onboarding_share_location,
             R.drawable.onboarding_safe_secure,
+            0,
             R.drawable.onboarding_permission,
     };
 
@@ -50,13 +54,15 @@ public class OnboardingFragment extends Fragment {
             R.string.onboarding_title_1,
             R.string.onboarding_title_2,
             R.string.onboarding_title_3,
-            R.string.onboarding_title_4,
+            R.string.onboarding_appearance,
+            R.string.location_setup,
     };
 
     private final int[] slideBodyIds = new int[]{
             R.string.onboarding_body_1,
             R.string.onboarding_body_2,
             R.string.onboarding_body_3,
+            R.string.onboarding_appearance_body,
             R.string.onboarding_body_4,
     };
 
@@ -76,6 +82,8 @@ public class OnboardingFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        appearance = savedInstanceState == null ? Prefs.get(requireContext()).getNightMode()
+                : savedInstanceState.getInt("onboarding_appearance");
 
         Bundle args = getArguments();
         if (args == null) {
@@ -104,10 +112,12 @@ public class OnboardingFragment extends Fragment {
                 onButtonClicked();
             }
         });
+        itemIndicators.clear();
         itemIndicators.add(binding.indicator1);
         itemIndicators.add(binding.indicator2);
         itemIndicators.add(binding.indicator3);
         itemIndicators.add(binding.indicator4);
+        itemIndicators.add(binding.indicator5);
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (v, insets) -> {
             int navBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
@@ -135,7 +145,8 @@ public class OnboardingFragment extends Fragment {
     }
 
     private void showMain() {
-        Prefs.get(requireContext()).setShownOnboarding();
+        AccountPreferences.update(requireContext(), preferences -> preferences.completedOnboarding = true);
+        Prefs.get(requireContext()).setNightMode(appearance);
 
         MainFragment fragment = MainFragment.newInstance(accessToken, keyPair);
         FragmentManager mgr = getParentFragmentManager();
@@ -146,6 +157,42 @@ public class OnboardingFragment extends Fragment {
                         R.animator.new_exit_to_right)
                 .replace(R.id.fragment_host, fragment)
                 .commit();
+        io.pijun.george.App.applyNightMode(appearance);
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putInt("onboarding_appearance", appearance);
+    }
+
+    @Override
+    public void onDestroyView() {
+        binding.viewPager.unregisterOnPageChangeCallback(pageChangeListener);
+        binding = null;
+        preview = null;
+        itemIndicators.clear();
+        super.onDestroyView();
+    }
+
+    private void bindAppearance(OnboardingSlideViewHolder holder) {
+        Context context = holder.itemView.getContext();
+        if (preview == null) {
+            preview = new CentralParkPreview(context, getViewLifecycleOwner());
+        }
+        if (preview.getParent() instanceof ViewGroup) ((ViewGroup) preview.getParent()).removeView(preview);
+        holder.preview.addView(preview, new android.widget.FrameLayout.LayoutParams(-1, -1));
+        holder.appearanceChoices.setOnCheckedChangeListener(null);
+        holder.appearanceChoices.check(appearance == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+                ? R.id.appearance_dark : appearance == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+                ? R.id.appearance_light : R.id.appearance_system);
+        preview.setAppearance(appearance);
+        holder.appearanceChoices.setOnCheckedChangeListener((group, choice) -> {
+            if (choice == R.id.appearance_dark) appearance = androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES;
+            else if (choice == R.id.appearance_light) appearance = androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO;
+            else appearance = androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+            preview.setAppearance(appearance);
+        });
     }
 
     private class OnboardingAdapter extends RecyclerView.Adapter<OnboardingSlideViewHolder> {
@@ -158,6 +205,10 @@ public class OnboardingFragment extends Fragment {
         @Override
         public void onBindViewHolder(@NonNull OnboardingSlideViewHolder holder, int position) {
             holder.image.setImageResource(slideImageIds[position]);
+            holder.image.setVisibility(slideImageIds[position] == 0 ? View.GONE : View.VISIBLE);
+            boolean appearancePage = position == getLastSlideIndex() - 1;
+            holder.appearanceOption.setVisibility(appearancePage ? View.VISIBLE : View.GONE);
+            if (appearancePage) bindAppearance(holder);
             holder.title.setText(slideTitleIds[position]);
             holder.body.setText(slideBodyIds[position]);
             holder.sharingOption.setVisibility(position == getLastSlideIndex() ? View.VISIBLE : View.GONE);
@@ -165,6 +216,10 @@ public class OnboardingFragment extends Fragment {
             holder.defaultSharing.setChecked(NewFriendSharing.isEnabled(holder.itemView.getContext()));
             holder.defaultSharing.setOnCheckedChangeListener((button, checked) ->
                     NewFriendSharing.setEnabled(button.getContext(), checked));
+            holder.liveRequests.setOnCheckedChangeListener(null);
+            holder.liveRequests.setChecked(xyz.zood.george.service.LiveRequestService.isEnabled(holder.itemView.getContext()));
+            holder.liveRequests.setOnCheckedChangeListener((button, checked) ->
+                    xyz.zood.george.service.LiveRequestService.setEnabled(button.getContext(), checked));
         }
 
         @NonNull
@@ -183,6 +238,10 @@ public class OnboardingFragment extends Fragment {
         final TextView title;
         final TextView body;
         final View sharingOption;
+        final View appearanceOption;
+        final android.widget.FrameLayout preview;
+        final android.widget.RadioGroup appearanceChoices;
+        final com.google.android.material.materialswitch.MaterialSwitch liveRequests;
         final com.google.android.material.materialswitch.MaterialSwitch defaultSharing;
 
         OnboardingSlideViewHolder(@NonNull View itemView) {
@@ -191,6 +250,10 @@ public class OnboardingFragment extends Fragment {
             this.image = itemView.findViewById(R.id.image);
             this.title = itemView.findViewById(R.id.title);
             this.body = itemView.findViewById(R.id.body);
+            this.appearanceOption = itemView.findViewById(R.id.appearance_option);
+            this.preview = itemView.findViewById(R.id.preview_container);
+            this.appearanceChoices = itemView.findViewById(R.id.appearance_choices);
+            this.liveRequests = itemView.findViewById(R.id.live_requests_setting);
             this.sharingOption = itemView.findViewById(R.id.sharing_option);
             this.defaultSharing = itemView.findViewById(R.id.default_sharing);
         }
@@ -204,6 +267,7 @@ public class OnboardingFragment extends Fragment {
 
         @Override
         public void onPageSelected(int position) {
+            if (binding == null) return;
             if (position == getLastSlideIndex()) {
                 binding.button.setText(R.string.start);
             } else {

@@ -272,6 +272,7 @@ public class AuthenticationManager {
         prefs.setUserId(loginResponse.id);
         prefs.setUsername(username);
         prefs.setAccessToken(loginResponse.accessToken);
+        xyz.zood.george.AccountPreferences.restore(ctx, restoredSnapshot == null ? null : restoredSnapshot.preferences);
         // Restore account-scoped names only after the new account identity is installed.
         if (restoredSnapshot != null) {
             xyz.zood.george.Nicknames.restore(restoredSnapshot);

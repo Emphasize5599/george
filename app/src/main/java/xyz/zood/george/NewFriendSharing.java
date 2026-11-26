@@ -17,15 +17,11 @@ public final class NewFriendSharing {
     private NewFriendSharing() {}
 
     public static boolean isEnabled(Context context) {
-        byte[] account = Prefs.get(context).getUserId();
-        return account != null && context.getSharedPreferences("new_friend_sharing", Context.MODE_PRIVATE)
-                .getBoolean(Hex.toHexString(account), false);
+        return !Boolean.FALSE.equals(AccountPreferences.get(context).shareWithNewFriends);
     }
 
     public static void setEnabled(Context context, boolean enabled) {
-        byte[] account = Prefs.get(context).getUserId();
-        if (account != null) context.getSharedPreferences("new_friend_sharing", Context.MODE_PRIVATE)
-                .edit().putBoolean(Hex.toHexString(account), enabled).apply();
+        AccountPreferences.update(context, preferences -> preferences.shareWithNewFriends = enabled);
     }
 
     static void deleteForAccount(Context context, byte[] account) {

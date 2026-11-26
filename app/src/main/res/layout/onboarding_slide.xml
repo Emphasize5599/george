@@ -38,6 +38,33 @@
             tools:text="@string/onboarding_body_2" />
 
         <LinearLayout
+            android:id="@+id/appearance_option"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <FrameLayout
+                android:id="@+id/preview_container"
+                android:layout_width="match_parent"
+                android:layout_height="176dp"
+                android:layout_marginTop="12dp" />
+
+            <RadioGroup
+                android:id="@+id/appearance_choices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <RadioButton android:id="@+id/appearance_system" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:text="@string/appearance_system" />
+                <RadioButton android:id="@+id/appearance_light" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:text="@string/appearance_light" />
+                <RadioButton android:id="@+id/appearance_dark" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:text="@string/appearance_dark" />
+            </RadioGroup>
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/sharing_option"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -52,11 +79,18 @@
                 android:minHeight="48dp"
                 android:text="@string/share_with_new_friends" />
 
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/live_requests_setting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/live_requests" />
+
             <TextView
                 style="@style/Zood.Body2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/share_with_new_friends_explanation" />
+                android:text="@string/location_setup_explanation" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

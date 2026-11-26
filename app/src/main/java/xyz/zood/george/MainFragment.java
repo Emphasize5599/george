@@ -95,8 +95,8 @@ public class MainFragment extends Fragment implements OnMapReadyCallback, DB.Lis
 
     private static final String ARG_ACCESS_TOKEN = "access_token";
     private static final String ARG_KEY_PAIR = "key_pair";
-    private static final String LIGHT_MAP_STYLE = "https://www.zood.xyz/static/map-style.json";
-    private static final String DARK_MAP_STYLE = "https://www.zood.xyz/static/map-style-dark.json";
+    static final String LIGHT_MAP_STYLE = "https://www.zood.xyz/static/map-style.json";
+    static final String DARK_MAP_STYLE = "https://www.zood.xyz/static/map-style-dark.json";
 
     private String accessToken;
     private FragmentMainBinding binding;

@@ -186,6 +186,14 @@
     <string name="approve_shares_location">Approve &amp; share connects you and shares your location.</string>
     <string name="invite_choices_sharing_off">A one-time link connects the person who uses it. Without your username, the invite only shares the Amidst download page.</string>
     <string name="invite_choices_sharing_on">The person who uses your one-time link can see your location after connecting. Without your username, the invite only shares the Amidst download page.</string>
+    <string name="location_setup">Location setup</string>
+    <string name="location_setup_explanation">Share with new friends when you choose Approve &amp; share or someone uses a link you create with sharing on. Live Requests lets friends you already share with ask for a fresh location.</string>
+    <string name="onboarding_appearance">Appearance</string>
+    <string name="onboarding_appearance_body">Choose how the map and controls look on this phone.</string>
+    <string name="appearance_system">System</string>
+    <string name="appearance_light">Light</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="central_park_preview">Central Park map appearance preview</string>
     <string name="onboarding_title_1">Add friends</string>
     <string name="onboarding_title_2">Share location</string>
     <string name="onboarding_title_3">Safe and secure</string>
@@ -193,7 +201,7 @@
     <string name="onboarding_body_1">Invite your family and friends to Amidst, and build a list of the people you trust the most.</string>
     <string name="onboarding_body_2">Keep track of each other by sharing and requesting location with one another.</string>
     <string name="onboarding_body_3">Using end-to-end encryption your location is always protected, and not even the servers can see where you are.</string>
-    <string name="onboarding_body_4">Allow location access if you want to share with friends. Background access lets updates continue when Amidst isn’t open.</string>
+    <string name="onboarding_body_4">Choose how you share with new friends and respond to location requests. Location and background access are managed on this phone.</string>
     <string name="start">Start</string>
     <string name="safety_number">Safety number</string>
     <string name="need_background_location_permission">Need background location permission</string>

@@ -49,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
                 throw new RuntimeException("Key pair should not be null at this point");
             }
 
-            if (prefs.getShownOnboarding()) {
+            if (Boolean.TRUE.equals(AccountPreferences.get(this).completedOnboarding)) {
                 MainFragment fragment = MainFragment.newInstance(accessToken, keyPair);
                 FragmentManager fm = getSupportFragmentManager();
                 FragmentTransaction ft = fm.beginTransaction();

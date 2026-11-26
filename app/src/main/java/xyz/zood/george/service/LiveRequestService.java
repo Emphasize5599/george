@@ -8,7 +8,6 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.location.Location;
 import android.location.LocationManager;
@@ -58,8 +57,6 @@ public class LiveRequestService extends Service implements OscarSocket.Listener 
 
     private static final String CHANNEL_ID = "live_requests_01";
     private static final int NOTIFICATION_ID = 45;
-    private static final String PREFS_NAME = "family_locator";
-    private static final String KEY_ENABLED = "live_requests_enabled";
     private static final long FIX_TIMEOUT_MS = 30 * DateUtils.SECOND_IN_MILLIS;
 
     @Nullable private static volatile LiveRequestService instance;
@@ -83,13 +80,12 @@ public class LiveRequestService extends Service implements OscarSocket.Listener 
 
     @AnyThread
     public static boolean isEnabled(@NonNull Context ctx) {
-        return ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, true);
+        return !Boolean.FALSE.equals(xyz.zood.george.AccountPreferences.get(ctx).liveRequestsEnabled);
     }
 
     @AnyThread
     public static void setEnabled(@NonNull Context ctx, boolean enabled) {
-        SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        prefs.edit().putBoolean(KEY_ENABLED, enabled).apply();
+        xyz.zood.george.AccountPreferences.update(ctx, preferences -> preferences.liveRequestsEnabled = enabled);
         if (enabled) {
             startIfEnabled(ctx);
         } else {
